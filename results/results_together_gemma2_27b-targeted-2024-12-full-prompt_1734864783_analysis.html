@@ -1,0 +1,628 @@
+
+    <html>
+    <head>
+        <title>Results Analysis Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            h1, h2 { color: #333; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            tr:hover { background-color: #f5f5f5; }
+            pre { margin: 0; }
+        </style>
+    </head>
+    <body>
+        <h1>Results Analysis Report</h1>
+        <p><strong>Result File:</strong> results/results_together_gemma2_27b-targeted-2024-12-full-prompt_1734864783.jsonl</p>
+        <h2>General Statistics</h2>
+        <ul>
+            <li>Total Entries: 956</li>
+            <li>Successful Attacks: 705</li>
+            <li>Failed Attacks: 251</li>
+            <li>Errors: 0</li>
+            <li>Attack Success Rate: 73.74%</li>
+        </ul>
+        
+            <h2>Breakdown by Jailbreak Type</h2>
+            <table>
+                <tr>
+                    <th>Jailbreak_Type</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>academic</pre></td>
+                    <td>28</td>
+                    <td>24</td>
+                    <td>85.71%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>new-instructions</pre></td>
+                    <td>56</td>
+                    <td>44</td>
+                    <td>78.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>sorry</pre></td>
+                    <td>28</td>
+                    <td>22</td>
+                    <td>78.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>emergency</pre></td>
+                    <td>28</td>
+                    <td>22</td>
+                    <td>78.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>experimental</pre></td>
+                    <td>56</td>
+                    <td>44</td>
+                    <td>78.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>challenge</pre></td>
+                    <td>28</td>
+                    <td>22</td>
+                    <td>78.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>debug</pre></td>
+                    <td>56</td>
+                    <td>42</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>training</pre></td>
+                    <td>28</td>
+                    <td>21</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>test</pre></td>
+                    <td>140</td>
+                    <td>103</td>
+                    <td>73.57%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>errors</pre></td>
+                    <td>56</td>
+                    <td>41</td>
+                    <td>73.21%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>new-task</pre></td>
+                    <td>84</td>
+                    <td>61</td>
+                    <td>72.62%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>dan</pre></td>
+                    <td>112</td>
+                    <td>80</td>
+                    <td>71.43%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>dev</pre></td>
+                    <td>84</td>
+                    <td>60</td>
+                    <td>71.43%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>hidden-function</pre></td>
+                    <td>28</td>
+                    <td>20</td>
+                    <td>71.43%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>no-limits</pre></td>
+                    <td>56</td>
+                    <td>39</td>
+                    <td>69.64%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>ignore</pre></td>
+                    <td>84</td>
+                    <td>57</td>
+                    <td>67.86%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Instruction Type</h2>
+            <table>
+                <tr>
+                    <th>Instruction_Type</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>xss</pre></td>
+                    <td>272</td>
+                    <td>270</td>
+                    <td>99.26%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>data-exfil-markdown</pre></td>
+                    <td>136</td>
+                    <td>134</td>
+                    <td>98.53%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>translation</pre></td>
+                    <td>136</td>
+                    <td>111</td>
+                    <td>81.62%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>encoding</pre></td>
+                    <td>272</td>
+                    <td>142</td>
+                    <td>52.21%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>long-output</pre></td>
+                    <td>136</td>
+                    <td>45</td>
+                    <td>33.09%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Task Type</h2>
+            <table>
+                <tr>
+                    <th>Task_Type</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>summarization</pre></td>
+                    <td>476</td>
+                    <td>377</td>
+                    <td>79.20%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>qna</pre></td>
+                    <td>476</td>
+                    <td>325</td>
+                    <td>68.28%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Position</h2>
+            <table>
+                <tr>
+                    <th>Position</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>end</pre></td>
+                    <td>952</td>
+                    <td>702</td>
+                    <td>73.74%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Spotlighting Data Markers</h2>
+            <table>
+                <tr>
+                    <th>Spotlighting_Data_Markers</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>\nDOCUMENT\n</pre></td>
+                    <td>476</td>
+                    <td>355</td>
+                    <td>74.58%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>\n&lt;data&gt;\nDOCUMENT\n&lt;/data&gt;\n</pre></td>
+                    <td>476</td>
+                    <td>347</td>
+                    <td>72.90%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Injection Delimiters</h2>
+            <table>
+                <tr>
+                    <th>Injection_Delimiters</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>4</td>
+                    <td>3</td>
+                    <td>75.00%</td>
+                </tr>
+                
+                <tr>
+                    <td><pre>\nINJECTION_PAYLOAD\n</pre></td>
+                    <td>952</td>
+                    <td>702</td>
+                    <td>73.74%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Lang</h2>
+            <table>
+                <tr>
+                    <th>Lang</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>en</pre></td>
+                    <td>956</td>
+                    <td>705</td>
+                    <td>73.74%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Suffix Id</h2>
+            <table>
+                <tr>
+                    <th>Suffix_Id</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>956</td>
+                    <td>705</td>
+                    <td>73.74%</td>
+                </tr>
+                
+            </table>
+        
+            <h2>Breakdown by Plugin</h2>
+            <table>
+                <tr>
+                    <th>Plugin</th>
+                    <th>Total</th>
+                    <th>Successes</th>
+                    <th>Success Rate</th>
+                </tr>
+                
+                <tr>
+                    <td><pre>None</pre></td>
+                    <td>956</td>
+                    <td>705</td>
+                    <td>73.74%</td>
+                </tr>
+                
+            </table>
+        
+        <h2>Top 10 Most Successful Combinations</h2>
+        <table>
+            <tr>
+                <th>Jailbreak Type</th>
+                <th>Instruction Type</th>
+                <th>Language</th>
+                <th>Suffix ID</th>
+                <th>Plugin<th>
+                <th>Total</th>
+                <th>Successes</th>
+                <th>Success Rate</th>
+            </tr>
+            
+            <tr>
+                <td>new-instructions</td>
+                <td>data-exfil-markdown</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>8</td>
+                <td>8</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>new-instructions</td>
+                <td>xss</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>16</td>
+                <td>16</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>new-instructions</td>
+                <td>translation</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>8</td>
+                <td>8</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>sorry</td>
+                <td>data-exfil-markdown</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>4</td>
+                <td>4</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>sorry</td>
+                <td>xss</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>8</td>
+                <td>8</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>sorry</td>
+                <td>translation</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>4</td>
+                <td>4</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>dan</td>
+                <td>data-exfil-markdown</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>16</td>
+                <td>16</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>dan</td>
+                <td>xss</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>32</td>
+                <td>32</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>ignore</td>
+                <td>data-exfil-markdown</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>12</td>
+                <td>12</td>
+                <td>100.00%</td>
+            </tr>
+            
+            <tr>
+                <td>ignore</td>
+                <td>xss</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>24</td>
+                <td>24</td>
+                <td>100.00%</td>
+            </tr>
+            
+        </table>
+        <h2>Top 10 Least Successful Combinations</h2>
+        <table>
+            <tr>
+                <th>Jailbreak Type</th>
+                <th>Instruction Type</th>
+                <th>Language</th>
+                <th>Suffix ID</th>
+                <th>Plugin<th>
+                <th>Total</th>
+                <th>Successes</th>
+                <th>Success Rate</th>
+            </tr>
+            
+            <tr>
+                <td>ignore</td>
+                <td>encoding</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>24</td>
+                <td>11</td>
+                <td>45.83%</td>
+            </tr>
+            
+            <tr>
+                <td>test</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>20</td>
+                <td>8</td>
+                <td>40.00%</td>
+            </tr>
+            
+            <tr>
+                <td>dan</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>16</td>
+                <td>6</td>
+                <td>37.50%</td>
+            </tr>
+            
+            <tr>
+                <td>errors</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>8</td>
+                <td>2</td>
+                <td>25.00%</td>
+            </tr>
+            
+            <tr>
+                <td>debug</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>8</td>
+                <td>2</td>
+                <td>25.00%</td>
+            </tr>
+            
+            <tr>
+                <td>dev</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>12</td>
+                <td>3</td>
+                <td>25.00%</td>
+            </tr>
+            
+            <tr>
+                <td>hidden-function</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>4</td>
+                <td>1</td>
+                <td>25.00%</td>
+            </tr>
+            
+            <tr>
+                <td>new-task</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>12</td>
+                <td>2</td>
+                <td>16.67%</td>
+            </tr>
+            
+            <tr>
+                <td>ignore</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>12</td>
+                <td>1</td>
+                <td>8.33%</td>
+            </tr>
+            
+            <tr>
+                <td>training</td>
+                <td>long-output</td>
+                <td>en</td>
+                <td>None</td>
+                <td>None</td>
+                <td>4</td>
+                <td>0</td>
+                <td>0.00%</td>
+            </tr>
+            
+        </table>
+    </body>
+    </html>
+    

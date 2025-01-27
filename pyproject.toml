@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spikee"
+version = "0.1.0"
+description = "SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation"
+
+authors = [
+  { name="WithSecure Consulting", email="donato.capitella@withsecure.com" }
+]
+
+license = { text = "Apache-2.0" }
+
+dependencies = [
+  "tqdm",
+  "six",
+  "toml",
+  "openai",
+  "huggingface_hub",
+  "langchain",
+  "langchain_openai",
+  "langchain-google_genai",
+  "langchain-anthropic",
+  "langchain-together",
+  "langchain-groq",
+  "langchain-aws",
+  "langchain-huggingface",
+  "tabulate",
+  "jinja2",
+  "pandas",
+  "openpyxl",
+  "boto3",
+  "azure-ai-inference",
+  "python-dotenv"
+]
+
+[project.scripts]
+spikee = "spikee.cli:main"
+
+[tool.setuptools.package-data]
+"spikee" = ["data/**/*"]
+
+[tool.setuptools.packages.find]
+include = ["spikee*"]
+exclude = ["datasets*", "results*", "targets*", "plugins*"]
