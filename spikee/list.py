@@ -59,6 +59,29 @@ def list_datasets(args):
         print("\n[datasets] No JSONL files found at top-level of './datasets/'.")
 
 
+def list_judges(args):
+    """
+    Lists all local .py files under ./judges (top-level only),
+    then also shows built-in judges from spikee.judges
+    (excluding __init__.py).
+    """
+    # 3a) Local
+    targets_dir = Path(os.getcwd(), "judges")
+    if targets_dir.is_dir():
+        py_files = _py_files_in_dir(targets_dir)
+        if py_files:
+            print("\n[judges] Local targets in './judges/':")
+            for t in py_files:
+                print(f" - {t}")
+        else:
+            print("\n[judges] No local target files found in './judges/'.")
+    else:
+        print("\n[judges] No local 'judges/' folder found.")
+
+    # 3b) Built-in
+    print("\n[judges] Built-in judges in spikee.judges:")
+    _print_builtin_modules("spikee.judges")
+
 #
 # 3) Targets: local + built-in
 #

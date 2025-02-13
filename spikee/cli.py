@@ -11,7 +11,7 @@ from pathlib import Path
 from .generator import generate_dataset
 from .tester import test_dataset
 from .results import analyze_results, convert_results_to_excel
-from .list import list_seeds, list_datasets, list_targets, list_plugins
+from .list import list_seeds, list_datasets, list_judges, list_targets, list_plugins
 
 import importlib.resources  
 
@@ -89,6 +89,10 @@ def main():
                              help='Path to a results JSONL file to resume from')
     parser_test.add_argument('--throttle', type=float, default=0,
                              help='Time in seconds to wait between requests per thread')
+    parser_test.add_argument('--adaptive-attack', default=None,
+                             help='Name of the adaptive plugin (e.g. random_scramble)')
+    parser_test.add_argument('--adaptive-attack-iterations', type=int, default=100,
+                             help='Number of adaptive transform attempts per dataset entry')
 
     # === [RESULTS] Sub-command ================================================
     parser_results = subparsers.add_parser('results', help='Analyze or convert results')
@@ -114,9 +118,9 @@ def main():
 
     parser_list_seeds = list_subparsers.add_parser('seeds', help='List available seed folders')
     parser_list_datasets = list_subparsers.add_parser('datasets', help='List available dataset .jsonl files')
+    parser_list_judges = list_subparsers.add_parser('judges', help='List available judes')
     parser_list_targets = list_subparsers.add_parser('targets', help='List available targets')
     parser_list_plugins = list_subparsers.add_parser('plugins', help='List available plugins')
-
 
     args = parser.parse_args()
 
@@ -139,6 +143,8 @@ def main():
             list_seeds(args)
         elif args.list_command == 'datasets':
             list_datasets(args)
+        elif args.list_command == 'judges':
+            list_judges(args)
         elif args.list_command == 'targets':
             list_targets(args)
         elif args.list_command == 'plugins':
