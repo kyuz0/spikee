@@ -7,7 +7,7 @@ load_dotenv()
 
 # Set up the AzureChatOpenAI client with configuration from environment variables
 llm = ChatGroq(
-    model="mixtral-8x7b-32768",
+    model="gemma2-9b-it",
     temperature=0,
     max_tokens=None,
     timeout=None,
