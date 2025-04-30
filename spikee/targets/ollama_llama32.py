@@ -1,14 +1,12 @@
 import os
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Set up the AzureChatOpenAI client with configuration from environment variables
-llm = ChatGroq(
-    model="gemma2-9b-it",
-    temperature=0,
+llm = ChatOllama(
+    model="llama3.2",
     max_tokens=None,
     timeout=None,
     max_retries=2,
@@ -16,9 +14,13 @@ llm = ChatGroq(
 
 def process_input(input_text, system_message=None):
     messages = []
+    # system message not supported by o1 models at this time
+    # so we just add the system message at the beginning
+    prompt = input_text
     if system_message:
-        messages.append(("system", system_message))
-    messages.append(("user", input_text))
+       prompt = f"{system_message}\n{input_text}"
+
+    messages.append(("user", prompt))
     
     try:
         ai_msg = llm.invoke(messages)

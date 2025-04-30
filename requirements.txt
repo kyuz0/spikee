@@ -11,6 +11,7 @@ langchain-together
 langchain-groq
 langchain-aws
 langchain-huggingface
+langchain-ollama
 tabulate
 jinja2
 pandas
