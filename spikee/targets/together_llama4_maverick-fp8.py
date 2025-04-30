@@ -1,12 +1,12 @@
 import os
-from langchain_openai import ChatOpenAI
+from langchain_together import ChatTogether
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
-llm = ChatOpenAI(
-    model="o1-preview",
+llm = ChatTogether(
+    model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    temperature=0,
     max_tokens=None,
     timeout=None,
     max_retries=2,
@@ -14,13 +14,9 @@ llm = ChatOpenAI(
 
 def process_input(input_text, system_message=None):
     messages = []
-    # system message not supported by o1 models at this time
-    # so we just add the system message at the beginning
-    prompt = input_text
     if system_message:
-       prompt = f"{system_message}\n{input_text}"
-
-    messages.append(("user", prompt))
+        messages.append(("system", system_message))
+    messages.append(("user", input_text))
     
     try:
         ai_msg = llm.invoke(messages)
@@ -28,4 +24,3 @@ def process_input(input_text, system_message=None):
     except Exception as e:
         print(f"Error during LLM completion: {e}")
         raise
-
