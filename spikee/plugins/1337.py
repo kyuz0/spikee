@@ -1,8 +1,46 @@
-def transform(text):
-    """Transforms the text into 1337 speak, ignoring URLs, markdown images, and HTML tags. 
-       Ref: https://mindgard.ai/blog/bypassing-azure-ai-content-safety-guardrails"""
-    import re
+"""
+1337 Plugin
 
+This plugin transforms the input text into "1337 speak" (leetspeak) by replacing 
+certain letters with numerals according to a fixed dictionary. Any substring that 
+exactly matches one of the user-supplied exclusion regex patterns (passed via the 
+exclude_patterns parameter) is left unchanged.
+
+Usage:
+    spikee generate --plugins 1337
+
+Reference:
+    https://mindgard.ai/blog/bypassing-azure-ai-content-safety-guardrails
+    
+Parameters:
+    text (str): The input text to be transformed.
+    exclude_patterns (List[str], optional): A list of regex patterns. Any substring 
+        that exactly matches one of these patterns will be preserved as-is.
+
+Returns:
+    str: The transformed text.
+"""
+
+from typing import List
+import re
+
+def transform(text: str, exclude_patterns: List[str] = None) -> str:
+    """
+    Transforms the input text into 1337 speak while preserving any substring that 
+    exactly matches one of the exclusion regex patterns.
+
+    If an exclusion list is provided, the plugin creates a compound regex by joining 
+    the patterns. It then splits the text using re.split() so that any substring that 
+    exactly matches one of the patterns is isolated and left unmodified. All other parts 
+    are transformed using the leet dictionary.
+
+    Args:
+        text (str): The input text.
+        exclude_patterns (List[str], optional): A list of regex patterns to exclude from transformation.
+
+    Returns:
+        str: The transformed text.
+    """
     leet_dict = {
         'A': '4', 'a': '4',
         'E': '3', 'e': '3',
@@ -15,28 +53,20 @@ def transform(text):
         'Z': '2', 'z': '2'
     }
 
-    # Regex patterns to match URLs, markdown images, and HTML tags
-    url_regex = r'https?://[^\s]+'
-    markdown_image_regex = r'!\[[^\]]*\]\([^\)]+\)'
-    html_tag_regex = r'<[^>]+>'
-    special_patterns_regex = r'(' + '|'.join([url_regex, markdown_image_regex, html_tag_regex]) + r')'
+    if exclude_patterns:
+        compound = "(" + "|".join(exclude_patterns) + ")"
+        compound_re = re.compile(compound)
+        chunks = re.split(compound, text)
+    else:
+        chunks = [text]
+        compound_re = None
 
-    # Split the text into chunks, including the special patterns
-    chunks = re.split(special_patterns_regex, text)
-
-    # Process each chunk
-    transformed_chunks = []
+    result_chunks = []
     for chunk in chunks:
-        if chunk is None or chunk == '':
-            continue
-        if re.fullmatch(special_patterns_regex, chunk):
-            # Special pattern, leave it as is
-            transformed_chunks.append(chunk)
+        if compound_re and compound_re.fullmatch(chunk):
+            # Leave excluded substrings untouched.
+            result_chunks.append(chunk)
         else:
-            # Transform the chunk
-            transformed_chunk = ''.join(leet_dict.get(c, c) for c in chunk)
-            transformed_chunks.append(transformed_chunk)
-
-    # Reconstruct the text
-    transformed_text = ''.join(transformed_chunks)
-    return transformed_text
+            transformed = "".join(leet_dict.get(c, c) for c in chunk)
+            result_chunks.append(transformed)
+    return "".join(result_chunks)

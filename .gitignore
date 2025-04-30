@@ -5,6 +5,13 @@ __pycache__
 TO-DO.txt
 build
 dist/
+<<<<<<< HEAD
 demo
 workspace
 *.egg-info
+=======
+*.egg-info
+/workspace
+demo
+llmwebmail-test
+>>>>>>> dynamic-attacks

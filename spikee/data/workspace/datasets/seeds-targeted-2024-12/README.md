@@ -70,7 +70,7 @@ You can also include spotlighting and adversarial suffixes to see if that has an
 $ spikee generate --standalone_attacks datasets/seeds-targeted-2024-12/standalone_attacks.jsonl --seed-folder datasets/seeds-targeted-2024-12 --spotlighting-data-markers $'\nDOCUMENT\n',$'\n<data>\nDOCUMENT\n</data>\n'
 
 W/SPIKE - Simple Prompt Injection Kit for Exploitation
-Author: WithSecure Consulting
+Author: Reversec
 
 Dataset generated and saved to datasets/seeds-targeted-2024-12.jsonl
 

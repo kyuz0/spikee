@@ -135,6 +135,28 @@ def list_plugins(args):
     print("\n[plugins] Built-in plugins in spikee.plugins:")
     _print_builtin_modules("spikee.plugins")
 
+def list_attacks(args):
+    """
+    Lists all local .py files under ./attacks (top-level only),
+    then also shows built-in attacks from spikee.attacks
+    (excluding __init__.py).
+    """
+    # 4a) Local
+    plugins_dir = Path(os.getcwd(), "attacks")
+    if plugins_dir.is_dir():
+        py_files = _py_files_in_dir(plugins_dir)
+        if py_files:
+            print("\n[attacks] Local attack scripts in './attacks/':")
+            for p in py_files:
+                print(f" - {p}")
+        else:
+            print("\n[attacks] No local plugin files found in './attacks/'.")
+    else:
+        print("\n[attacks] No local 'attacks/' folder found.")
+
+    # 4b) Built-in
+    print("\n[attacks] Built-in attacks in spikee.attacks:")
+    _print_builtin_modules("spikee.attacks")
 
 #
 # Internal Helper Functions

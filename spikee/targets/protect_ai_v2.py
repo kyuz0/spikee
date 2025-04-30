@@ -21,7 +21,8 @@ def detect_prompt_injection_result(data: list, threshold: float = 0.7):
 def process_input(input_text, system_message=None):
     try:
         attack_detected = detect_prompt_injection_result([input_text])
-        return attack_detected
+        # This needs to return False if the attack was detected, it means the attack failed, so success = False
+        return not attack_detected
     except Exception as e:
         # Re-raise the exception to be caught and logged by the tester
         raise e

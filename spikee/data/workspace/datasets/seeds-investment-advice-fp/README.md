@@ -1,0 +1,1 @@
+spikee generate --seed-folder datasets/seeds-investment-advice-fp --standalone-attacks datasets/seeds-investment-advice-fp/standalone_attacks.jsonl 

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spikee"
-version = "0.1.0"
+version = "0.2.0"
 description = "SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation"
 
 authors = [
-  { name="WithSecure Consulting", email="donato.capitella@withsecure.com" }
+  { name="Reversec", email="donato.capitella@reversec.com" }
 ]
 
 license = { text = "Apache-2.0" }
@@ -27,6 +27,7 @@ dependencies = [
   "toml",
   "openai",
   "huggingface_hub",
+  "datasets",
   "langchain",
   "langchain_openai",
   "langchain-google_genai",
@@ -41,7 +42,8 @@ dependencies = [
   "openpyxl",
   "boto3",
   "azure-ai-inference",
-  "python-dotenv"
+  "python-dotenv",
+  "azure-ai-contentsafety"
 ]
 
 [project.scripts]
@@ -52,4 +54,4 @@ spikee = "spikee.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["spikee*"]
-exclude = ["datasets*", "results*", "targets*", "plugins*"]
+exclude = ["datasets*", "results*", "targets*", "plugins*", "attacks*", "judges*"]

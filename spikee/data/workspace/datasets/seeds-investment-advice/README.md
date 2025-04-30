@@ -1,0 +1,1 @@
+spikee generate --seed-folder datasets/seeds-investment-advice --standalone-attacks datasets/seeds-investment-advice/standalone_attacks.jsonl --match-languages --format document

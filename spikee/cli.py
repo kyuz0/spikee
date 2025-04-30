@@ -1,17 +1,21 @@
 # spikee/cli.py
 
-import argparse
-import sys
+# At the top of cli.py, add these imports:
 import os
+import sys
 import shutil
 import time
+import argparse
 from dotenv import load_dotenv
 from pathlib import Path
+import importlib
+import pkgutil
+from typing import List
 
 from .generator import generate_dataset
 from .tester import test_dataset
 from .results import analyze_results, convert_results_to_excel
-from .list import list_seeds, list_datasets, list_judges, list_targets, list_plugins
+from .list import list_seeds, list_datasets, list_judges, list_targets, list_plugins, list_attacks
 
 import importlib.resources  
 
@@ -30,7 +34,8 @@ env_loaded = load_dotenv(dotenv_path=os.path.join(os.getcwd(), ".env"))
 def main():
     print(banner)
     print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
-    print("Author: WithSecure Consulting\n")
+    print("Version: 0.2\n")
+    print("Author: Reversec (reversec.com)\n")
 
     parser = argparse.ArgumentParser(
         description="SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation"
@@ -42,18 +47,21 @@ def main():
     parser_init = subparsers.add_parser('init', help='Initialize a local SPIKEE workspace')
     parser_init.add_argument('--force', action='store_true', 
                              help='Overwrite existing directories if they exist.')
+    parser_init.add_argument('--include-builtin', choices=['none', 'all', 'plugins', 'judges', 'targets', 'attacks'],
+                             default='none',
+                             help='Copy built-in modules to local workspace (default: none)')
 
     # === [GENERATE] Sub-command ===============================================
     parser_generate = subparsers.add_parser('generate', help='Generate a dataset')
-    parser_generate.add_argument('--seed-folder', default='seeds-mini-test',
+    parser_generate.add_argument('--seed-folder', default='datasets/seeds-mini-test',
                                  help='Name of seed folder in local "datasets/" or built-in package data')
     parser_generate.add_argument('--positions', nargs='+', default=['end'],
-                                 help='Positions to insert jailbreaks (start, middle, end)')
+                                 help='Positions to insert jailbreaks (start, middle, end). Ignored if the document entry contains a placeholder attribute.')
     parser_generate.add_argument('--injection-delimiters', default='\nINJECTION_PAYLOAD\n',
                                  help='Comma-separated list of patterns to use when injecting payloads')
     parser_generate.add_argument('--plugins', nargs='*', default=[],
                                  help='List of plugin names to modify the jailbreak+instruction text')
-    parser_generate.add_argument('--standalone_attacks', default=None,
+    parser_generate.add_argument('--standalone-attacks', default=None,
                                  help='Path to standalone_attacks.jsonl')
     parser_generate.add_argument('--format', choices=['full-prompt', 'document', 'burp'], 
                                  default='full-prompt', 
@@ -72,6 +80,8 @@ def main():
                                  help='Include advanced suffixes in the dataset generation')
     parser_generate.add_argument('--include-system-message', action='store_true',
                                  help='Include system message based on system_messages.toml')
+    parser_generate.add_argument('--tag', default=None,
+                                 help='Include a tag at the end of the generated dataset filename')
 
     # === [TEST] Sub-command ===================================================
     parser_test = subparsers.add_parser('test', help='Test the dataset against a target')
@@ -83,16 +93,18 @@ def main():
                              help='Number of threads for parallel processing')
     parser_test.add_argument('--attempts', type=int, default=1,
                              help='Number of attempts per payload (default: 1)')
-    parser_test.add_argument('--success-criteria', default='canary', choices=['canary', 'boolean'],
-                             help='Criteria to determine success (default: canary)')
+    parser_test.add_argument('--max-retries', type=int, default=3,
+                             help='Number of retries for failed requests due to API quotas/resources exhusted (default: 3)')
     parser_test.add_argument('--resume-file', type=str, default=None,
                              help='Path to a results JSONL file to resume from')
     parser_test.add_argument('--throttle', type=float, default=0,
                              help='Time in seconds to wait between requests per thread')
-    parser_test.add_argument('--adaptive-attack', default=None,
-                             help='Name of the adaptive plugin (e.g. random_scramble)')
-    parser_test.add_argument('--adaptive-attack-iterations', type=int, default=100,
-                             help='Number of adaptive transform attempts per dataset entry')
+    parser_test.add_argument('--attack', default=None,
+                             help='Name of the attack module (from the "attacks" folder) to use if standard attempts fail')
+    parser_test.add_argument('--attack-iterations', type=int, default=100,
+                             help='Number of attack iterations per dataset entry (if --attack is provided)')
+    parser_test.add_argument('--tag', default=None,
+                                 help='Include a tag at the end of the results filename')
 
     # === [RESULTS] Sub-command ================================================
     parser_results = subparsers.add_parser('results', help='Analyze or convert results')
@@ -103,6 +115,8 @@ def main():
     parser_analyze = subparsers_results.add_parser('analyze', help='Analyze the results JSONL file')
     parser_analyze.add_argument('--result-file', type=str, required=True,
                                 help='Path to the results JSONL file')
+    parser_analyze.add_argument('--false-positive-checks', type=str, default=None,
+                          help='Path to a JSONL file with benign prompts for false positive analysis')
     parser_analyze.add_argument('--output-format', choices=['console', 'html'], default='console',
                                 help='Output format: console (default) or html')
 
@@ -115,17 +129,17 @@ def main():
     # === [LIST] Sub-command ================================================
     parser_list = subparsers.add_parser('list', help='List seeds, datasets, targets, or plugins')
     list_subparsers = parser_list.add_subparsers(dest='list_command', help='What to list')
-
-    parser_list_seeds = list_subparsers.add_parser('seeds', help='List available seed folders')
-    parser_list_datasets = list_subparsers.add_parser('datasets', help='List available dataset .jsonl files')
-    parser_list_judges = list_subparsers.add_parser('judges', help='List available judes')
-    parser_list_targets = list_subparsers.add_parser('targets', help='List available targets')
-    parser_list_plugins = list_subparsers.add_parser('plugins', help='List available plugins')
+    list_subparsers.add_parser('seeds', help='List available seed folders')
+    list_subparsers.add_parser('datasets', help='List available dataset .jsonl files')
+    list_subparsers.add_parser('judges', help='List available judges')
+    list_subparsers.add_parser('targets', help='List available targets')
+    list_subparsers.add_parser('plugins', help='List available plugins')
+    list_subparsers.add_parser('attacks', help='List available attack scripts')
 
     args = parser.parse_args()
 
     if args.command == 'init':
-        init_workspace(force=args.force)  
+        init_workspace(force=args.force, include_builtin=args.include_builtin)
 
     elif args.command == 'generate':
         generate_dataset(args)  
@@ -149,17 +163,22 @@ def main():
             list_targets(args)
         elif args.list_command == 'plugins':
             list_plugins(args)
+        elif args.list_command == 'attacks':
+            list_attacks(args)
         else:
             parser_list.print_help()
     else:
         parser.print_help()
         sys.exit(1)
 
-def init_workspace(force=False):
+def init_workspace(force=False, include_builtin='none'):
     """
     Copy the entire 'data/workspace' directory from the installed package
     into the user's current working directory. This sets up the local spikee workspace
     (datasets, plugins, targets, env-example, etc.).
+    
+    If include_builtin is specified, also copy built-in modules to their respective
+    local directories for local modification.
     """
     cwd = Path(os.getcwd())
     workspace_dest = cwd  
@@ -192,3 +211,66 @@ def init_workspace(force=False):
             print(f"[init] Could not copy {item.name} to {destination}: {e}")
 
     print("[init] Local spikee workspace has been initialized.")
+    
+    # Handle copying built-in modules if requested
+    if include_builtin != 'none':
+        copy_builtin_modules(include_builtin, force)
+
+def copy_builtin_modules(include_option, force=False):
+    """
+    Copy built-in modules to local workspace based on the include_option.
+    Uses direct file operations without importing the modules.
+    """
+    import spikee
+    
+    # Get the path to the spikee package
+    spikee_path = Path(spikee.__file__).parent
+    
+    # Determine which module types to copy
+    if include_option == 'all':
+        module_types = ['plugins', 'judges', 'targets', 'attacks']
+    elif include_option in ['plugins', 'targets', 'attacks']:
+        module_types = [include_option]
+    else:
+        module_types = []
+    
+    for module_type in module_types:
+        try:
+            # Path to built-in modules
+            module_dir = spikee_path / module_type
+            
+            # Ensure the module directory exists in the package
+            if not module_dir.is_dir():
+                print(f"[init] Warning: Built-in {module_type} directory not found at {module_dir}")
+                continue
+                
+            # Ensure local directory exists
+            local_dir = Path(os.getcwd()) / module_type
+            os.makedirs(local_dir, exist_ok=True)
+            
+            # Copy each Python file (except __init__.py)
+            modules_copied = 0
+            for file_path in module_dir.glob("*.py"):
+                if file_path.name == "__init__.py":
+                    continue
+                    
+                dest_file = local_dir / file_path.name
+                
+                if dest_file.exists() and not force:
+                    print(f"[init] '{dest_file}' already exists. Use --force to overwrite.")
+                    continue
+                    
+                try:
+                    shutil.copy2(file_path, dest_file)
+                    modules_copied += 1
+                    print(f"[init] Copied built-in {module_type}/{file_path.name} to local workspace")
+                except Exception as e:
+                    print(f"[init] Error copying {module_type}/{file_path.name}: {e}")
+            
+            if modules_copied > 0:
+                print(f"[init] Copied {modules_copied} built-in {module_type} to local workspace")
+            else:
+                print(f"[init] No built-in {module_type} were copied")
+                
+        except Exception as e:
+            print(f"[init] Error processing {module_type}: {e}")
