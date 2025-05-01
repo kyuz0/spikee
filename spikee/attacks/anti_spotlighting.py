@@ -55,12 +55,21 @@ def attack(
         (iterations_attempted, success_flag, last_payload, last_response)
     """
     original_text = entry.get("text", "")
+    payload = entry.get("payload", None)
     system_message = entry.get("system_message", None)
     last_payload = original_text  # fallback if no transformation occurs
     last_response = ""
     
-    # Generate all variants at once
-    variants = _generate_variants(original_text)
+    # Generate all variants
+    if payload and payload in original_text:
+        # Generate variants just for the payload and substitute them in the original text
+        payload_variants = _generate_variants(payload)
+        variants = []
+        for payload_variant in payload_variants:
+            variants.append(original_text.replace(payload, payload_variant))
+    else:
+        # Otherwise transform the entire text
+        variants = _generate_variants(original_text)
     
     # If we have more variants than max_iterations, randomly sample
     if len(variants) > max_iterations:
