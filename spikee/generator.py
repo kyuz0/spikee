@@ -65,7 +65,7 @@ def read_toml(file_path):
         return toml.load(f)
 
 
-def get_system_message(system_message_config, spotlighting_data_marker):
+def get_system_message(system_message_config, spotlighting_data_marker=None):
     """
     Retrieves the appropriate system message from the system_message_config
     based on a given spotlighting data marker. Falls back to 'default' if no
@@ -528,7 +528,10 @@ def generate_variations(base_docs, jailbreaks, instructions, positions, injectio
                                         entry_id += 1
 
                                     elif output_format == 'document':
-                                        system_message = None
+                                        system_message = get_system_message(
+                                            system_message_config, spotlighting_data_marker
+                                        )
+
                                         doc_entry = _create_document_entry(
                                             entry_id, base_id, jailbreak_id, instruction_id,
                                             position, '', injected_doc, judge_name, judge_args, jailbreak_type,
@@ -600,9 +603,7 @@ def generate_variations(base_docs, jailbreaks, instructions, positions, injectio
                                                     entry_id += 1
 
                                                 elif output_format == 'document':
-                                                    system_message = get_system_message(
-                                                        system_message_config, spotlighting_data_marker
-                                                    )
+                                                    system_message = get_system_message(system_message_config)
                                                     doc_entry = _create_document_entry(
                                                         entry_id, base_id, jailbreak_id, instruction_id,
                                                         position, plugin_suffix, injected_doc, judge_name, judge_args,
