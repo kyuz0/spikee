@@ -12,7 +12,7 @@ Version: 0.2
 
 ```
 
-`spikee` is a tool for generating datasets and testing LLMs, guardrails, and application pipelines against prompt injection patterns. Version 0.2 introduces dynamic attacks and a flexible judge system for success evaluation.
+Developed by Reversec Labs, `spikee` (Simple Prompt Injection Kit for Evaluation and Exploitation) assesses the resilience of LLMs, guardrails, and application pipelines against known prompt injection and jailbreak patterns. Rather than simply asking *if* a system is vulnerable, `spikee` helps determine *how easily* it can be compromised, gauging whether standard, off-the-shelf techniques are sufficient or if novel attacks are necessary.
 
 ---
 
