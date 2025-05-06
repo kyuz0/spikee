@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spikee"
-version = "0.2.0"
-description = "SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation"
+version = "0.2.1"
+description = "Spikee - Simple Prompt Injection Kit for Evaluation and Exploitation"
 readme = "README.md"
 
 authors = [
@@ -36,7 +36,6 @@ dependencies = [
   "langchain-together",
   "langchain-groq",
   "langchain-aws",
-  "langchain-huggingface",
   "langchain-ollama",
   "tabulate",
   "jinja2",
@@ -47,6 +46,9 @@ dependencies = [
   "python-dotenv",
   "azure-ai-contentsafety"
 ]
+
+[project.optional-dependencies]
+huggingface = ["langchain-huggingface"]
 
 [project.scripts]
 spikee = "spikee.cli:main"
