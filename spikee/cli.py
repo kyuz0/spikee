@@ -34,7 +34,7 @@ env_loaded = load_dotenv(dotenv_path=os.path.join(os.getcwd(), ".env"))
 def main():
     print(banner)
     print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
-    print("Version: 0.2\n")
+    print("Version: 0.2.2\n")
     print("Author: Reversec (reversec.com)\n")
 
     parser = argparse.ArgumentParser(

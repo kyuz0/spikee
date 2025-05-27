@@ -1,6 +1,6 @@
 # spikee - Simple Prompt Injection Kit for Evaluation and Exploitation
 
-Version: 0.2
+Version: 0.2.2
 
 ```
    _____ _____ _____ _  ________ ______
