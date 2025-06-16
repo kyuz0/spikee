@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2025-06-16
+
+### Added
+
+* **Dataset Sampling for Testing:**
+    * Added `--sample <percentage>` flag to `spikee test` to randomly sample a subset of the dataset (e.g., `--sample 0.15` for 15%).
+    * Added `--sample-seed <value>` flag to control sampling reproducibility. Default: `42`. Use `"random"` for a random seed (printed to console).
+    * Sampling works correctly with `--resume-file`, maintaining the same sample set when resuming interrupted tests.
+    * Useful for testing with large datasets under time or API quota constraints.
+
+* **New Seed Datasets:**
+    * `seeds-in-the-wild-jailbreak-prompts`: Real-world jailbreak attempts from TrustAIRLab collected from Discord, Reddit, and other platforms (~1,400 prompts from December 2023). Includes fetch script to download from Hugging Face.
+    * `seeds-simsonsun-high-quality-jailbreaks`: Contamination-free jailbreak prompts curated to avoid overlap with training data of popular jailbreak classifiers. Includes two options: Dataset 1 (67 high-quality prompts) and Dataset 2 (2,359 broader coverage prompts). Supports `--dataset 2` flag in fetch script.
+
+### Fixed
+
+* Progress bars now correctly show previous progress when resuming a test with `--resume-file`, instead of starting from zero.
+
 ## [0.2.0] - 2025-04-28
 
 ### Added

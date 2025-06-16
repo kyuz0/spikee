@@ -111,6 +111,8 @@ spikee generate
 * `seeds-llm-mailbox`: Example seeds tailored for testing an email summarization feature (from the v0.1 tutorial).
 * `seeds-investment-advice`: Seeds containing prompts related to financial/investment advice, useful for testing topical guardrails. Includes benign prompts in `base_documents.jsonl` (for false positive checks) and attack prompts in `standalone_attacks.jsonl`.
 * `seeds-wildguardmix-harmful`: Seeds for testing harmful content generation. Requires running a fetch script to download the actual prompts from Hugging Face (see the `README.md` within that seed folder). Uses an LLM judge by default.
+* `seeds-in-the-wild-jailbreak-prompts`: Real-world jailbreak attempts collected from various platforms (Discord, Reddit, etc.) as of December 2023. Contains ~1,400 prompts filtered from the TrustAIRLab dataset. Requires running a fetch script to download prompts (see the seed folder's `README.md`). Uses an LLM judge by default.
+* `seeds-simsonsun-high-quality-jailbreaks`: Contamination-free jailbreak prompts specifically curated to avoid overlap with training data of popular jailbreak classifiers. Offers two datasets: Dataset 1 (67 high-quality prompts, default) and Dataset 2 (2,359 broader coverage prompts). Requires running a fetch script (see the seed folder's `README.md`).
 
 **Examples using Key Options:**
 
@@ -210,6 +212,29 @@ spikee test --dataset datasets/example.jsonl \
 **Success Determination (v0.2):**
 
 Success is now determined by **Judges**, specified via `judge_name` and `judge_args` in the dataset. The old `--success-criteria` flag is removed. See the Judges sub-guide for details.
+
+**Dataset Sampling:**
+
+For large datasets or when operating under time/quota constraints, you can test a random sample instead of the entire dataset:
+
+```bash
+# Test 15% of the dataset with default seed (42)
+spikee test --dataset datasets/large-dataset.jsonl \
+            --target openai_gpt4o \
+            --sample 0.15
+
+# Use a custom seed
+spikee test --dataset datasets/large-dataset.jsonl \
+            --target openai_gpt4o \
+            --sample 0.20 \
+            --sample-seed 123
+
+# Use a random seed (will be printed for reference)
+spikee test --dataset datasets/large-dataset.jsonl \
+            --target openai_gpt4o \
+            --sample 0.10 \
+            --sample-seed random
+```
 
 **Testing Guardrails:**
 

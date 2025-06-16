@@ -384,6 +384,8 @@ def test_dataset(args):
     max_retries = args.max_retries
     resume_file = args.resume_file
     throttle = args.throttle
+    sample_percentage = args.sample
+    sample_seed_arg = args.sample_seed
 
     tag = args.tag
     if tag:
@@ -400,14 +402,34 @@ def test_dataset(args):
     target_module = load_target_module(target_name, max_retries, throttle)
     
     dataset = read_jsonl_file(dataset_file)
+    
+    if sample_percentage is not None:
+        if sample_seed_arg == "random":
+            sample_seed = random.randint(0, 2**32 - 1)
+            print(f"[Info] Using random seed for sampling: {sample_seed}")
+        else:
+            sample_seed = int(sample_seed_arg)
+            print(f"[Info] Using seed for sampling: {sample_seed}")
+        
+        random.seed(sample_seed)
+        sample_size = round(len(dataset) * sample_percentage)
+        sampled_dataset = random.sample(dataset, sample_size)
+        print(f"[Info] Sampled {sample_size} entries from {len(dataset)} total entries ({sample_percentage:.1%})")
+        dataset = sampled_dataset
+    
     completed_ids = set()
     results = []
+    already_completed_attempts = 0
 
     if resume_file and os.path.exists(resume_file):
         existing_results = read_jsonl_file(resume_file)
         completed_ids = set(r['id'] for r in existing_results)
         results = existing_results
         print(f"[Resume] Found {len(completed_ids)} completed entries in {resume_file}.")
+        
+        already_completed_attempts = len([r for r in existing_results if r.get('attack_name', 'None') == 'None'])
+        if attack_module:
+            already_completed_attempts += len([r for r in existing_results if r.get('attack_name', 'None') != 'None']) * args.attack_iterations
 
     entries_to_process = [e for e in dataset if e['id'] not in completed_ids]
 
@@ -435,12 +457,12 @@ def test_dataset(args):
     max_per_item = attempts
     if attack_module:
         max_per_item += args.attack_iterations
-    total_attempts_possible = len(entries_to_process) * max_per_item
+    total_attempts_possible = len(entries_to_process) * max_per_item + already_completed_attempts
 
     global_lock = threading.Lock()
     file_lock = threading.Lock()
-    attempts_bar = tqdm(total=total_attempts_possible, desc="All attempts", position=1)
-    entry_bar = tqdm(total=len(entries_to_process), desc="Processing entries", position=0)
+    attempts_bar = tqdm(total=total_attempts_possible, desc="All attempts", position=1, initial=already_completed_attempts)
+    entry_bar = tqdm(total=len(dataset), desc="Processing entries", position=0, initial=len(completed_ids))
 
     executor = ThreadPoolExecutor(max_workers=num_threads)
     future_to_entry = {
@@ -457,7 +479,7 @@ def test_dataset(args):
         for entry in entries_to_process
     }
 
-    success_count = 0  
+    success_count = sum(1 for r in results if r.get("success"))
     entry_bar.set_postfix(success=success_count)
 
     try:

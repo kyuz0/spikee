@@ -105,6 +105,10 @@ def main():
                              help='Number of attack iterations per dataset entry (if --attack is provided)')
     parser_test.add_argument('--tag', default=None,
                                  help='Include a tag at the end of the results filename')
+    parser_test.add_argument('--sample', type=float, default=None,
+                             help='Sample a percentage of the dataset (e.g., 0.15 for 15%%)')
+    parser_test.add_argument('--sample-seed', default='42',
+                             help='Seed for sampling (default: 42, or use "random" for random seed)')
 
     # === [RESULTS] Sub-command ================================================
     parser_results = subparsers.add_parser('results', help='Analyze or convert results')
