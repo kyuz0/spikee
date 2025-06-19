@@ -9,7 +9,7 @@ partial matches, capturing groups, etc.).
 
 import re
 
-def judge(llm_input, llm_output, judge_args):
+def judge(llm_input, llm_output, judge_args, judge_options=None):
     """
     Args:
         llm_input (str): The original text/prompt sent to the model (optional for logic here).

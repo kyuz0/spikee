@@ -10,13 +10,34 @@ mechanisms by wrapping malicious content in various delimiter formats and using
 social engineering tactics.
 
 Usage within Spikee:
-    spikee generate --plugins anti_spotlighting
+    spikee generate --plugins anti_spotlighting --plugin-options "anti_spotlighting:variants=50"
 """
 
 import random
 from typing import List, Union
 
-def transform(text: str, exclude_patterns: List[str] = None) -> List[str]:
+# Default number of variants
+DEFAULT_VARIANTS = 50
+
+def get_available_option_values() -> List[str]:
+    """Return supported variant counts; first option is default."""
+    return [
+        "variants=50",        
+        "variants=N (1-500)",
+    ]
+
+def _parse_variants_option(option: str) -> int:
+    """Parse variants option string like 'variants=50' and return the number."""
+    if option and option.startswith("variants="):
+        try:
+            n = int(option.split("-")[1])
+            if 1 <= n <= 500:
+                return n
+        except (ValueError, IndexError):
+            pass
+    return DEFAULT_VARIANTS
+
+def transform(text: str, exclude_patterns: List[str] = None, plugin_option: str = None) -> List[str]:
     """
     Transforms the input text by wrapping it in various delimiter formats to test
     if an LLM application is vulnerable to delimiter-based attacks.
@@ -25,11 +46,14 @@ def transform(text: str, exclude_patterns: List[str] = None) -> List[str]:
         text (str): The malicious payload to wrap in delimiters.
         exclude_patterns (List[str], optional): Not used in this plugin as we're
                                               adding wrapping rather than modifying the text.
+        plugin_option: Option string like "variants=100" to control number of variants (1-500)
 
     Returns:
         List[str]: A list of variants, each with the input text wrapped in different
                  delimiter formats.
     """
+    max_variants = _parse_variants_option(plugin_option)
+    
     variants = []
     
     # 1. Basic delimiter breakout attacks
@@ -128,8 +152,8 @@ def transform(text: str, exclude_patterns: List[str] = None) -> List[str]:
     
     variants.extend(hybrid_cases)
     
-    # Ensure we don't have too many variants
-    #if len(variants) > 100:
-    #    return random.sample(variants, 100)
+    # Limit to requested number of variants
+    if len(variants) > max_variants:
+        return random.sample(variants, max_variants)
     
     return variants

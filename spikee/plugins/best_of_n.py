@@ -16,7 +16,7 @@ Transformations (applied to normal text chunks):
 Any substring that exactly matches one of the user-supplied exclusion regexes
 (in the parameter `exclude_patterns`) is left completely unaltered.
 
-This version of the plugin returns a list of 100 augmented samples.
+This plugin supports configurable number of samples via options.
 """
 
 import re
@@ -27,19 +27,43 @@ SCRAMBLE_PROB = 0.6
 CAPITALIZATION_PROB = 0.6   
 NOISE_PROB = 0.06        
 
-def transform(text: str, exclude_patterns: List[str] = None) -> List[str]:
+# Default number of samples
+DEFAULT_SAMPLES = 50
+
+def get_available_option_values() -> List[str]:
+    """Return supported sample format; first option is default."""
+    return [
+        "variants=50",
+        "variants=N (1-500)",
+    ]
+
+def _parse_samples_option(option: str) -> int:
+    """Parse samples option string like 'variants=50' and return the number."""
+    if option and option.startswith("variants="):
+        try:
+            n = int(option.split("-")[1])
+            if 1 <= n <= 500:
+                return n
+        except (ValueError, IndexError):
+            pass
+    return DEFAULT_SAMPLES
+
+def transform(text: str, exclude_patterns: List[str] = None, plugin_option: str = None) -> List[str]:
     """
-    Generates a list of 100 augmented samples from the input text.
+    Generates a configurable number of augmented samples from the input text.
     
-    If exclude_patterns is provided (a list of regex strings), these are combined into a
-    compound regex. The text is then split using this compound regex so that any substring
-    that exactly matches one of the patterns is left untransformed.
+    Args:
+        text: Input text to transform
+        exclude_patterns: List of regex patterns to exclude from transformation
+        plugin_option: Option string like "variants=100" to control number of samples (1-500)
     
     Returns:
-        List[str]: A list of 100 independently generated augmented samples.
+        List[str]: A list of independently generated augmented samples.
     """
+    num_samples = _parse_samples_option(plugin_option)
+    
     samples = []
-    for _ in range(100):
+    for _ in range(num_samples):
         samples.append(_scramble_text(text, exclude_patterns))
     return samples
 

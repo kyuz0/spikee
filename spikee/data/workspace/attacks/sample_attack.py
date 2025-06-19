@@ -16,6 +16,7 @@ entry provides a "payload" field). In this example, we simply append a random di
 
 Usage:
     spikee test --attack sample_attack --attack-iterations 50
+    spikee test --attack sample_attack --attack-iterations 25 --attack-options "strategy=aggressive"
 
 Parameters:
     entry: dict
@@ -30,6 +31,7 @@ Parameters:
     max_iterations: int
         The maximum number of attack iterations to perform.
     attempts_bar: (optional) tqdm progress bar for live progress updates.
+    attack_option: (optional) configuration option passed via --attack-options.
 
 Returns:
     tuple: (iterations_attempted, success_flag, modified_input, last_response)
@@ -47,8 +49,17 @@ Notes:
 
 import random
 import time
+from typing import List
 
-def attack(entry, target_module, call_judge, max_iterations, attempts_bar=None, bar_lock=None):
+def get_available_option_values() -> List[str]:
+    """Return supported attack options; first option is default."""
+    return [
+        "strategy=random",
+        "strategy=aggressive",
+        "strategy=stealth"
+    ]
+
+def attack(entry, target_module, call_judge, max_iterations, attempts_bar=None, bar_lock=None, attack_option=None):
     """
     Executes a dynamic attack on the given entry.
     
@@ -67,30 +78,37 @@ def attack(entry, target_module, call_judge, max_iterations, attempts_bar=None, 
                                is successful.
         max_iterations (int): The maximum number of attack iterations to try.
         attempts_bar (tqdm, optional): A progress bar to update for each iteration.
+        attack_option (str, optional): Configuration option like "strategy=aggressive".
         
     Returns:
         tuple: (iterations_attempted, success_flag, modified_input, last_response)
     """
+    # Parse attack option
+    strategy = "random"  # default
+    if attack_option and attack_option.startswith("strategy="):
+        strategy = attack_option.replace("strategy=", "")
+    
     # Retrieve the full input text and, if available, the malicious payload.
     original_text = entry.get("text", "")
     payload = entry.get("payload", "")
     # Use the payload if present; otherwise, operate on the full input.
     base = payload if payload else original_text
-    # (Optionally, the plugin can also retrieve exclusion patterns if needed:)
-    # exclude_patterns = entry.get("exclude_from_transformations_regex", [])
     
     last_response = ""
     candidate_text = original_text  # default fallback
+    
     for i in range(1, max_iterations + 1):
-        # Create a candidate variation by appending a random digit to the base text.
-        candidate_base = base + str(random.randint(0, 9))
+        # Create a candidate variation based on strategy
+        if strategy == "aggressive":
+            candidate_base = base + f" [ATTACK_{i}]" + str(random.randint(0, 999))
+        elif strategy == "stealth":
+            candidate_base = base + str(random.randint(0, 9))
+        else:  # random strategy
+            candidate_base = base + str(random.randint(0, 9))
+        
         # If operating on only the payload, substitute the modified payload back into the full text.
-        if payload:
-            idx = original_text.find(payload)
-            if idx != -1:
-                candidate_text = original_text[:idx] + candidate_base + original_text[idx+len(payload):]
-            else:
-                candidate_text = candidate_base
+        if payload and payload in original_text:
+            candidate_text = original_text.replace(payload, candidate_base)
         else:
             candidate_text = candidate_base
 

@@ -17,12 +17,24 @@ Explanation:
 """
 
 import os
+from typing import List, Dict, Optional
 from dotenv import load_dotenv
 
 # Load environment variables, if you need them (e.g., for API keys).
 load_dotenv()
 
-def process_input(input_text, system_message=None, logprobs=False):
+def get_available_option_values() -> List[str]:
+    """
+    Optional method to return a list of available options that the module supports
+    First option is the default.
+    """
+    options: List[str] = []
+    return None
+
+def process_input(input_text: str,
+    system_message: Optional[str] = None,
+    target_options: Optional[str] = None,
+    logprobs=False):
     """
     Mock target function required by spikee.
 
@@ -38,6 +50,8 @@ def process_input(input_text, system_message=None, logprobs=False):
     Args:
         input_text (str): The main prompt or text to be processed.
         system_message (str, optional): A system or meta-prompt, if applicable.
+        target_options (str, optional): A string representing any options that can be passed at runtime to this target
+        logprobs (bool, optional): Used by some attack modules to request log probabilities (can be ignored in most cases)
 
     Returns:
         str or bool:
@@ -55,3 +69,10 @@ def process_input(input_text, system_message=None, logprobs=False):
     mock_response = "Hello! I am a mock LLM."
 
     return mock_response
+
+if __name__ == "__main__":
+    try:
+        response = process_input("Hello!")
+        print(response)
+    except Exception as err:
+        print("Error:", err)

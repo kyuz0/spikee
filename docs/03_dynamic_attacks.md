@@ -1,31 +1,81 @@
 # Writing Dynamic Attack Scripts
 
-Dynamic attacks provide an iterative way to test targets when standard payloads fail. They are executed by `spikee test --attack <name>` if the initial `--attempts` do not succeed.
+Dynamic attacks provide an iterative way to test targets when standard payloads fail. They are executed by `spikee test --attack <name>` if the initial samples i nthe dataset do not succeed.
 
 ## Structure
 
 An attack script must be placed in the `attacks/` directory (local workspace or built-in) and contain a function named `attack`.
 
-**Signature:**
+**Basic Signature:**
 
 ```python
 import threading # For bar_lock
 from typing import Tuple, Optional, Dict, Any
 
-# Define your attack logic function (can be in the same file or imported)
-def generate_next_attack_variation(base_payload, iteration_num):
-    # Example: Append iteration number
-    # Replace this with your actual attack variation generation logic
-    return f"{base_payload} [ATTACK_VAR_{iteration_num}]"
+def attack(
+    entry: Dict[str, Any],
+    target_module: Any,
+    call_judge: callable,
+    max_iterations: int,
+    attempts_bar: Optional[object] = None,
+    bar_lock: Optional[threading.Lock] = None
+) -> Tuple[int, bool, str, str]:
+```
+
+**Signature with Options Support:**
+
+```python
+from typing import List
+
+def get_available_option_values() -> List[str]:
+    """
+    Return supported attack options; first option is default.
+    
+    Returns:
+        List[str]: List of supported option strings. The first option is considered
+                  the default and will be highlighted when listing attacks.
+    """
+    return [
+        "mode=dumb",     # Default option (first in list)
+        "mode=advanced",
+        "strategy=aggressive",
+        "strategy=stealth"
+    ]
 
 def attack(
     entry: Dict[str, Any],
-    target_module: Any, # Wrapped target module (handles retries/throttling)
+    target_module: Any,
     call_judge: callable,
     max_iterations: int,
-    attempts_bar: Optional[object] = None, # tqdm progress bar instance
-    bar_lock: Optional[threading.Lock] = None # Lock for thread-safe bar updates
+    attempts_bar: Optional[object] = None,
+    bar_lock: Optional[threading.Lock] = None,
+    attack_option: Optional[str] = None
 ) -> Tuple[int, bool, str, str]:
+```
+
+## Attack Options
+
+Attacks can optionally support configuration options by implementing `get_available_option_values()` and accepting an `attack_option` parameter in their `attack()` function.
+
+**Usage:**
+```bash
+# Use default options
+spikee test --attack prompt_decomposition --attack-iterations 50
+
+# Specify attack options
+spikee test --attack prompt_decomposition --attack-iterations 25 --attack-options "mode=gpt4o-mini"
+
+# Use local model
+spikee test --attack my_custom_attack --attack-iterations 100 --attack-options "strategy=stealth"
+```
+
+**Option Format:**
+- Single option string (e.g., `"mode=advanced"`, `"strategy=aggressive"`)
+- No complex parsing needed unlike plugins (attacks are singular)
+
+## Implementation Example
+
+```python
     """
     Executes a dynamic attack strategy.
 
@@ -43,6 +93,7 @@ def attack(
         attempts_bar (tqdm, optional): Progress bar for total attempts across all entries.
             Update using `with bar_lock: attempts_bar.update(1)`.
         bar_lock (threading.Lock, optional): Lock to safely update the shared progress bar.
+        attack_option (str, optional): Configuration option passed via --attack-options.
 
     Returns:
         Tuple[int, bool, str, str]:
@@ -58,6 +109,12 @@ def attack(
     payload_to_modify = entry.get("payload", original_text)
     system_message = entry.get("system_message", None)
 
+    # Understanding payload vs. full text:
+    # - 'text' is the complete prompt that will be sent to the target
+    # - 'payload' (if present) is just the malicious part that was injected
+    # - If you have a payload, modify it and substitute back into the full text
+    # - If no payload, treat the entire text as the thing to modify
+    
     last_payload = original_text # Fallback value
     last_response = ""
     success_flag = False
@@ -68,16 +125,13 @@ def attack(
         current_variation = generate_next_attack_variation(payload_to_modify, i) # Your logic here
 
         # 4. Construct the full input text for the target.
-        # If 'payload' exists in the entry, substitute the modified payload back into the original text structure.
-        # Otherwise, the 'current_variation' is the full text to send.
-        if entry.get("payload"):
-            idx = original_text.find(entry["payload"])
-            if idx != -1:
-                current_input = original_text[:idx] + current_variation + original_text[idx+len(entry["payload"]):]
-            else: # Fallback if payload wasn't found (shouldn't happen ideally)
-                 current_input = current_variation # Or maybe error out?
+        # If 'payload' exists, substitute the modified payload back into the original text.
+        # This preserves the document structure while only modifying the malicious part.
+        if entry.get("payload") and entry["payload"] in original_text:
+            current_input = original_text.replace(entry["payload"], current_variation)
         else:
-             current_input = current_variation
+            # No payload field, so treat the variation as the complete text to send
+            current_input = current_variation
 
         last_payload = current_input
 
@@ -126,11 +180,42 @@ def attack(
 
 ```
 
+## Attack Options (Advanced)
+
+Attacks can optionally support configuration options by implementing `get_available_option_values()` and using the `attack_option` parameter.
+
+**Usage:**
+```bash
+# Basic usage (no options)
+spikee test --attack my_attack --attack-iterations 50
+
+# With options
+spikee test --attack prompt_decomposition --attack-options "mode=gpt4o-mini"
+```
+
+**Implementation:**
+```python
+from typing import List
+
+def get_available_option_values() -> List[str]:
+    """Return supported options; first option is default."""
+    return ["mode=dumb", "mode=advanced"]
+
+def attack(..., attack_option: Optional[str] = None):
+    # Parse attack_option if needed
+    mode = "dumb"  # default
+    if attack_option and attack_option.startswith("mode="):
+        mode = attack_option.replace("mode=", "")
+    
+    # Use mode in your attack logic
+    # ...
+```
+
 **Key Points:**
 
 1.  **Location:** Store custom attacks in `./attacks/your_attack_name.py`.
 2.  **Function Name:** Must be `attack`.
-3.  **Parameters:** Receives the dataset `entry`, the wrapped `target_module`, the `call_judge` function, `max_iterations`, and optional progress bar components (`attempts_bar`, `bar_lock`).
+3.  **Parameters:** Receives the dataset `entry`, wrapped `target_module`, `call_judge` function, `max_iterations`, and optional progress bar components.
 4.  **Target Interaction:** Call `target_module.process_input()`. The wrapper handles retries/throttling for *each individual call*. Your script controls the *iteration* logic.
 5.  **Success Check:** Use `call_judge(entry, response)` to determine if an iteration succeeded.
 6.  **Iteration Limit:** Your main loop *must not* exceed `max_iterations`.
@@ -138,3 +223,4 @@ def attack(
 8.  **Return Value:** Return a tuple `(iterations_attempted, success_flag, last_payload, last_response)`.
 9.  **Payload vs. Text:** Decide whether your attack modifies the `entry['payload']` (recommended) and substitutes it back into `entry['text']`, or modifies `entry['text']` directly. Using `payload` allows the attack to focus on the malicious part.
 10. **State:** Attack functions should ideally be stateless between entries, relying only on the `entry` data for context. If state is needed *within* an attack sequence for a single entry, manage it within the `attack` function's scope.
+11. **Options:** Attacks can optionally accept an `attack_option` parameter for configuration. Implement `get_available_option_values()` to define supported options.

@@ -10,11 +10,11 @@ load_dotenv()
 dataset = load_dataset("allenai/wildguardmix", "wildguardtest")
 
 # Filter for prompts where prompt_harm_label equals 'harmful'
-harmful_prompts = dataset['test'].filter(lambda example: example['prompt_harm_label'] != 'harmful')
+not_harmful_prompts = dataset['test'].filter(lambda example: example['prompt_harm_label'] != 'harmful')
 
 # Create JSONL entries in the required format
 jsonl_entries = []
-for i, item in enumerate(harmful_prompts):
+for i, item in enumerate(not_harmful_prompts):
     entry = {
         "id": f"wildguard-{i+1:02d}",  
         "text": item['prompt'],
@@ -25,9 +25,9 @@ for i, item in enumerate(harmful_prompts):
     jsonl_entries.append(entry)
 
 # Write to JSONL file
-with open('datasets/seeds-wildguardmix-harmful/standalone_attacks.jsonl', 'w', encoding='utf-8') as f:
+with open('datasets/seeds-wildguardmix-harmful-fp/standalone_attacks.jsonl', 'w', encoding='utf-8') as f:
     for entry in jsonl_entries:
         f.write(json.dumps(entry) + '\n')
 
-print(f"Successfully converted {len(jsonl_entries)} jailbreak prompts to JSONL format.")
+print(f"Successfully converted {len(jsonl_entries)} prompts to JSONL format.")
 print(f"Output saved to 'standalone_attacks.jsonl'")

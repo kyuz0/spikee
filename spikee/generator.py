@@ -64,6 +64,21 @@ def read_toml(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         return toml.load(f)
 
+def parse_plugin_options(plugin_options_str):
+    """
+    Parse plugin options string like "plugin1:option1;plugin2:option2"
+    Returns dict mapping plugin name to option string.
+    """
+    if not plugin_options_str:
+        return {}
+    
+    options_map = {}
+    pairs = plugin_options_str.split(';')
+    for pair in pairs:
+        if ':' in pair:
+            plugin_name, option = pair.split(':', 1)
+            options_map[plugin_name.strip()] = option.strip()
+    return options_map
 
 def get_system_message(system_message_config, spotlighting_data_marker=None):
     """
@@ -178,16 +193,25 @@ def load_plugin_from_path(plugin_path, plugin_name):
         return None
 
 
-def apply_plugin(plugin_module, text, exclude_patterns=None):
+def apply_plugin(plugin_module, text, exclude_patterns=None, plugin_option=None):
     """
     Applies a plugin module's transform function to the given text if available.
     """
     if hasattr(plugin_module, 'transform'):
-        return plugin_module.transform(text, exclude_patterns)
+        # Check if the plugin's transform function accepts plugin_option parameter
+        import inspect
+        sig = inspect.signature(plugin_module.transform)
+        params = sig.parameters
+        
+        if 'plugin_option' in params:
+            return plugin_module.transform(text, exclude_patterns, plugin_option)
+        else:
+            # Older plugin without plugin_option support
+            return plugin_module.transform(text, exclude_patterns)
     print(f"Plugin '{plugin_module.__name__}' does not have a 'transform' function.")
     return text
 
-def process_standalone_attacks(standalone_attacks, dataset, entry_id, plugins=None, output_format='full-prompt'):
+def process_standalone_attacks(standalone_attacks, dataset, entry_id, plugins=None, output_format='full-prompt', plugin_options_map=None):
     """
     Processes standalone attacks and appends them to the dataset.
     If plugins are provided, applies them to each standalone attack.
@@ -232,6 +256,9 @@ def process_standalone_attacks(standalone_attacks, dataset, entry_id, plugins=No
         if plugins:
             for plugin_name, plugin_module in plugins:
                 try:
+                    # Get option for this specific plugin
+                    plugin_option = plugin_options_map.get(plugin_name) if plugin_options_map else None
+                    
                     # Convert exclude_patterns to a list if it's a string or None
                     exclude_list = []
                     if exclude_patterns:
@@ -241,7 +268,7 @@ def process_standalone_attacks(standalone_attacks, dataset, entry_id, plugins=No
                             exclude_list = [exclude_patterns]
                     
                     # Get the transformed text(s) from the plugin
-                    plugin_result = apply_plugin(plugin_module, attack_text, exclude_list)
+                    plugin_result = apply_plugin(plugin_module, attack_text, exclude_list, plugin_option)
                     
                     # Ensure the result is a list of variations
                     if not isinstance(plugin_result, list):
@@ -406,7 +433,7 @@ def _create_document_entry(
 def generate_variations(base_docs, jailbreaks, instructions, positions, injection_delimiters,
                         spotlighting_data_markers_list, plugins, adv_suffixes=None,
                         output_format='full-prompt', match_languages=False,
-                        system_message_config=None):
+                        system_message_config=None, plugin_options_map=None):
     """
     Generates dataset variations from the given base documents, jailbreaks,
     instructions, injection positions, delimiters, data markers, and plugins.
@@ -545,9 +572,12 @@ def generate_variations(base_docs, jailbreaks, instructions, positions, injectio
 
                     # 2) Plugin entries
                     for plugin_name, plugin_module in plugins:
+                        plugin_option = plugin_options_map.get(plugin_name) if plugin_options_map else None
+
                         for suffix in suffixes:
                             # Get the transformed text(s) from the plugin.
-                            plugin_result = apply_plugin(plugin_module, combined_text, local_exclude)
+                            plugin_result = apply_plugin(plugin_module, combined_text, local_exclude, plugin_option)
+
                             # Ensure the result is a list of variations.
                             if not isinstance(plugin_result, list):
                                 plugin_result = [plugin_result]
@@ -648,6 +678,7 @@ def generate_dataset(args):
     injection_delimiters_input = args.injection_delimiters
     spotlighting_data_markers_input = args.spotlighting_data_markers
     include_system_message = args.include_system_message
+    plugin_options_map = parse_plugin_options(args.plugin_options)
 
     tag = args.tag
     if tag:
@@ -752,7 +783,8 @@ def generate_dataset(args):
         adv_suffixes=adv_suffixes,
         output_format=output_format,
         match_languages=match_languages,
-        system_message_config=system_message_config
+        system_message_config=system_message_config,
+        plugin_options_map=plugin_options_map  
     )
 
     if args.standalone_attacks:
@@ -763,7 +795,8 @@ def generate_dataset(args):
         dataset, entry_id = process_standalone_attacks(
             standalone_attacks, dataset, entry_id, 
             plugins=plugins if args.plugins else None, 
-            output_format=output_format
+            output_format=output_format,
+            plugin_options_map=plugin_options_map
         )
 
     timestamp = int(time.time())

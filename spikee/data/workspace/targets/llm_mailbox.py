@@ -1,5 +1,14 @@
 import requests
 import json
+from typing import List, Dict, Optional
+
+def get_available_option_values() -> List[str]:
+    """
+    Optional method to return a list of available options that the module supports
+    First option is the default.
+    """
+    options: List[str] = []
+    return None
 
 def process_input(input_text, system_message=None):
     url = "http://llmwebmail:5000/api/summarize"

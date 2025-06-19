@@ -31,10 +31,20 @@ banner = r'''
 # Explicitly load the .env file
 env_loaded = load_dotenv(dotenv_path=os.path.join(os.getcwd(), ".env"))
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def main():
     print(banner)
     print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
-    print("Version: 0.2.2\n")
+    print("Version: 0.3.0\n")
     print("Author: Reversec (reversec.com)\n")
 
     parser = argparse.ArgumentParser(
@@ -61,6 +71,8 @@ def main():
                                  help='Comma-separated list of patterns to use when injecting payloads')
     parser_generate.add_argument('--plugins', nargs='*', default=[],
                                  help='List of plugin names to modify the jailbreak+instruction text')
+    parser_generate.add_argument('--plugin-options', default=None,
+                             help='Plugin-specific options as "plugin1:option1,option2;plugin2:option2"')
     parser_generate.add_argument('--standalone-attacks', default=None,
                                  help='Path to standalone_attacks.jsonl')
     parser_generate.add_argument('--format', choices=['full-prompt', 'document', 'burp'], 
@@ -70,8 +82,8 @@ def main():
                                  help='Comma-separated list of data markers (placeholder: "DOCUMENT")')
     parser_generate.add_argument('--languages', default=None,
                                  help='Comma-separated list of languages to filter jailbreaks and instructions')
-    parser_generate.add_argument('--match-languages', action='store_true',
-                                 help='Only combine jailbreaks and instructions with matching languages')
+    parser_generate.add_argument('--match-languages', type=str2bool, nargs='?', const=True, default=True,
+                                help='Only combine jailbreaks and instructions with matching languages (default: True)')
     parser_generate.add_argument('--instruction-filter', default=None,
                                  help='Comma-separated list of instruction types to include')
     parser_generate.add_argument('--jailbreak-filter', default=None,
@@ -89,12 +101,16 @@ def main():
                              help='Path to the dataset file (local workspace)')
     parser_test.add_argument('--target', type=str, required=True,
                              help='Name of the target to test (in local or built-in targets/ dir)')
+    parser_test.add_argument('--target-options', type=str, required=False,
+                             help='Option to pass to the target [Optional]')
     parser_test.add_argument('--threads', type=int, default=4, 
                              help='Number of threads for parallel processing')
     parser_test.add_argument('--attempts', type=int, default=1,
                              help='Number of attempts per payload (default: 1)')
     parser_test.add_argument('--max-retries', type=int, default=3,
                              help='Number of retries for failed requests due to API quotas/resources exhusted (default: 3)')
+    parser_test.add_argument('--judge-options', type=str, default=None,
+                             help='Judge options, typically the name of the LLM to use as a judge')
     parser_test.add_argument('--resume-file', type=str, default=None,
                              help='Path to a results JSONL file to resume from')
     parser_test.add_argument('--throttle', type=float, default=0,
@@ -103,6 +119,8 @@ def main():
                              help='Name of the attack module (from the "attacks" folder) to use if standard attempts fail')
     parser_test.add_argument('--attack-iterations', type=int, default=100,
                              help='Number of attack iterations per dataset entry (if --attack is provided)')
+    parser_test.add_argument('--attack-options', default=None,
+                         help='Options to pass to the attack module (e.g., "mode-X")')
     parser_test.add_argument('--tag', default=None,
                                  help='Include a tag at the end of the results filename')
     parser_test.add_argument('--sample', type=float, default=None,

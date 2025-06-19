@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spikee"
-version = "0.2.3"
+version = "0.3.0"
 description = "Spikee - Simple Prompt Injection Kit for Evaluation and Exploitation"
 readme = "README.md"
 
@@ -24,6 +24,7 @@ classifiers = [
 
 dependencies = [
   "tqdm",
+  "rich",
   "six",
   "toml",
   "openai",
@@ -31,7 +32,7 @@ dependencies = [
   "datasets",
   "langchain",
   "langchain_openai",
-  "langchain-google_genai",
+  "langchain-google-genai",
   "langchain-anthropic",
   "langchain-together",
   "langchain-groq",

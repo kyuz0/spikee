@@ -2,6 +2,77 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-07-01
+
+### Added
+
+* **Options Support for Plugins and Attacks:**
+  - Plugins and attacks can now implement `get_available_option_values()` to provide configurable options.
+  - Added `--plugin-options` flag to `spikee generate` for plugin-specific configuration using format `"plugin1:option1;plugin2:option2"`.
+  - Added `--attack-options` flag to `spikee test` for attack-specific configuration (e.g., `"mode=gpt4o-mini"`).
+  - Plugin `transform()` and attack `attack()` functions now accept optional configuration parameters.
+  - Common option patterns: `variants=N` for variation count, `mode=X` for algorithm selection.
+  - `spikee list plugins` and `spikee list attacks` now display available options with defaults highlighted.
+
+* **Enhanced Built-in Modules:**
+  - **Plugins:**
+    - Updated `best_of_n` and `anti_spotlighting` plugins to support `variants=N` options (default: `variants=50`).
+    - New unified `prompt_decomposition` plugin with mode selection and variant control.
+  - **Attacks:**
+    - New unified `prompt_decomposition` attack with mode selection.
+    - Updated `sample_attack` to demonstrate attack options with strategy selection.
+  - **Mode options for both:** `mode=dumb` (default), `mode=gpt4o-mini`, `mode=gpt4.1-mini`, `mode=ollama-*` (gemma3, llama3.2, mistral-nemo, phi4-mini).
+
+* **Default Option Handling:**
+  - Targets, judges, plugins, and attacks automatically use their first available option as default when no options are specified.
+  - Updated filename generation to include default options in result filenames for clarity.
+  - Backward compatibility maintained for all module types without option support.
+
+### Improved
+
+* **Option Discovery and Display:**
+  - All `spikee list` commands now show available options with defaults highlighted.
+  - Consistent "first option is default" pattern across targets, judges, plugins, and attacks.
+  - Changed option format from `key-value` to `key=value` for clarity (e.g., `mode=gpt4o-mini`, `variants=50`).
+
+### Examples
+
+```bash
+# Plugin options
+spikee generate --plugins best_of_n --plugin-options "best_of_n:variants=100"
+spikee generate --plugins anti_spotlighting prompt_decomposition --plugin-options "anti_spotlighting:variants=15;prompt_decomposition:variants=10,mode=gpt4o-mini"
+
+# Attack options  
+spikee test --attack prompt_decomposition --attack-iterations 10 --attack-options "mode=gpt4o-mini"
+```
+
+## [0.3.0] - 2025-06-19
+
+### Added
+
+* **Runtime Option Flags:**  
+  - `--judge-options <model>` and `--target-options <model>` for all `spikee test` calls.
+
+* **Local LLMs for Judges (Ollama):**  
+  - Use local Ollama models for judging (e.g. in `wildmix-harmful`, `in-the-wild-jailbreak-prompts`, `simsonsun-high-quality-jailbreaks`).  
+  - Specify via `--judge-options`, e.g.:  
+    ```bash
+    spikee test --dataset datasets.jsonl --target my_target --judge-options ollama-gemma3
+    ```
+
+* **Unified Target APIs & Runtime Option Support:**  
+  - Collated all individual target scripts into a small set of `<provider>_api.py` modules (`openai_api.py`, `togetherai_api.py`, `google_api.py`, `deepseek_api.py`, `aws_bedrock_api.py`, `azure_api.py`, `groq_api.py`, `ollama_api.py`).  
+  - Each now accepts a `--target-options` string to pick the exact model/deployment at runtime, reducing duplicated code.  
+  - Available targets and their valid options are discoverable via:
+    ```bash
+    spikee list targets
+    ```
+
+### Improved
+
+* **Investment-Advice Judge Prompt:**  
+  - Improved juding prompt for the `investment-advice` dataset.
+
 ## [0.2.3] - 2025-06-16
 
 ### Added

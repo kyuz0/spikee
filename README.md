@@ -1,27 +1,48 @@
-# spikee - Simple Prompt Injection Kit for Evaluation and Exploitation
+<div align="center">
+  <a href="https://github.com/WithSecureLabs/spikee">
+    <img src="logo.png" alt="Spikee Logo" width="200">
+  </a>
+  <br>
+  <h1>Simple Prompt Injection Kit for Evaluation and Exploitation</h1>
+</div>
 
-Version: 0.2.2
 
-```
-   _____ _____ _____ _  ________ ______
-  / ____|  __ \_   _| |/ /  ____|  ____|
- | (___ | |__) || | | ' /| |__  | |__   
-  \___ \|  ___/ | | |  < |  __| |  __|  
-  ____) | |    _| |_| . \| |____| |____
- |_____/|_|   |_____|_|\_\______|______|
+_Version: 0.3.1_
 
-```
+Developed by Reversec Labs, `spikee` is a toolkit for assessing the resilience of LLMs, guardrails, and applications against prompt injection and jailbreaking. Spikee's strength is its modular design, which allows for easy customization of every part of the testing process.
 
-Developed by Reversec Labs, `spikee` (Simple Prompt Injection Kit for Evaluation and Exploitation) assesses the resilience of LLMs, guardrails, and application pipelines against known prompt injection and jailbreak patterns. Rather than simply asking *if* a system is vulnerable, `spikee` helps determine *how easily* it can be compromised, gauging whether standard, off-the-shelf techniques are sufficient or if novel attacks are necessary.
+## The Spikee Workflow
+
+Spikee operates in two stages: generating a test dataset, and executing tests against a target using the dataset. Each stage is powered by easy-to-customize Python modules.
+
+
+![spikee-architecture](spikee-architecture.png)
+
+## Documentation
+
+This README provides a practical guide to the core workflow. For advanced topics, see the detailed documentation:
+
+1.  **[Creating Custom Targets](/docs/01_custom_targets.md)**: Interact with any LLM, API, or guardrail.
+2.  **[Developing Custom Plugins](/docs/02_custom_plugins.md)**: Statically transform and obfuscate payloads.
+3.  **[Writing Dynamic Attack Scripts](/docs/03_dynamic_attacks.md)**: Create iterative, adaptive attack logic.
+4.  **[Judges: Evaluating Attack Success](/docs/04_judges.md)**: Define custom success criteria for tests.
+5.  **[Interpreting Spikee Results](/docs/05_interpreting_results.md)**: Understand test reports and performance metrics.
+6.  **[Generating Custom Datasets with an LLM](/docs/06_llm_dataset_generation.md)**: Create tailored datasets for specific use cases.
+7.  **[Testing Guardrails](/docs/07_guardrail_testing.md)**: Evaluate guardrail effectiveness and false positive rates.
 
 ---
 
 ## 1. Installation
 
-### 1.1 PyPI Installation
+Install `spikee` directly from PyPI.
 
 ```bash
 pip install spikee
+```
+
+To ensure a clean installation when upgrading, use the `--force-reinstall` flag (*this helps a lot removing deprecated files/datasets that would otherwise persist*):
+```bash
+pip install --upgrade --force-reinstall spikee
 ```
 
 ### 1.2 Local Installation (From Source)
@@ -44,290 +65,157 @@ pip install -r requirements-local-inference.txt
 
 ---
 
-## 2. Usage
+## 2. Core Workflow: A Practical Guide
 
-### 2.1 Initializing a Workspace
+### Step 1: Initialize a Workspace
 
-Creates local directories (`datasets/`, `plugins/`, `targets/`, `judges/`, `attacks/`, `results/`) and copies samples.
+Create a project directory and initialize it. This sets up the folder structure and dataset files.
 
 ```bash
+mkdir my-spikee-project
+cd my-spikee-project
 spikee init
 ```
 
-**Options:**
+### Step 2: Explore Available Components
 
-* `--force`: Overwrite existing workspace files/directories.
-* `--include-builtin [none|all|plugins|judges|targets|attacks]`: Copy built-in modules (specified types or 'all') into the local workspace for modification. Default is `none`. Useful if you want to understand how modules work and if you want to modify a built-in module.
-
----
-
-### 2.2 Listing Available Components
-
-Check local and built-in modules:
+Use `spikee list` to see what seeds, targets, plugins, and attacks are available in your workspace (both local and built-in).
 
 ```bash
-spikee list seeds       # Seed folders in ./datasets/
-spikee list datasets    # Generated .jsonl files in ./datasets/
-spikee list targets     # Target scripts (.py) in ./targets/ and built-in
-spikee list plugins     # Plugin scripts (.py) in ./plugins/ and built-in
-spikee list judges      # Judge scripts (.py) in ./judges/ and built-in
-spikee list attacks     # Attack scripts (.py) in ./attacks/ and built-in
+spikee list seeds 
+spikee list plugins
+spikee list judges     
+spikee list datasets     
+spikee list targets    
+spikee list attacks    
 ```
 
----
+### Step 3: Choose a Scenario and Generate a Dataset
 
-### 2.3 Environment Variables
+Your testing scenario determines what kind of testing dataset you need to generate.
 
-Rename the `env-example` file in your workspace to `.env` and populate required API keys and other secrets for your use case. `spikee` loads this automatically.
+#### Scenario A: Testing a Standalone LLM
+When you test an LLM directly, you control the entire prompt. This is ideal for assessing a model's general resilience to jailbreaks and harmful instructions.
+
+*   **What to Generate:** A *full prompt*, which includes a task (like "Summarize this: <data>"), the data containing the prompt injection or jailbreak, and optionally a system message.
+*   **How to Generate:** Use the default `--format full-prompt` and optionally `--include-system-message`. The `datasets/seeds-cybersec-2025-04` folder provides a great starting point with diverse jailbreaks and attack instructions.
 
 ```bash
-# .env example
-OPENAI_API_KEY=sk-...
-AZURE_OPENAI_API_KEY=...
-AWS_ACCESS_KEY_ID=...
-# etc.
+spikee generate --seed-folder datasets/seeds-cybersec-2025-04
 ```
 
----
+This will generate the dataset in JSONL format: `datasets/cybersec-2025-04-full-prompt-dataset-TIMESTAMP.jsonl`.
 
-### 2.4 Generating a Dataset
+#### Scenario B: Testing an LLM Application 
+When you test an application (like a chatbot or an email summarizer), the application itself builds the final prompt. Your input is just one part of it, which could be a prompt or data (such as documents/emails).
 
-`spikee generate` creates test datasets from seed files (`base_documents.jsonl`, `jailbreaks.jsonl`, `instructions.jsonl`).
-
-**Basic Example:**
+*   **What to Generate:** Just the *user prompt* or *document* with the attack payload (e.g., the body of an email containing a prompt injection).
+*   **How to Generate:** Use `--format document`.
 
 ```bash
-# Uses default seeds (datasets/seeds-mini-test)
-# Injects payload at the end of documents
-spikee generate
+spikee generate --seed-folder datasets/seeds-cybersec-2025-04 --format document
 ```
 
-**Available Seed Datasets (in `./datasets/` after `spikee init`):**
+This will generate the dataset in JSONL format: `datasets/cybersec-2025-04-document-dataset-TIMESTAMP.jsonl`.
 
-* `seeds-mini-test`: A small set for quick testing and examples.
-* `seeds-targeted-2024-12`: A diverse set focused on common web exploits (XSS, data exfil) and manipulation.
-* `seeds-cybersec-2025-04`: Updated cybersecurity-focused dataset with newer techniques.
-* `seeds-sysmsg-extraction-2025-04`: Seeds specifically designed to test system prompt extraction vulnerabilities.
-* `seeds-llm-mailbox`: Example seeds tailored for testing an email summarization feature (from the v0.1 tutorial).
-* `seeds-investment-advice`: Seeds containing prompts related to financial/investment advice, useful for testing topical guardrails. Includes benign prompts in `base_documents.jsonl` (for false positive checks) and attack prompts in `standalone_attacks.jsonl`.
-* `seeds-wildguardmix-harmful`: Seeds for testing harmful content generation. Requires running a fetch script to download the actual prompts from Hugging Face (see the `README.md` within that seed folder). Uses an LLM judge by default.
-* `seeds-in-the-wild-jailbreak-prompts`: Real-world jailbreak attempts collected from various platforms (Discord, Reddit, etc.) as of December 2023. Contains ~1,400 prompts filtered from the TrustAIRLab dataset. Requires running a fetch script to download prompts (see the seed folder's `README.md`). Uses an LLM judge by default.
-* `seeds-simsonsun-high-quality-jailbreaks`: Contamination-free jailbreak prompts specifically curated to avoid overlap with training data of popular jailbreak classifiers. Offers two datasets: Dataset 1 (67 high-quality prompts, default) and Dataset 2 (2,359 broader coverage prompts). Requires running a fetch script (see the seed folder's `README.md`).
 
-**Examples using Key Options:**
+### Step 4: Test a Target
 
-* **Specify Seed Folder & Injection Positions:**
-    ```bash
-    spikee generate --seed-folder datasets/seeds-cybersec-2025-04 --positions start end
-    ```
+`spikee test` runs your dataset against a target. First, rename `.env-example` to `.env` and add any necessary API keys.
 
-* **Custom Injection Delimiters:** Inject payloads wrapped in parentheses or Markdown code blocks.
-    ```bash
-    # Note the use of $'...' for bash to interpret \n correctly
-    spikee generate --injection-delimiters $'(INJECTION_PAYLOAD)',$'\n```\nINJECTION_PAYLOAD\n```\n'
-    ```
-
-* **Custom Spotlighting Data Markers:** Wrap documents in `<data>` tags for summarization/QnA tasks.
-    ```bash
-    spikee generate --spotlighting-data-markers $'\n<data>\nDOCUMENT\n</data>\n'
-    ```
-
-* **Include Standalone Attacks (e.g., for topical guardrails):**
-    ```bash
-    spikee generate --seed-folder datasets/seeds-investment-advice \
-                    --standalone-attacks datasets/seeds-investment-advice/standalone_attacks.jsonl \
-                    --format document
-    ```
-
-* **Apply Plugins:** Use the `1337` and `base64` plugins for obfuscation.
-    ```bash
-    spikee generate --plugins 1337 base64
-    ```
-
-* **Filter by Language and Type:** Generate only English data exfiltration and XSS attacks.
-    ```bash
-    spikee generate --languages en --instruction-filter data-exfil-markdown,xss
-    ```
-
-* **Burp Suite Format:** Output payloads suitable for Burp Intruder.
-    ```bash
-    spikee generate --format burp
-    ```
-
-**All Options:**
-
-* `--seed-folder <path>`: Specify seed folder path.
-* `--positions [start|middle|end]`: Payload injection position(s). Default: `end`. Ignored if document has `placeholder`.
-* `--injection-delimiters '<delim1>','<delim2>'`: Comma-separated payload wrappers (use `INJECTION_PAYLOAD`).
-* `--spotlighting-data-markers '<marker1>','<marker2>'`: Comma-separated document wrappers for QnA/Summarization (use `DOCUMENT`). Default: `'\nDOCUMENT\n'`.
-* `--standalone-attacks <path.jsonl>`: Include direct attacks from a JSONL file.
-* `--plugins <name1> <name2>`: Apply transformations from `plugins/` scripts.
-* `--format [full-prompt|document|burp]`: Output format. Default: `full-prompt`.
-* `--include-system-message`: Add system messages from `system_messages.toml`.
-* `--include-suffixes`: Add suffixes from `adv_suffixes.jsonl`.
-* `--match-languages`: Only combine items with matching `lang` fields.
-* `--languages <lang1>,<lang2>`: Filter items by language code.
-* `--instruction-filter <type1>,<type2>`: Filter by `instruction_type`.
-* `--jailbreak-filter <type1>,<type2>`: Filter by `jailbreak_type`.
-* `--tag <string>`: Append tag to output filename.
-
-**Dataset JSONL Fields (v0.2):**
-
-Generated `.jsonl` files now include:
-
-* `payload`: The raw text combining the jailbreak and instruction before injection.
-* `exclude_from_transformations_regex`: (Optional list of strings) Regex patterns defining parts of the `payload` that plugins should *not* modify.
-* `judge_name`: (String) Name of the judge script (`judges/` or built-in) used to determine success. Default: `"canary"`.
-* `judge_args`: (String) Arguments passed to the judge function (e.g., the canary string for the `canary` judge, or a regex pattern for the `regex` judge).
-
----
-
-### 2.5 Testing a Target
-
-`spikee test` evaluates a dataset against a target LLM or guardrail.
-
-**Basic Test:**
+#### A. Basic LLM Test
+This command tests gpt-4o-mini via the OpenAI API using the dataset generated in Scenario A (require `OPENAI_API_KEY` in `.env`).
 
 ```bash
-# Requires dataset/example.jsonl and targets/openai_gpt4o.py (or built-in)
-# Assumes OPENAI_API_KEY is in .env
-spikee test --dataset datasets/example.jsonl \
-            --target openai_gpt4o \
-            --threads 4
+spikee test --dataset datasets/cybersec-2025-04-full-prompt-dataset-*.jsonl \
+            --target openai_api \
+            --target-options gpt-4o-mini
 ```
 
-**Key Options:**
+> **How is attack success determined? With Judges.**
+>
+> The `cybersec-2025-04` dataset contains attacks whose success can be verified automatically by searching for specific "canary" words or matching regular expressions in the response (such as the presence of a *Markdown image*).
+>
+> For more complex goals, like checking for harmful content or policy violations, Spikee can use more complex **Judges**. These are Python modules that evaluate the target's response. We include simple LLM-based judges that can assess if a response meets a given criteria. See the **[Judges documentation](./04_judges.md)** to learn more.
 
-* `--dataset <path.jsonl>`: Path to the generated dataset.
-* `--target <name>`: Name of the target script (`targets/` or built-in).
-* `--threads <N>`: Number of concurrent threads (default: 4).
-* `--attempts <N>`: Number of standard attempts per dataset entry before trying dynamic attacks (default: 1).
-* `--max-retries <N>`: Max retries on API rate limit errors (e.g., 429) per attempt (default: 3).
-* `--throttle <seconds>`: Delay between requests per thread (default: 0).
-* `--resume-file <path.jsonl>`: Continue a previously interrupted test run.
-* `--attack <name>`: **(New in v0.2)** Name of a dynamic attack script (`attacks/` or built-in) to run if standard attempts fail.
-* `--attack-iterations <N>`: **(New in v0.2)** Maximum iterations for the dynamic attack script (default: 100).
-* `--tag <string>`: Append a custom tag to the results filename.
-
-**Success Determination (v0.2):**
-
-Success is now determined by **Judges**, specified via `judge_name` and `judge_args` in the dataset. The old `--success-criteria` flag is removed. See the Judges sub-guide for details.
-
-**Dataset Sampling:**
-
-For large datasets or when operating under time/quota constraints, you can test a random sample instead of the entire dataset:
+#### B. Testing a Custom LLM Application
+To test an LLM application, you must create a custom **Target script**. This Python script, placed in the `targets/` directory in your workspace, tells Spikee how to send data to the application and receive its response. For details, see the **[Creating Custom Targets](./01_custom_targets.md)** guide.
 
 ```bash
-# Test 15% of the dataset with default seed (42)
-spikee test --dataset datasets/large-dataset.jsonl \
-            --target openai_gpt4o \
-            --sample 0.15
-
-# Use a custom seed
-spikee test --dataset datasets/large-dataset.jsonl \
-            --target openai_gpt4o \
-            --sample 0.20 \
-            --sample-seed 123
-
-# Use a random seed (will be printed for reference)
-spikee test --dataset datasets/large-dataset.jsonl \
-            --target openai_gpt4o \
-            --sample 0.10 \
-            --sample-seed random
+# Test a custom email application using malicious documents and your custom target
+spikee test --dataset datasets/llm-mailbox-document-dataset-*.jsonl \
+            --target llm_mailbox
 ```
 
-**Testing Guardrails:**
+> Especially when testing LLM applications, it's useful to create a custom dataset tailored to the specific use case. In the sample case of the LLM Webmail application, we create a custom dataset stating from `cybersec-2025-04`, that only focusses on testing exfiltration of confidential information via mardown images. Check this tutorial for more information: https://labs.reversec.com/posts/2025/01/spikee-testing-llm-applications-for-prompt-injection
 
-Guardrail targets should return a boolean:
-
-* `True`: Attack **bypassed** the guardrail (considered a **success** for `spikee`).
-* `False`: Attack was **blocked** by the guardrail (considered a **failure** for `spikee`).
-
-Example:
+#### C. Enhancing Tests with Attacks
+If static prompts fail, use `--attack` to run iterative scripts that modifies the prompt/documents until they succeed (or run out of iterations).
 
 ```bash
-# az_prompt_shields target implements this boolean logic
-spikee test --dataset datasets/example.jsonl --target az_prompt_shields
+spikee test --dataset datasets/dataset-name.jsonl \
+            --target openai_api \
+            --attack best_of_n --attack-iterations 50
 ```
 
-**Dynamic Attacks:**
+Some attacks, like `prompt decompositoion` support options, such as whih LLM to use to generate attack prompt variations:
+```bash
+spikee test --dataset datasets/dataset-name.jsonl \
+            --target openai_api \
+            --attack prompt_decomposition --attack-iterations 50 -attack-options 'mode=ollama-llama3.2'
+```
 
-If standard attempts fail, use `--attack` to employ iterative strategies:
+#### D. Evaluating Guardrails
+When you're testing an LLM application, you're automatically testing any guardrail that the developers of the application have applied. Howeer, sometimes you might want to test individual guardrails in isolation.
+
+**1. Testing a Prompt Injection Guardrail:**
+To test a guardrail's ability to block general jailbreaks, you could use a broad dataset like `in-the-wild-jailbreak-prompts`, or a more high-quality, focussed one like `seeds-simsonsun-high-quality-jailbreaks`.
 
 ```bash
-# Try the best_of_n attack for up to 50 iterations if standard attempt fails
-spikee test --dataset datasets/example.jsonl \
-            --target openai_gpt4o \
-            --attack best_of_n \
-            --attack-iterations 50
+# Test Meta's Prompt Guard against jailbreaks
+spikee generate --seed-folder datasets/seeds-simsonsun-high-quality-jailbreaks \
+                --standalone-attacks datasets/seeds-in-the-wild-jailbreak-prompts/standalone_attacks.jsonl \
+
+spikee test --dataset datasets/simsonsun-high-quality-jailbreaks-*.jsonl \
+            --target prompt_guard_jailbreak
 ```
 
-See the Dynamic Attacks sub-guide for more.
+The output of this will tell you whether a particular prompt in the dataset bypassed the guardrial. *This doesn't mean the jailbreak would succeed against an LLM, but simply that it would not be blocked by a guardrail*.
 
----
-
-### 2.6 Results Analysis and Conversion
-
-Use `spikee results` to analyze or convert test output (`results/*.jsonl`).
-
-**Analyze Results:**
+**2. Testing a Topical Guardrail:**
+To test a guardrail that blocks specific topics (like financial advice), use a purpose-built dataset, like the sample one that can be generated from these seeds: `seeds-investment-advice`.
 
 ```bash
-spikee results analyze --result-file results/results_openai_gpt4o_...jsonl
+spikee generate --seed-folder datasets/seeds-investment-advice \
+                --standalone-attacks datasets/seeds-investment-advice/standalone_attacks.jsonl \
+                --include-system-message \
+                --match-language \
+                --format document
 ```
 
-* Provides summary statistics, success rates, and breakdowns by various factors (jailbreak type, instruction type, etc.).
-* If dynamic attacks were used, shows overall success vs. initial success and attack improvement.
-* `--output-format html`: Generate an HTML report.
-* `--false-positive-checks <path.jsonl>`: **(New in v0.2)** Provide results from a run using benign prompts to calculate precision, recall, F1, and accuracy metrics (useful for guardrail evaluation).
-
-**Convert to Excel:**
+Notice that here we use `--format document`, as we just want to generate the raw prompts/queries from the seed folder, we don't want to add additional prompts. Also notice that we use `--include-system-message`, as the topical guardrail will use this to determine whether the input aligns wit hthe system_message rules.
 
 ```bash
-spikee results convert-to-excel --result-file results/results_openai_gpt4o_...jsonl
+spikee test --dataset datasets/investment-advice-document-sys-dataset-TIMESTAMP.jsonl \
+            --target nvidia_nemoguard_topic_control
 ```
 
-Generates an `.xlsx` file from the results JSONL.
+### Step 5: Analyze the Results
 
----
+Use `spikee results analyze` to get a statistical summary of the test run.
 
-### 2.7 Understanding Plugins vs. Dynamic Attacks
-
-* **Plugins (`--plugins`)**:
-    * Apply **static transformations** during `spikee generate`.
-    * Each generated variation is tested independently by `spikee test`.
-    * Goal: Test effectiveness of specific, known obfuscation techniques.
-    * Example: Use `base64` plugin to see if base64-encoded payloads bypass defenses.
-
-* **Dynamic Attacks (`--attack`)**:
-    * Apply **iterative strategies** during `spikee test` if standard attempts fail.
-    * An attack script runs sequentially, trying variations until one succeeds or iterations run out.
-    * Goal: Find *any* successful variation, potentially using adaptive logic.
-    * Example: Use `best_of_n` attack to randomly mutate payloads until one bypasses the target.
-
-Plugins act *before* testing; Attacks act *during* testing (if needed).
-
----
-
-### 2.8 Migrating from v0.1 / Using Old Tutorial
-
-Key changes from v0.1:
-
-1.  **Success Criteria -> Judges:** The `--success-criteria` flag is gone. Success is now defined per-entry in the dataset via `judge_name` and `judge_args`. Old datasets using `canary` will likely need updating or use the default `canary` judge implicitly.
-2.  **Guardrail Logic:** Target scripts for guardrails now return `True` if the attack *succeeded* (bypassed) and `False` if it *failed* (was blocked). This might be the reverse of previous implicit logic.
-3.  **Dynamic Attacks:** The `--attack` and `--attack-iterations` flags are new for running iterative attack strategies.
-4.  **Dataset Fields:** New fields like `payload`, `exclude_from_transformations_regex`, `judge_name`, `judge_args` are used in generated datasets.
-
-The core concepts of the v0.1 tutorial (creating custom datasets, using Burp, creating custom targets) still apply, but command flags and result interpretation have evolved.
+```bash
+# Analyze the most recent results file for the openai_api target
+spikee results analyze --result-file results/results_openai_api-gpt-4o-mini_*.jsonl
+```
+This command provides an overview of the success rate and detailed breakdowns by attack type, helping you identify specific weaknesses.
 
 ---
 
 ## 3. Contributing
 
-Contributions (bug fixes, new targets, plugins, attacks, judges, dataset seeds) are welcome via GitHub pull requests.
-
----
+Contributions are welcome. Please feel free to submit bug fixes, new modules (Targets, Plugins, Attacks, Judges), or dataset seeds via GitHub pull requests.
 
 ### Questions or Feedback?
 
-* File issues on [GitHub](https://github.com/WithSecureLabs/spikee).
+File an issue on the [GitHub repository](https://github.com/ReversecLabs/spikee).

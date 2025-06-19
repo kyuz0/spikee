@@ -16,7 +16,7 @@ This script downloads and converts the WildGuard harmful prompts dataset for use
 Run the fetch-and-convert script from the root of your Spikee workspace:
 
 ```bash
-python datasets/seeds-wildguardmix-harmful/fetch_and_convert_dataset.py
+python datasets/seeds-wildguardmix-harmful-fp/fetch_and_convert_dataset.py
 ```
 
 - The script will load environment variables from `.env` automatically.
@@ -35,7 +35,7 @@ Use the `spikee` CLI to generate a test dataset for Spikee's tester script:
 ```bash
 spikee generate \
   --seed-folder datasets/seeds-wildguardmix-harmful \
-  --standalone-attacks datasets/seeds-wildguardmix-harmful/standalone_attacks.jsonl
+  --standalone-attacks datasets/seeds-wildguardmix-harmful-fp/standalone_attacks.jsonl
 ```
 
 ### Optional: Plugins & Variations
@@ -45,7 +45,7 @@ If you want to apply additional transformations (e.g., character substitutions, 
 ```bash
 spikee generate \
   --seed-folder datasets/seeds-wildguardmix-harmful \
-  --standalone-attacks datasets/seeds-wildguardmix-harmful/standalone_attacks.jsonl \
+  --standalone-attacks datasets/seeds-wildguardmix-harmful-fp/standalone_attacks.jsonl \
   --plugins 1337
 ```
 
