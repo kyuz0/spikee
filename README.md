@@ -1,11 +1,14 @@
 <div align="center">
-  <a href="https://github.com/WithSecureLabs/spikee">
-    <img src="logo.png" alt="Spikee Logo" width="200">
+  <a href="https://github.com/ReversecLabs/spikee">
+    <picture>
+      <source srcset="/images/logo-dark.png" media="(prefers-color-scheme: dark)">
+      <source srcset="/images/logo-light.png" media="(prefers-color-scheme: light)">
+      <img src="/images/logo-light.png" alt="Spikee Logo" width="200">
+    </picture>
   </a>
   <br>
   <h1>Simple Prompt Injection Kit for Evaluation and Exploitation</h1>
 </div>
-
 _Version: 0.3.1_
 
 
