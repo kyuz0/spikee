@@ -1,24 +1,30 @@
 # Spikee Documentation - Table of Contents
 
-Index of detailed guides for Spikee v0.2+.
+This page provides an index of all detailed guides for Spikee.
 
-1.  **[Creating Custom Targets](./01_custom_targets.md)**
-    * Structure and implementation of target scripts (`targets/`) for interacting with LLMs, APIs, or guardrails. Covers the `process_input` function, API key handling, error management, and expected return values (string, boolean, or tuple).
+1.  **[Built-in Seeds and Datasets](./01_builtin_seeds_and_datasets.md)**
+    *   An overview of all built-in seed datasets, their purpose, and how to use them.
 
-2.  **[Developing Custom Plugins](./02_custom_plugins.md)**
-    * Structure and implementation of plugin scripts (`plugins/`) for static payload transformation during dataset generation. Covers the `transform` function, handling `exclude_patterns`, and returning single vs. multiple variations.
+2.  **[Dataset Generation Options](./02_dataset_generation_options.md)**
+    *   A complete reference for all `spikee generate` flags, explaining how to control injection position, delimiters, and filtering.
 
-3.  **[Writing Dynamic Attack Scripts](./03_dynamic_attacks.md)**
-    * Structure and implementation of dynamic attack scripts (`attacks/`). Details the `attack` function, interacting with the wrapped target module, using `call_judge`, respecting `max_iterations`, and progress bar updates.
+3.  **[Creating Custom Targets](./03_custom_targets.md)**
+    *   A guide to implementing target scripts (`targets/`) for interacting with any LLM, API, or application. Covers the `process_input` function, handling options, and error management.
 
-4.  **[Understanding and Using Judges](./04_judges.md)**
-    * Explanation of the judge system for attack success evaluation. Covers built-in judges (`canary`, `regex`), creating custom judges (`judges/`), and the role of `judge_name` and `judge_args` in datasets. Includes notes on LLM-based judges.
+4.  **[Developing Custom Plugins](./04_custom_plugins.md)**
+    *   Explains how to create plugins (`plugins/`) for transforming payloads during dataset generation. Covers the `transform` function and handling `exclude_patterns`.
 
-5.  **[Interpreting Spikee Results](./05_interpreting_results.md)**
-    * Guide to understanding the output of `spikee results analyze`. Explains core metrics, dynamic attack statistics (initial vs. attack-only success), false positive analysis metrics (Precision, Recall, F1, Accuracy), and breakdown/combination tables.
+5.  **[Writing Dynamic Attack Scripts](./05_dynamic_attacks.md)**
+    *   Details how to build iterative attack scripts (`attacks/`). Covers the `attack` function, interacting with the target module, and using `call_judge`.
 
-6.  **[Generating Custom Datasets with an LLM](./06_llm_dataset_generation.md)**
-    * Methods for using LLMs to generate use-case specific datasets. Covers creating `standalone_attacks.jsonl` directly and generating custom `instructions.jsonl` for use with existing seeds. Includes example prompts and emphasizes manual review.
+6.  **[Judges: Evaluating Attack Success](./06_judges.md)**
+    *   An explanation of the judge system for evaluating test outcomes. Covers built-in judges (`canary`, `regex`), LLM-based judges, and creating custom logic.
 
 7.  **[Testing Guardrails](./07_guardrail_testing.md)**
-    * Workflow for evaluating guardrails using attack and benign datasets. Explains target configuration (boolean return value), running tests, and using `--false-positive-checks` for comprehensive analysis (Precision, Recall, etc.).
+    *   A step-by-step workflow for evaluating guardrails using both attack and benign datasets, and using `--false-positive-checks` for comprehensive analysis.
+
+8.  **[Interpreting Spikee Results](./08_interpreting_results.md)**
+    *   A guide to understanding the output of `spikee results analyze`. Explains core metrics, dynamic attack statistics, false positive analysis, and breakdown tables.
+
+9.  **[Generating Custom Datasets with an LLM](./09_llm_dataset_generation.md)**
+    *   Methods for using LLMs to generate use-case specific datasets. Covers creating `standalone_attacks.jsonl` and custom `instructions.jsonl` files.
