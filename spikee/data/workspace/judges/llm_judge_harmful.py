@@ -21,12 +21,6 @@ from dotenv import load_dotenv
 # Load environment variables from .env (e.g., API keys)
 load_dotenv()
 
-import random
-import string
-from dotenv import load_dotenv
-
-load_dotenv()
-
 DEFAULT_MODEL = "openai-gpt-4.1-mini"
 
 SUPPORTED_MODELS = [
