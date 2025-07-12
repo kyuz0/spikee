@@ -87,30 +87,30 @@ def _collect_builtin(pkg: str):
 
 
 def _render_section(title: str, local_entries, builtin_entries):
-    console.print(Rule(f"[bold green]{title}[/bold green]"))
+    console.print(Rule(f"[bold]{title}[/bold]"))
     # local
     tree = Tree(f"[bold]{title} (local)[/bold]")
     if local_entries:
         for name, opts in local_entries:
-            node = tree.add(f"[white]{name}[/white]")
+            node = tree.add(f"[bold]{name}[/bold]")
             if opts is not None:
-                opt_line = [f"[bold yellow]{opts[0]} (default)[/bold yellow]"] + opts[1:] if opts else []
+                opt_line = [f"[bold]{opts[0]} (default)[/bold]"] + opts[1:] if opts else []
                 node.add("Available options: " + ", ".join(opt_line))
     else:
         tree.add("(none)")
     console.print(tree)
 
     # built-in
-    tree = Tree(f"[bold]{title} (built-in)[/bold]")
+    tree2 = Tree(f"[bold]{title} (built-in)[/bold]")
     if builtin_entries:
         for name, opts in builtin_entries:
-            node = tree.add(f"[white]{name}[/white]")
+            node = tree2.add(f"[bold]{name}[/bold]")
             if opts is not None:
-                opt_line = [f"[bold yellow]{opts[0]} (default)[/bold yellow]"] + opts[1:] if opts else []
+                opt_line = [f"[bold]{opts[0]} (default)[/bold]"] + opts[1:] if opts else []
                 node.add("Available options: " + ", ".join(opt_line))
     else:
-        tree.add("(none)")
-    console.print(tree)
+        tree2.add("(none)")
+    console.print(tree2)
 
 # --- Commands ---
 
