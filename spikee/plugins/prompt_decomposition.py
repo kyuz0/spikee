@@ -37,7 +37,7 @@ def get_available_option_values() -> List[str]:
     """Return supported options; first option is default."""
     return [
         "mode=dumb,variants=10",
-        f"available modes: {", ".join(SUPPORTED_MODES)}"
+        "available modes: " + ", ".join(SUPPORTED_MODES)
     ]
 
 def _parse_options(plugin_option: str) -> tuple:
