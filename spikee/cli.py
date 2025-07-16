@@ -44,7 +44,7 @@ def str2bool(v):
 def main():
     print(banner)
     print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
-    print("Version: 0.3.0\n")
+    print("Version: 0.3.2\n")
     print("Author: Reversec (reversec.com)\n")
 
     parser = argparse.ArgumentParser(
