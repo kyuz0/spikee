@@ -266,7 +266,11 @@ def call_judge(entry, output):
         judge_options = entry.get("judge_options", None)
         llm_input = entry["text"]
         judge_module = load_judge_module(judge_name)
-        return judge_module.judge(llm_input=llm_input, llm_output=output, judge_args=judge_args, judge_options=judge_options)
+        judge_func_params = inspect.signature(judge_module.judge).parameters
+        if "judge_options" in judge_func_params:
+            return judge_module.judge(llm_input=llm_input, llm_output=output, judge_args=judge_args, judge_options=judge_options)
+        else:
+            return judge_module.judge(llm_input=llm_input, llm_output=output, judge_args=judge_args)
 
 def _do_single_request(entry, input_text, target_module, num_attempt,
                         attempts_bar, global_lock):
