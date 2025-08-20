@@ -65,11 +65,11 @@ This README provides a practical guide to the core workflow. For advanced topics
 2.  **[Dataset Generation Options](./docs/02_dataset_generation_options.md)**: A reference for all `spikee generate` flags.
 3.  **[Creating Custom Targets](./docs/03_custom_targets.md)**: Interact with any LLM, API, or guardrail.
 4.  **[Developing Custom Plugins](./docs/04_custom_plugins.md)**: Statically transform and obfuscate payloads.
-5.  **[Writing Dynamic Attack Scripts](./docs/03_dynamic_attacks.md)**: Create iterative, adaptive attack logic.
-6.  **[Judges: Evaluating Attack Success](./docs/05_judges.md)**: Define custom success criteria for tests.
-7.  **[Testing Guardrails](./docs/06_guardrail_testing.md)**: Evaluate guardrail effectiveness and false positive rates.
-8.  **[Interpreting Spikee Results](./docs/07_interpreting_results.md)**: Understand test reports and performance metrics.
-9.  **[Generating Custom Datasets with an LLM](./docs/08_llm_dataset_generation.md)**: Create tailored datasets for specific use cases.
+5.  **[Writing Dynamic Attack Scripts](./docs/05_dynamic_attacks.md)**: Create iterative, adaptive attack logic.
+6.  **[Judges: Evaluating Attack Success](./docs/06_judges.md)**: Define custom success criteria for tests.
+7.  **[Testing Guardrails](./docs/07_guardrail_testing.md)**: Evaluate guardrail effectiveness and false positive rates.
+8.  **[Interpreting Spikee Results](./docs/08_interpreting_results.md)**: Understand test reports and performance metrics.
+9.  **[Generating Custom Datasets with an LLM](./docs/09_llm_dataset_generation.md)**: Create tailored datasets for specific use cases.
 ---
 
 ## 1. Installation
@@ -88,7 +88,7 @@ pip install --upgrade --force-reinstall spikee
 ### 1.2 Local Installation (From Source)
 
 ```bash
-git clone https://github.com/WithSecureLabs/spikee.git
+git clone https://github.com/ReversecLabs/spikee.git
 cd spikee
 python3 -m venv env
 source env/bin/activate
@@ -184,10 +184,10 @@ spikee test --dataset datasets/cybersec-2025-04-full-prompt-dataset-*.jsonl \
 >
 > The `cybersec-2025-04` dataset contains attacks whose success can be verified automatically by searching for specific "canary" words or matching regular expressions in the response (such as the presence of a *Markdown image*).
 >
-> For more complex goals, like checking for harmful content or policy violations, Spikee can use more complex **Judges**. These are Python modules that evaluate the target's response. We include simple LLM-based judges that can assess if a response meets a given criteria. See the **[Judges documentation](./04_judges.md)** to learn more.
+> For more complex goals, like checking for harmful content or policy violations, Spikee can use more complex **Judges**. These are Python modules that evaluate the target's response. We include simple LLM-based judges that can assess if a response meets a given criteria. See the **[Judges documentation](./docs/06_judges.md)** to learn more.
 
 #### B. Testing a Custom LLM Application
-To test an LLM application, you must create a custom **Target script**. This Python script, placed in the `targets/` directory in your workspace, tells Spikee how to send data to the application and receive its response. For details, see the **[Creating Custom Targets](./01_custom_targets.md)** guide.
+To test an LLM application, you must create a custom **Target script**. This Python script, placed in the `targets/` directory in your workspace, tells Spikee how to send data to the application and receive its response. For details, see the **[Creating Custom Targets](./docs/03_custom_targets.md)** guide.
 
 ```bash
 # Test a custom email application using malicious documents and your custom target
