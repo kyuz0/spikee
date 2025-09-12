@@ -133,3 +133,28 @@ In your dataset `.jsonl` file, set `judge_name` to your script's filename (witho
 }
 ```
 When Spikee processes this entry, it will load `my_custom_judge.py` and call its `judge` function to determine if the test was a success.
+
+## Using Rejudging
+This allows you to re-perform judging on existing results datasets. 
+
+For example, if a scan was performed within a restrictive environment without access to an LLM for judging, it would allow you to perform judging in a less restrictive environment or would allow you to rejudge an existing results file with a different judge.
+
+### 1. Scan Using Offline Judge
+Specify the offline judge model, with the `--judge-options offline` flag during your test.
+
+```bash
+spikee test --dataset datasets/my-harmful-content-test.jsonl \
+            --target target_llm_app \
+            --judge-options offline
+```
+
+The offline judges just mocks calling an LLM for judging the answer, and instead always return False, that is an unsuccessful attack. Tjis will allow you to perfrom the attack and collect the responses *without* needing to call a Judge LLM.
+
+### 2. Perform Rejudging
+Specify your results files to be rejudged, using `--result-file` flag. (NB, You can specify multiple files by repeating the `--result-file` flag). Then specify a local model via the `--judge-options` flag.
+
+```bash
+spikee results rejudge --result-file .\results\results_openai-api_my-harmful-content-test.jsonl \
+                       --result-file .\results\results_openai-api_my-first_jailbreaks.jsonl \
+                       --judge-options ollama-llama3.2
+```
