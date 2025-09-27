@@ -7,9 +7,11 @@ import random
 import threading
 import inspect
 import traceback
+import sys
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+from datetime import datetime, timedelta
 
 from .judge import annotate_judge_options, call_judge
 
@@ -131,6 +133,152 @@ def extract_dataset_name(file_name):
         file_name = file_name[len("seeds-"):]
     return file_name
 
+def _results_prefix(target_name_full: str, dataset_path: str, tag: str | None) -> str:
+    base = extract_dataset_name(dataset_path)
+    parts = [f"results_{target_name_full}", base]
+    if tag:
+        parts.append(tag)
+    return "_".join(parts)
+
+def _parse_timestamp_from_filename(p: Path) -> int:
+    # Expect ..._<ts>.jsonl at the end; fall back to mtime if parse fails
+    name = p.name
+    try:
+        ts_str = name.rsplit("_", 1)[-1].removesuffix(".jsonl")
+        return int(ts_str)
+    except Exception:
+        return int(p.stat().st_mtime)
+
+def _find_resume_candidates(results_dir: str | Path,
+                            target_name_full: str,
+                            dataset_path: str,
+                            tag: str | None) -> list[Path]:
+    results_dir = Path(results_dir)
+    if not results_dir.exists():
+        return []
+
+    # Prefer exact tag if provided, else list all
+    prefix = _results_prefix(target_name_full, dataset_path, tag)
+    primary = sorted(results_dir.glob(f"{prefix}_*.jsonl"),
+                     key=_parse_timestamp_from_filename,
+                     reverse=True)
+
+    if tag:
+        # Also include related files without the tag if none found with tag
+        fallback_prefix = _results_prefix(target_name_full, dataset_path, None)
+        fallback = sorted(results_dir.glob(f"{fallback_prefix}_*.jsonl"),
+                          key=_parse_timestamp_from_filename,
+                          reverse=True)
+        # De-duplicate while preserving order
+        seen = set(p.resolve() for p in primary)
+        for f in fallback:
+            r = f.resolve()
+            if r not in seen:
+                primary.append(f)
+                seen.add(r)
+
+    return primary
+
+def _format_candidate_line(p: Path) -> str:
+    ts = _parse_timestamp_from_filename(p)
+    dt = datetime.fromtimestamp(ts)
+    age_sec = max(0, int((datetime.now() - dt).total_seconds()))
+    # compact age display
+    if age_sec < 90:
+        age = f"{age_sec}s"
+    elif age_sec < 90*60:
+        age = f"{age_sec//60}m"
+    elif age_sec < 48*3600:
+        age = f"{age_sec//3600}h"
+    else:
+        age = f"{age_sec//86400}d"
+    return f"[{dt.strftime('%Y-%m-%d %H:%M')}] {p.name}  (age {age})"
+
+def _select_resume_file_interactive(cands: list[Path], preselect_index: int = 0) -> Path | None:
+    # Try simple-term-menu if available
+    try:
+        from simple_term_menu import TerminalMenu  # type: ignore
+        items = [_format_candidate_line(p) for p in cands]
+        menu = TerminalMenu(
+            items,
+            title="Resume from which results file? (Enter to confirm)",
+            menu_cursor="➤ ",
+            menu_cursor_style=("bold",),
+            cycle_cursor=True,
+            clear_screen=True,
+            preview_command=None,
+            preview_size=0,
+            cursor_index=preselect_index
+        )
+        idx = menu.show()
+        if idx is None:
+            return None
+        return cands[idx]
+    except Exception:
+        # Fallback: compact pager showing 3 at a time
+        i = 0
+        page = 3
+        default = 0  # newest
+        while True:
+            end = min(i + page, len(cands))
+            print("\nResume candidates (newest first):")
+            for k, p in enumerate(cands[i:end], start=1):
+                print(f"{k}) {_format_candidate_line(p)}")
+            if end < len(cands):
+                print("[M] More   [L] Latest   [N] None   [#] Choose", end=" ")
+            else:
+                print("[L] Latest   [N] None   [#] Choose", end=" ")
+            choice = input().strip().lower()
+            if choice == "":
+                return cands[default]
+            if choice == "l":
+                return cands[default]
+            if choice == "n":
+                return None
+            if choice == "m" and end < len(cands):
+                i += page
+                continue
+            if choice.isdigit():
+                idx = int(choice) - 1 + i
+                if 0 <= idx < end:
+                    return cands[idx]
+            print("Invalid choice.")
+
+def _maybe_pick_resume_file(args, is_tty: bool) -> str | None:
+    # Respect explicit --resume-file
+    if getattr(args, "resume_file", None):
+        return args.resume_file
+
+    # If TTY and user explicitly disabled auto-resume, do nothing
+    if is_tty and getattr(args, "no_auto_resume", False):
+        return None
+
+    # Build scope and find candidates
+    target_name_full = _build_target_name(args.target, args.target_options)
+    cands = _find_resume_candidates("results", target_name_full, args.dataset, args.tag)
+
+    if not cands:
+        return None
+
+    # ---- TTY behavior: prompt by default unless --no-auto-resume was set above ----
+    if is_tty:
+        if len(cands) == 1:
+            print(f"[Auto-Resume] Found: {_format_candidate_line(cands[0])}")
+            resp = input("Resume this file? [Y/n] ").strip().lower()
+            if resp in ("", "y", "yes"):
+                return str(cands[0])
+            return None
+
+        picked = _select_resume_file_interactive(cands, preselect_index=0)
+        return str(picked) if picked else None
+
+    # ---- Non-TTY behavior: do nothing unless --auto-resume ----
+    if getattr(args, "auto_resume", False):
+        # silently pick latest
+        print(f"[Auto-Resume] Using latest: {cands[0].name}")
+        return str(cands[0])
+
+    return None
 
 def read_jsonl_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -572,8 +720,15 @@ def test_dataset(args):
     """
     Orchestrate testing of a dataset against a target.
     """
-    # 1. Validate inputs and prepare
+        # 1. Validate inputs and prepare
     tag = _validate_and_get_tag(args.tag)
+
+    # Auto-resume (decide resume file before loading anything)
+    tty = sys.stdin.isatty() and sys.stdout.isatty()
+    picked = _maybe_pick_resume_file(args, tty)
+    if picked:
+        args.resume_file = picked
+
     attack_module = _load_attack(args.attack)
     target_module = load_target_module(
         args.target,
@@ -585,6 +740,7 @@ def test_dataset(args):
     dataset = _apply_sampling(dataset, args.sample, args.sample_seed)
 
     completed_ids, results, already_done = _load_resume(args.resume_file, attack_module, args.attack_iterations)
+
     to_process = _filter_entries(dataset, completed_ids)
     to_process = annotate_judge_options(to_process, args.judge_options)
 
