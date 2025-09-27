@@ -14,6 +14,7 @@ Returns:
 """
 
 import base64
+from typing import List
 
 def transform(text: str, exclude_patterns: List[str] = None) -> str:
     """
