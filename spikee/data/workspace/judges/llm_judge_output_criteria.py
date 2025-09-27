@@ -38,7 +38,7 @@ SUPPORTED_MODELS = [
     "offline"
 ]
 
-DEFAULT_BASE_LLAMACCP_URL = "http://localhost:8080/"
+DEFAULT_BASE_LLAMACPP_URL = "http://localhost:8080/"
 
 
 def get_available_option_values():
@@ -85,7 +85,7 @@ def get_llm(judge_options=None):
     elif judge_options.startswith("llamaccp-server"):
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
-            base_url=DEFAULT_BASE_LLAMACCP_URL,
+            base_url=DEFAULT_BASE_LLAMACPP_URL,
             api_key="abc",
             max_tokens=None,
             timeout=None,
