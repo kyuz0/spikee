@@ -17,6 +17,7 @@ Returns:
 
 from typing import List
 
+
 def caesar_cipher(text: str, shift: int = 3) -> str:
     """
     Encrypts the input text using a Caesar cipher with the given shift value.
