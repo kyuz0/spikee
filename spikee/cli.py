@@ -150,6 +150,17 @@ def main():
                              help='Sample a percentage of the dataset (e.g., 0.15 for 15%%)')
     parser_test.add_argument('--sample-seed', default='42',
                              help='Seed for sampling (default: 42, or use "random" for random seed)')
+    group_resume = parser_test.add_mutually_exclusive_group()
+    group_resume.add_argument(
+        '--auto-resume',
+        action='store_true',
+        help='(non-tty) silently pick the latest matching results file if present; (tty) still prompts'
+    )
+    group_resume.add_argument(
+        '--no-auto-resume',
+        action='store_true',
+        help='(tty) disable interactive auto-resume prompt'
+    )
 
     # === [RESULTS] Sub-command ================================================
     parser_results = subparsers.add_parser('results', help='Analyze or convert results')
