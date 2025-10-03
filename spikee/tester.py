@@ -12,6 +12,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from datetime import datetime
+from simple_term_menu import TerminalMenu
 
 from .judge import annotate_judge_options, call_judge
 
@@ -208,55 +209,22 @@ def _format_candidate_line(p: Path) -> str:
 def _select_resume_file_interactive(
     cands: list[Path], preselect_index: int = 0
 ) -> Path | None:
-    # Try simple-term-menu if available
-    try:
-        from simple_term_menu import TerminalMenu  # type: ignore
-
-        items = [_format_candidate_line(p) for p in cands]
-        menu = TerminalMenu(
-            items,
-            title="Resume from which results file? (Enter to confirm)",
-            menu_cursor="➤ ",
-            menu_cursor_style=("bold",),
-            cycle_cursor=True,
-            clear_screen=True,
-            preview_command=None,
-            preview_size=0,
-            cursor_index=preselect_index,
-        )
-        idx = menu.show()
-        if idx is None:
-            return None
-        return cands[idx]
-    except Exception:
-        # Fallback: compact pager showing 3 at a time
-        i = 0
-        page = 3
-        default = 0  # newest
-        while True:
-            end = min(i + page, len(cands))
-            print("\nResume candidates (newest first):")
-            for k, p in enumerate(cands[i:end], start=1):
-                print(f"{k}) {_format_candidate_line(p)}")
-            if end < len(cands):
-                print("[M] More   [L] Latest   [N] None   [#] Choose", end=" ")
-            else:
-                print("[L] Latest   [N] None   [#] Choose", end=" ")
-            choice = input().strip().lower()
-            if choice == "":
-                return cands[default]
-            if choice == "l":
-                return cands[default]
-            if choice == "n":
-                return None
-            if choice == "m" and end < len(cands):
-                i += page
-                continue
-            if choice.isdigit():
-                idx = int(choice) - 1 + i
-                if 0 <= idx < end:
-                    return cands[idx]
-            print("Invalid choice.")
+    items = ["Start fresh (do not resume)"] + [_format_candidate_line(p) for p in cands]
+    menu = TerminalMenu(
+        items,
+        title="Resume from which results file? (Enter = Start fresh)",
+        menu_cursor="➤ ",
+        menu_cursor_style=("bold",),
+        cycle_cursor=True,
+        clear_screen=True,
+        preview_command=None,
+        preview_size=0,
+        cursor_index=0,  # default to Start fresh
+    )
+    idx = menu.show()
+    if idx is None or idx == 0:
+        return None
+    return cands[idx - 1]
 
 
 def _maybe_pick_resume_file(args, is_tty: bool) -> str | None:
@@ -279,8 +247,8 @@ def _maybe_pick_resume_file(args, is_tty: bool) -> str | None:
     if is_tty:
         if len(cands) == 1:
             print(f"[Auto-Resume] Found: {_format_candidate_line(cands[0])}")
-            resp = input("Resume this file? [Y/n] ").strip().lower()
-            if resp in ("", "y", "yes"):
+            resp = input("Resume this file? [y/N] ").strip().lower()
+            if resp in ("y", "yes"):
                 return str(cands[0])
             return None
 
