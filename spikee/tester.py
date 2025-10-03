@@ -245,13 +245,6 @@ def _maybe_pick_resume_file(args, is_tty: bool) -> str | None:
 
     # ---- TTY behavior: prompt by default unless --no-auto-resume was set above ----
     if is_tty:
-        if len(cands) == 1:
-            print(f"[Auto-Resume] Found: {_format_candidate_line(cands[0])}")
-            resp = input("Resume this file? [y/N] ").strip().lower()
-            if resp in ("y", "yes"):
-                return str(cands[0])
-            return None
-
         picked = _select_resume_file_interactive(cands, preselect_index=0)
         return str(picked) if picked else None
 
