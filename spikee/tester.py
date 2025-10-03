@@ -155,6 +155,7 @@ def _parse_timestamp_from_filename(p: Path) -> int:
     except Exception:
         return int(p.stat().st_mtime)
 
+
 def _is_exact_tag_match(p: Path, prefix: str, tag: str | None) -> bool:
     """
     Accept files named like:
@@ -165,7 +166,9 @@ def _is_exact_tag_match(p: Path, prefix: str, tag: str | None) -> bool:
     name = p.name
     if not name.startswith(prefix + "_") or not name.endswith(".jsonl"):
         return False
-    rest = name[len(prefix) + 1 : -len(".jsonl")]  # the part after prefix_, before .jsonl
+    rest = name[
+        len(prefix) + 1 : -len(".jsonl")
+    ]  # the part after prefix_, before .jsonl
     # After the (optional) tag is baked into prefix, only a numeric timestamp must remain.
     return rest.isdigit()
 
@@ -192,7 +195,6 @@ def _find_resume_candidates(
         key=_parse_timestamp_from_filename,
         reverse=True,
     )
-
 
 
 def _format_candidate_line(p: Path) -> str:
