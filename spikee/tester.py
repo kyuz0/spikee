@@ -155,6 +155,20 @@ def _parse_timestamp_from_filename(p: Path) -> int:
     except Exception:
         return int(p.stat().st_mtime)
 
+def _is_exact_tag_match(p: Path, prefix: str, tag: str | None) -> bool:
+    """
+    Accept files named like:
+      <prefix>_<ts>.jsonl              when tag is None
+      <prefix-with-tag>_<ts>.jsonl     when tag is not None
+    Reject anything that has extra segments before the timestamp.
+    """
+    name = p.name
+    if not name.startswith(prefix + "_") or not name.endswith(".jsonl"):
+        return False
+    rest = name[len(prefix) + 1 : -len(".jsonl")]  # the part after prefix_, before .jsonl
+    # After the (optional) tag is baked into prefix, only a numeric timestamp must remain.
+    return rest.isdigit()
+
 
 def _find_resume_candidates(
     results_dir: str | Path, target_name_full: str, dataset_path: str, tag: str | None
@@ -163,31 +177,22 @@ def _find_resume_candidates(
     if not results_dir.exists():
         return []
 
-    # Prefer exact tag if provided, else list all
     prefix = _results_prefix(target_name_full, dataset_path, tag)
-    primary = sorted(
-        results_dir.glob(f"{prefix}_*.jsonl"),
+
+    # Only accept exact matches for the requested tag (or lack of tag).
+    # No fallback to untagged files when a tag is specified.
+    candidates = [
+        p
+        for p in results_dir.glob(f"{prefix}_*.jsonl")
+        if _is_exact_tag_match(p, prefix, tag)
+    ]
+
+    return sorted(
+        candidates,
         key=_parse_timestamp_from_filename,
         reverse=True,
     )
 
-    if tag:
-        # Also include related files without the tag if none found with tag
-        fallback_prefix = _results_prefix(target_name_full, dataset_path, None)
-        fallback = sorted(
-            results_dir.glob(f"{fallback_prefix}_*.jsonl"),
-            key=_parse_timestamp_from_filename,
-            reverse=True,
-        )
-        # De-duplicate while preserving order
-        seen = set(p.resolve() for p in primary)
-        for f in fallback:
-            r = f.resolve()
-            if r not in seen:
-                primary.append(f)
-                seen.add(r)
-
-    return primary
 
 
 def _format_candidate_line(p: Path) -> str:
