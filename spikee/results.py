@@ -748,7 +748,8 @@ def analyze_results(args):
 def rejudge_results(args):
     result_files = args.result_file
 
-    print(f"Re-judging the following file(s): \n - {'\n - '.join(result_files)}")
+    print("Re-judging the following file(s): ")
+    print('\n - '.join(result_files))
 
     for result_file in result_files:
         print(f" \n\nCurrently Re-judging: {result_file.split(os.sep)[-1]}")
