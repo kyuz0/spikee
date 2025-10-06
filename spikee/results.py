@@ -749,7 +749,7 @@ def rejudge_results(args):
     result_files = args.result_file
 
     print("Re-judging the following file(s): ")
-    print('\n - '.join(result_files))
+    print("\n - ".join(result_files))
 
     for result_file in result_files:
         print(f" \n\nCurrently Re-judging: {result_file.split(os.sep)[-1]}")
