@@ -217,17 +217,17 @@ def _select_resume_file_interactive(
     cands: list[Path], preselect_index: int = 0
 ) -> Path | None:
     items = ["Start fresh (do not resume)"] + [_format_candidate_line(p) for p in cands]
-    
+
     result = inquirer.select(
         message="Resume from which results file? (Enter = Start fresh)",
         choices=items,
         default=items[0],  # default to Start fresh
         pointer="➤ ",
     ).execute()
-    
+
     if result == items[0]:  # "Start fresh" selected
         return None
-    
+
     # Find which candidate was selected
     idx = items.index(result) - 1
     return cands[idx]
