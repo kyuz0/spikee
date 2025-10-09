@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.4.6] - 2025-10-09
+
+### Changed
+
+- style: auto-format & lint via ruff
+- [BUG] Replace simple_term_menu with InquirePy to make spikee compatible with Windows (#25)
+- Update Release GitHub Action to automatically include the lits of commits in CHANGELOG.md (#24)
+
 
 ## [0.4.2] - 2025-09-27
 
