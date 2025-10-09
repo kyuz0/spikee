@@ -12,7 +12,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from datetime import datetime
-from simple_term_menu import TerminalMenu
+from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
 
@@ -217,21 +217,20 @@ def _select_resume_file_interactive(
     cands: list[Path], preselect_index: int = 0
 ) -> Path | None:
     items = ["Start fresh (do not resume)"] + [_format_candidate_line(p) for p in cands]
-    menu = TerminalMenu(
-        items,
-        title="Resume from which results file? (Enter = Start fresh)",
-        menu_cursor="➤ ",
-        menu_cursor_style=("bold",),
-        cycle_cursor=True,
-        clear_screen=True,
-        preview_command=None,
-        preview_size=0,
-        cursor_index=0,  # default to Start fresh
-    )
-    idx = menu.show()
-    if idx is None or idx == 0:
+    
+    result = inquirer.select(
+        message="Resume from which results file? (Enter = Start fresh)",
+        choices=items,
+        default=items[0],  # default to Start fresh
+        pointer="➤ ",
+    ).execute()
+    
+    if result == items[0]:  # "Start fresh" selected
         return None
-    return cands[idx - 1]
+    
+    # Find which candidate was selected
+    idx = items.index(result) - 1
+    return cands[idx]
 
 
 def _maybe_pick_resume_file(args, is_tty: bool) -> str | None:
