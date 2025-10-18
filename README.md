@@ -8,6 +8,19 @@
   </a>
   <br>
   <h1>Simple Prompt Injection Kit for Evaluation and Exploitation</h1>
+  <p>
+    <a href="https://spikee.ai" target="_blank">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" width="28" alt="Website" />
+    </a>
+    &nbsp;&nbsp;
+    <a href="https://reversec.com" target="_blank">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/internetarchive.svg" width="28" alt="Reversec" />
+    </a>
+    &nbsp;&nbsp;
+    <a href="https://discord.gg/6KDsSUb3" target="_blank">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg" width="28" alt="Discord" />
+    </a>
+  </p>
 </div>
 
 _Version: 0.4.6_
