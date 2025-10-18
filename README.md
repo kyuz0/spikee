@@ -8,6 +8,23 @@
   </a>
   <br>
   <h1>Simple Prompt Injection Kit for Evaluation and Exploitation</h1>
+
+  <p align="center">
+    <a href="https://spikee.ai" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+      <img src="images/link.svg" width="20" height="20" alt="Website" style="vertical-align:middle;">
+      &nbsp;Website
+    </a>
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://reversec.com" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+      <img src="images/link.svg" width="20" height="20" alt="Reversec" style="vertical-align:middle;">
+      &nbsp;Reversec
+    </a>
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://discord.gg/6KDsSUb3" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+      <img src="images/discord.svg" width="20" height="20" alt="Discord" style="vertical-align:middle;">
+      &nbsp;Discord
+    </a>
+  </p>
 </div>
 
 _Version: 0.4.6_
