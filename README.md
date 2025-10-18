@@ -9,24 +9,23 @@
   <br>
   <h1>Simple Prompt Injection Kit for Evaluation and Exploitation</h1>
 
-  <p>
-    <a href="https://spikee.ai" target="_blank" style="text-decoration:none;">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" width="20" alt="GitHub" style="vertical-align:middle; filter: invert(0.5) sepia(0) saturate(0) hue-rotate(0deg) brightness(1.2);">
+  <p align="center">
+    <a href="https://github.com/ReversecLabs/spikee" target="_blank">
+      <img src="https://cdn.simpleicons.org/github/ffffff" width="20" height="20" style="vertical-align:middle;">
       &nbsp;GitHub
     </a>
     &nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://reversec.com" target="_blank" style="text-decoration:none;">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/globe.svg" width="20" alt="Website" style="vertical-align:middle; filter: invert(0.5) sepia(0) saturate(0) hue-rotate(0deg) brightness(1.2);">
+    <a href="https://reversec.com" target="_blank">
+      <img src="https://cdn.simpleicons.org/globe/ffffff" width="20" height="20" style="vertical-align:middle;">
       &nbsp;Website
     </a>
     &nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://discord.gg/6KDsSUb3" target="_blank" style="text-decoration:none;">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg" width="20" alt="Discord" style="vertical-align:middle; filter: invert(0.5) sepia(0) saturate(0) hue-rotate(0deg) brightness(1.2);">
+    <a href="https://discord.gg/6KDsSUb3" target="_blank">
+      <img src="https://cdn.simpleicons.org/discord/5865F2" width="20" height="20" style="vertical-align:middle;">
       &nbsp;Discord
     </a>
   </p>
 </div>
-
 
 _Version: 0.4.6_
 
