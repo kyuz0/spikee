@@ -11,17 +11,12 @@
 
   <p align="center">
   <a href="https://reversec.com" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-         stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-         style="vertical-align:middle;">
-      <path d="M10 14a3 3 0 004.24 0l3-3a3 3 0 00-4.24-4.24L10 9.76"></path>
-      <path d="M14 10a3 3 0 00-4.24 0L6.76 13.24A3 3 0 0011 17.48"></path>
-    </svg>
-    &nbsp;Website
+    <img src="images/link.svg" width="20" height="20" alt="Reversec" style="vertical-align:middle;">
+    &nbsp;DiscReversecord
   </a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="https://discord.gg/6KDsSUb3" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
-    <img src="https://cdn.simpleicons.org/discord/5865F2" width="20" height="20" alt="Discord" style="vertical-align:middle;">
+    <img src="images/discord.svg" width="20" height="20" alt="Discord" style="vertical-align:middle;">
     &nbsp;Discord
   </a>
 </p>
