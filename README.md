@@ -11,25 +11,21 @@
 
   <p>
     <a href="https://github.com/ReversecLabs/spikee" target="_blank" style="text-decoration:none;">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg#gh-dark-mode-only" width="20" alt="GitHub">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg#gh-light-mode-only" width="20" alt="GitHub">
-      GitHub
+      <img src="https://raw.githubusercontent.com/edent/SuperTinyIcons/master/images/svg/github.svg" width="22" valign="middle">
+      &nbsp;GitHub
     </a>
     &nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="https://reversec.com" target="_blank" style="text-decoration:none;">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/internetarchive.svg#gh-dark-mode-only" width="20" alt="Website">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/internetarchive.svg#gh-light-mode-only" width="20" alt="Website">
-      Website
+      <img src="https://raw.githubusercontent.com/edent/SuperTinyIcons/master/images/svg/globe.svg" width="22" valign="middle">
+      &nbsp;Website
     </a>
     &nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="https://discord.gg/6KDsSUb3" target="_blank" style="text-decoration:none;">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg#gh-dark-mode-only" width="20" alt="Discord">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg#gh-light-mode-only" width="20" alt="Discord">
-      Discord
+      <img src="https://raw.githubusercontent.com/edent/SuperTinyIcons/master/images/svg/discord.svg" width="22" valign="middle">
+      &nbsp;Discord
     </a>
   </p>
 </div>
-
 
 _Version: 0.4.6_
 
