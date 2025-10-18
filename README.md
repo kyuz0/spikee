@@ -8,20 +8,28 @@
   </a>
   <br>
   <h1>Simple Prompt Injection Kit for Evaluation and Exploitation</h1>
+
   <p>
-    <a href="https://spikee.ai" target="_blank">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" width="28" alt="Website" />
+    <a href="https://github.com/ReversecLabs/spikee" target="_blank" style="text-decoration:none;">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg#gh-dark-mode-only" width="20" alt="GitHub">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg#gh-light-mode-only" width="20" alt="GitHub">
+      GitHub
     </a>
-    &nbsp;&nbsp;
-    <a href="https://reversec.com" target="_blank">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/internetarchive.svg" width="28" alt="Reversec" />
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://reversec.com" target="_blank" style="text-decoration:none;">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/internetarchive.svg#gh-dark-mode-only" width="20" alt="Website">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/internetarchive.svg#gh-light-mode-only" width="20" alt="Website">
+      Website
     </a>
-    &nbsp;&nbsp;
-    <a href="https://discord.gg/6KDsSUb3" target="_blank">
-      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg" width="28" alt="Discord" />
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="https://discord.gg/6KDsSUb3" target="_blank" style="text-decoration:none;">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg#gh-dark-mode-only" width="20" alt="Discord">
+      <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/discord.svg#gh-light-mode-only" width="20" alt="Discord">
+      Discord
     </a>
   </p>
 </div>
+
 
 _Version: 0.4.6_
 
