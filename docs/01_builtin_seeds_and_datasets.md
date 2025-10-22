@@ -24,6 +24,10 @@ This guide provides an overview of each available seed folder.
 ### `seeds-wildguardmix-harmful-fp`
 *   **Purpose:** A companion dataset to `seeds-wildguardmix-harmful`, containing benign (harmless) prompts. This dataset is intended for use with the `--false-positive-checks` flag to measure how often a guardrail incorrectly blocks legitimate prompts when evaluating harmful content filters.
 
+### `seeds-toxic-chat`
+*   **Purpose:** A dataset for testing toxic prompts, filtered from 10K user prompts collected from the Vicuna online demo.
+*   **Note:** This dataset requires you to run a fetch script. See the `README.md` inside the seed folder. It uses an LLM judge by default.
+
 ### `seeds-investment-advice`
 *   **Purpose:** Designed to test topical guardrails that are supposed to block personal financial or investment advice. It includes both malicious instructions and standalone attack prompts.
 
