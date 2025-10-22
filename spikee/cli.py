@@ -12,6 +12,7 @@ from pathlib import Path
 from .generator import generate_dataset
 from .tester import test_dataset
 from .results import analyze_results, rejudge_results, convert_results_to_excel
+from .ai_dataset_builder import ai_dataset_builder
 from .list import (
     list_seeds,
     list_datasets,
@@ -283,6 +284,32 @@ def main():
         help="(tty) disable interactive auto-resume prompt",
     )
 
+    # === [AI-DATASET-BUILDER] Sub-command =====================================
+    parser_ai = subparsers.add_parser('ai-dataset-builder', 
+                                      help='Generate dataset seeds using AI/LLM assistance')
+    parser_ai.add_argument('--interactive', action='store_true',
+                          help='Run in interactive mode (default if no args provided)')
+    parser_ai.add_argument('--output-folder', type=str,
+                          help='Name for the output seed folder (e.g., "my-attacks")')
+    parser_ai.add_argument('--dataset-type', choices=['standalone', 'instructions', 'both'],
+                          help='Type of dataset to generate')
+    parser_ai.add_argument('--goal', type=str,
+                          help='Description of what the prompts should attempt')
+    parser_ai.add_argument('--judge-name', type=str,
+                          help='Name of the judge to use (e.g., "canary", "llm_judge_harmful")')
+    parser_ai.add_argument('--judge-args', type=str,
+                          help='Arguments for the judge (e.g., canary string, criteria)')
+    parser_ai.add_argument('--instruction-type', type=str,
+                          help='Label for the instruction/attack type')
+    parser_ai.add_argument('--llm-model', type=str,
+                          help='LLM model to use for generation (e.g., "openai-gpt-4o")')
+    parser_ai.add_argument('--num-entries', type=int,
+                          help='Number of entries to generate per type')
+    parser_ai.add_argument('--copy-from', type=str,
+                          help='Existing seed folder to copy base files from')
+    parser_ai.add_argument('--force', action='store_true',
+                          help='Overwrite existing output folder')
+
     # === [RESULTS] Sub-command ================================================
     parser_results = subparsers.add_parser("results", help="Analyze or convert results")
     subparsers_results = parser_results.add_subparsers(
@@ -387,6 +414,11 @@ def main():
             list_attacks(args)
         else:
             parser_list.print_help()
+    elif args.command == 'ai-dataset-builder':
+        # If no arguments provided, run in interactive mode
+        if not any(vars(args).get(key) for key in ['output_folder', 'goal', 'dataset_type']):
+            args.interactive = True
+        ai_dataset_builder(args)
     else:
         parser.print_help()
         sys.exit(1)
