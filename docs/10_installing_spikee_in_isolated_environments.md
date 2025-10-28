@@ -1,4 +1,4 @@
-# Run Spikee in an Isolated Environment (zip upload only)
+# Installing Spikee in an Isolated Environment (zip upload only)
 
 **Scenario:** you have a completely isolated Linux system (e.g. Kali) in a client environment that you can use for testing an LLM application but this system has **no internet access and no pip**. The only thing you can do is **upload a single ZIP/TAR file** and extract it before the test, and at the end of the test download a ZIP file with the results.
 
