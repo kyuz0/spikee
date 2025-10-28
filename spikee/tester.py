@@ -16,25 +16,30 @@ from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
 
-
 class AdvancedTargetWrapper:
     """
-    A wrapper for a target module's process_input method that incorporates both:
-      - A loop for a given number of independent attempts (num_attempts), and
-      - A retry strategy for handling 429 errors (max_retries) with throttling.
+    Wrapper for a target module's process_input that adds:
+      - optional per-call retries (max_retries) for transient errors
+      - optional throttle after successful calls
+      - transparent forwarding of only the kwargs the wrapped target supports
 
-    This is designed to be passed to the attack() function so that each call to process_input()
-    will try up to num_attempts times (each with up to max_retries on quota errors) before failing.
+    The wrapper inspects the wrapped target.process_input signature and will forward
+    any of these optional keywords when supported:
+      - target_options
+      - logprobs
+      - spikee_session_id
+      - backtrack_last_turn
 
-    Parameters:
-      target_module: The original target module that provides process_input(input_text, system_message[, logprobs]).
-      target_options: Target options, typically a string representing the name of the llm to call
-      num_attempts (int): Number of independent attempts to call process_input per invocation.
-      max_retries (int): Maximum number of retries per attempt (e.g. on 429 errors).
-      throttle (float): Number of seconds to wait after a successful call.
+    The wrapper's process_input accepts the union of these kwargs so callers can
+    always call the wrapper with the newer Spikee-style signature; the wrapper
+    will only forward those supported by the wrapped target.
     """
 
     def __init__(self, target_module, target_options=None, max_retries=3, throttle=0):
+        import inspect
+        import time
+        import random
+
         self.target_module = target_module
         self.target_options = target_options
         self.max_retries = max_retries
@@ -42,47 +47,66 @@ class AdvancedTargetWrapper:
 
         sig = inspect.signature(self.target_module.process_input)
         params = sig.parameters
-        # detect optional parameters that were only added in newer Spikee versions
+
+        # detect what optional parameters the underlying target accepts
         self.supports_options = "target_options" in params
         self.supports_logprobs = "logprobs" in params
+        self.supports_spikee_session = "spikee_session_id" in params
+        self.supports_backtrack = "backtrack_last_turn" in params
 
-    def process_input(self, input_text, system_message=None, logprobs=False):
+    def process_input(
+        self,
+        input_text,
+        system_message=None,
+        logprobs=False,
+        spikee_session_id=None,
+        backtrack_last_turn=False,
+    ):
+        """
+        Call the wrapped target.process_input with retries and only the kwargs it supports.
+
+        Returns:
+            (response, logprobs_or_meta) where second element may be None.
+        """
+        import time
+        import random
+
         last_error = None
         retries = 0
 
         while retries < self.max_retries:
             try:
                 # Build only the kwargs the underlying target supports.
-                # Older targets without these parameters will simply be called without them.
                 kwargs = {}
                 if self.supports_options and self.target_options is not None:
                     kwargs["target_options"] = self.target_options
                 if self.supports_logprobs:
                     kwargs["logprobs"] = logprobs
+                if self.supports_spikee_session and spikee_session_id is not None:
+                    kwargs["spikee_session_id"] = spikee_session_id
+                if self.supports_backtrack:
+                    kwargs["backtrack_last_turn"] = backtrack_last_turn
 
                 # Delegate to the wrapped process_input
                 if kwargs:
-                    result = self.target_module.process_input(
-                        input_text, system_message, **kwargs
-                    )
+                    result = self.target_module.process_input(input_text, system_message, **kwargs)
                 else:
-                    result = self.target_module.process_input(
-                        input_text, system_message
-                    )
+                    result = self.target_module.process_input(input_text, system_message)
 
-                # Unpack (response, logprobs) if tuple returned
+                # Unpack (response, meta) if tuple returned
                 if isinstance(result, tuple) and len(result) == 2:
-                    response, lp = result
+                    response, meta = result
                 else:
-                    response, lp = result, None
+                    response, meta = result, None
 
                 if self.throttle > 0:
                     time.sleep(self.throttle)
 
-                return response, lp
+                return response, meta
 
             except Exception as e:
                 last_error = e
+                # simple retry logic for 429-like messages
                 if "429" in str(e) and retries < self.max_retries - 1:
                     wait_time = random.randint(30, 120)
                     time.sleep(wait_time)
@@ -90,9 +114,8 @@ class AdvancedTargetWrapper:
                 else:
                     break
 
-        # All retries exhausted
+        # All retries exhausted: re-raise the last error
         raise last_error
-
 
 def validate_tag(tag):
     """
