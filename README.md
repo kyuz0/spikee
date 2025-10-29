@@ -20,7 +20,7 @@
       &nbsp;Reversec
     </a>
     &nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="https://discord.gg/6KDsSUb3" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
+    <a href="https://discord.gg/hweNfZw5pr" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
       <img src="images/discord.svg" width="20" height="20" alt="Discord" style="vertical-align:middle;">
       &nbsp;Discord
     </a>
