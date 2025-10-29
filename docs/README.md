@@ -28,3 +28,8 @@ This page provides an index of all detailed guides for Spikee.
 
 9.  **[Generating Custom Datasets with an LLM](./09_llm_dataset_generation.md)**
     *   Methods for using LLMs to generate use-case specific datasets. Covers creating `standalone_user_inputs.jsonl` and custom `instructions.jsonl` files.
+
+10.  **[Installing spikee in isolated environments](./10_installing_spikee_in_isolated_environments.md)**
+    *   A step-by-step guide on how to install spikee in a test environment that has limited / no internet access.
+
+    
