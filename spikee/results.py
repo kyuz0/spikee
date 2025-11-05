@@ -748,11 +748,11 @@ def analyze_results(args):
 def rejudge_results(args):
     result_files = args.result_file
 
-    print("Re-judging the following file(s): ")
-    print("\n - ".join(result_files))
+    print("[Overview] The following file(s) will be re-judged: ")
+    print("\n - " + "\n - ".join(result_files))
 
     for result_file in result_files:
-        print(f" \n\nCurrently Re-judging: {result_file.split(os.sep)[-1]}")
+        print(f" \n\n[Start] Currently Re-judging: {result_file.split(os.sep)[-1]}")
 
         # Obtain results to re-judge and annotate judge options
         results = read_jsonl_file(result_file)

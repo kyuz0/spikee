@@ -190,6 +190,7 @@ def main():
     parser_test.add_argument(
         "--dataset",
         type=str,
+        action="append",
         required=True,
         help="Path to the dataset file (local workspace)",
     )
@@ -233,7 +234,7 @@ def main():
         "--resume-file",
         type=str,
         default=None,
-        help="Path to a results JSONL file to resume from",
+        help="Path to a results JSONL file to resume from. Only works with a single dataset.",
     )
     parser_test.add_argument(
         "--throttle",

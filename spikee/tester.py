@@ -134,7 +134,7 @@ def extract_dataset_name(file_name):
     file_name = re.sub(r"^\d+-", "", file_name)
     file_name = re.sub(r".jsonl$", "", file_name)
     if file_name.startswith("seeds-"):
-        file_name = file_name[len("seeds-") :]
+        file_name = file_name[len("seeds-"):]
     return file_name
 
 
@@ -167,7 +167,7 @@ def _is_exact_tag_match(p: Path, prefix: str, tag: str | None) -> bool:
     if not name.startswith(prefix + "_") or not name.endswith(".jsonl"):
         return False
     rest = name[
-        len(prefix) + 1 : -len(".jsonl")
+        len(prefix) + 1: -len(".jsonl")
     ]  # the part after prefix_, before .jsonl
     # After the (optional) tag is baked into prefix, only a numeric timestamp must remain.
     return rest.isdigit()
@@ -233,32 +233,31 @@ def _select_resume_file_interactive(
     return cands[idx]
 
 
-def _maybe_pick_resume_file(args, is_tty: bool) -> str | None:
+def _maybe_pick_resume_file(args, dataset, is_tty: bool) -> str | None:
     # Respect explicit --resume-file
     if getattr(args, "resume_file", None):
         return args.resume_file
 
-    # If TTY and user explicitly disabled auto-resume, do nothing
+    # If TTY and user explicitly disabled auto-resume, do nothing (--no-auto-resume)
     if is_tty and getattr(args, "no_auto_resume", False):
         return None
 
     # Build scope and find candidates
     target_name_full = _build_target_name(args.target, args.target_options)
-    cands = _find_resume_candidates("results", target_name_full, args.dataset, args.tag)
+    cands = _find_resume_candidates("results", target_name_full, dataset, args.tag)
 
     if not cands:
         return None
 
-    # ---- TTY behavior: prompt by default unless --no-auto-resume was set above ----
+    # Respect --auto-resume flag, silently pick latest
+    if getattr(args, "auto_resume", False):
+        print(f"[Auto-Resume] Using latest: {cands[0].name}")
+        return str(cands[0])
+
+    # ---- TTY behavior: user select prompt ----
     if is_tty:
         picked = _select_resume_file_interactive(cands, preselect_index=0)
         return str(picked) if picked else None
-
-    # ---- Non-TTY behavior: do nothing unless --auto-resume ----
-    if getattr(args, "auto_resume", False):
-        # silently pick latest
-        print(f"[Auto-Resume] Using latest: {cands[0].name}")
-        return str(cands[0])
 
     return None
 
@@ -776,12 +775,6 @@ def test_dataset(args):
     # 1. Validate inputs and prepare
     tag = _validate_and_get_tag(args.tag)
 
-    # Auto-resume (decide resume file before loading anything)
-    tty = sys.stdin.isatty() and sys.stdout.isatty()
-    picked = _maybe_pick_resume_file(args, tty)
-    if picked:
-        args.resume_file = picked
-
     attack_module = _load_attack(args.attack)
     target_module = load_target_module(
         args.target,
@@ -789,51 +782,76 @@ def test_dataset(args):
         args.max_retries,
         args.throttle,
     )
-    dataset = read_jsonl_file(args.dataset)
-    dataset = _apply_sampling(dataset, args.sample, args.sample_seed)
 
-    completed_ids, results, already_done = _load_resume(
-        args.resume_file, attack_module, args.attack_iterations
-    )
+    # Obtain datasets and ensure resume-file is only used with single dataset
+    datasets = args.dataset
+    if len(datasets) > 1 and args.resume_file is not None:
+        print(f"[Error] --resume-file cannot be used when testing multiple datasets. Currently selected {len(datasets)} datasets.")
+        exit(1)
 
-    to_process = _filter_entries(dataset, completed_ids)
-    to_process = annotate_judge_options(to_process, args.judge_options)
+    print("[Overview] Testing the following dataset(s): ")
+    print("\n - " + "\n - ".join(datasets))
 
-    target_name_full = _build_target_name(args.target, args.target_options)
+    for dataset in datasets:
+        print(f" \n[Start] Initiating testing of '{dataset.split(os.sep)[-1]}' against target '{args.target}'")
 
-    output_file = _prepare_output_file(
-        "results",
-        target_name_full,
-        args.dataset,
-        tag,
-    )
-    _write_initial_results(output_file, results)
+        dataset_json = read_jsonl_file(dataset)
+        dataset_json = _apply_sampling(dataset_json, args.sample, args.sample_seed)
 
-    # 2. Run tests
-    total_attempts = _calculate_total_attempts(
-        len(to_process),
-        args.attempts,
-        args.attack_iterations,
-        already_done,
-        bool(attack_module),
-    )
-    _print_info(len(to_process), args.threads, output_file)
+        # Determine resume status (decide resume file before loading anything)
+        tty = sys.stdin.isatty() and sys.stdout.isatty()
+        picked = _maybe_pick_resume_file(args, dataset, tty)
+        if picked:
+            args.resume_file = picked
 
-    success_count = sum(1 for r in results if r.get("success"))
-    _run_threaded(
-        to_process,
-        target_module,
-        args.attempts,
-        attack_module,
-        args.attack_iterations,
-        args.attack_options,
-        args.threads,
-        total_attempts,
-        already_done,
-        output_file,
-        len(dataset),
-        len(completed_ids),
-        success_count,
-    )
+        # Load resume data if any has been selected
+        completed_ids, results, already_done = _load_resume(
+            args.resume_file, attack_module, args.attack_iterations
+        )
 
-    print(f"[Done] Testing finished. Results saved to {output_file}")
+        to_process = _filter_entries(dataset_json, completed_ids)
+        to_process = annotate_judge_options(to_process, args.judge_options)
+
+        if len(to_process) == 0:
+            print(f"[Done] All entries have already been processed for dataset '{dataset}'. Skipping, please use `--no-auto-resume` to re-test.")
+            continue
+
+        # Create new results file and for resume, write existing results
+        target_name_full = _build_target_name(args.target, args.target_options)
+        output_file = _prepare_output_file(
+            "results",
+            target_name_full,
+            dataset,
+            tag,
+        )
+        _write_initial_results(output_file, results)
+
+        # 2. Run tests
+        total_attempts = _calculate_total_attempts(
+            len(to_process),
+            args.attempts,
+            args.attack_iterations,
+            already_done,
+            bool(attack_module),
+        )
+        _print_info(len(to_process), args.threads, output_file)
+
+        success_count = sum(1 for r in results if r.get("success"))
+        _run_threaded(
+            to_process,
+            target_module,
+            args.attempts,
+            attack_module,
+            args.attack_iterations,
+            args.attack_options,
+            args.threads,
+            total_attempts,
+            already_done,
+            output_file,
+            len(dataset),
+            len(completed_ids),
+            success_count,
+        )
+
+        print(f"[Done] Testing finished. Results saved to {output_file}")
+    print(f"[Overview] Tested {len(datasets)} dataset(s).")
