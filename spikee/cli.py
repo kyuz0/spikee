@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .generator import generate_dataset
 from .tester import test_dataset
-from .results import analyze_results, rejudge_results, convert_results_to_excel
+from .results import analyze_results, rejudge_results, extract_results, convert_results_to_excel
 from .list import (
     list_seeds,
     list_datasets,
@@ -69,14 +69,10 @@ def convert_to_new_args(args):
 
 
 def main():
-    print(banner)
-    print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
-    print(f"Version: {__version__}\n")
-    print("Author: Reversec (reversec.com)\n")
-
     parser = argparse.ArgumentParser(
-        description="SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation"
+        description=f"SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation - Version: {__version__}\n"
     )
+    parser.add_argument('-b', '--no-banner', action='store_true', help='No banner on run')
 
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
 
@@ -191,8 +187,13 @@ def main():
         "--dataset",
         type=str,
         action="append",
-        required=True,
-        help="Path to the dataset file (local workspace)",
+        help="Path to a dataset file (local workspace)",
+    )
+    parser_test.add_argument(
+        "--dataset-folder",
+        type=str,
+        action="append",
+        help="Path to a dataset folder containing multiple JSONL files",
     )
     parser_test.add_argument(
         "--target",
@@ -276,7 +277,7 @@ def main():
     group_resume.add_argument(
         "--auto-resume",
         action="store_true",
-        help="(non-tty) silently pick the latest matching results file if present; (tty) still prompts",
+        help="silently pick the latest matching results file if present",
     )
     group_resume.add_argument(
         "--no-auto-resume",
@@ -295,19 +296,38 @@ def main():
         "analyze", help="Analyze the results JSONL file"
     )
     parser_analyze.add_argument(
-        "--result-file", type=str, required=True, help="Path to the results JSONL file"
+        "--result-file",
+        type=str,
+        action="append",
+        help="Path to a results JSONL file"
+    )
+    parser_analyze.add_argument(
+        "--result-folder",
+        type=str,
+        action="append",
+        help="Path to a results folder containing multiple JSONL files",
     )
     parser_analyze.add_argument(
         "--false-positive-checks",
         type=str,
         default=None,
-        help="Path to a JSONL file with benign prompts for false positive analysis",
+        help="Path to a JSONL file with benign prompts for false positive analysis. Only works with a single dataset.",
     )
     parser_analyze.add_argument(
         "--output-format",
         choices=["console", "html"],
         default="console",
         help="Output format: console (default) or html",
+    )
+    parser_analyze.add_argument(
+        "--overview",
+        action="store_true",
+        help="Only output the general statistics of results files.",
+    )
+    parser_analyze.add_argument(
+        "--combine",
+        action="store_true",
+        help="Combine results from multiple files into a single analysis.",
     )
 
     # --- rejudge
@@ -318,8 +338,13 @@ def main():
         "--result-file",
         type=str,
         action="append",
-        required=True,
-        help="Path to the results JSONL file",
+        help="Path to a results JSONL file",
+    )
+    parser_rejudge.add_argument(
+        "--result-folder",
+        type=str,
+        action="append",
+        help="Path to a results folder containing multiple JSONL files",
     )
     parser_rejudge.add_argument(
         "--judge-options",
@@ -331,6 +356,34 @@ def main():
         "--resume",
         action="store_true",
         help="This will attempt to resume a re-judge the most recent results file. (Requires filename to be unmodified and in the same folder.)",
+    )
+
+    # --- extract
+    parser_extract = subparsers_results.add_parser(
+        "extract", help="Extract categories of prompts from results JSONL files"
+    )
+    parser_extract.add_argument(
+        "--result-file",
+        type=str,
+        action="append",
+        help="Path to a results JSONL file",
+    )
+    parser_extract.add_argument(
+        "--result-folder",
+        type=str,
+        action="append",
+        help="Path to a results folder containing multiple JSONL files",
+    )
+    parser_extract.add_argument(
+        "--category",
+        help="Extracts prompts by category: success (default), fail, error",
+    )
+    parser_extract.add_argument(
+        "--tag", default=None, help="Include a tag at the end of the results filename"
+    )
+    parser_extract.add_argument(
+        "--pretty-print",
+        help="(WIP) Pretty print results to CLI, specify format: None (default)",
     )
 
     # --- convert-to-excel
@@ -357,6 +410,12 @@ def main():
 
     args = convert_to_new_args(parser.parse_args())
 
+    if not args.no_banner:
+        print(banner)
+        print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
+        print(f"Version: {__version__}\n")
+        print("Author: Reversec (reversec.com)\n")
+
     if args.command == "init":
         init_workspace(force=args.force, include_builtin=args.include_builtin)
 
@@ -369,6 +428,8 @@ def main():
             analyze_results(args)
         elif args.results_command == "rejudge":
             rejudge_results(args)
+        elif args.results_command == "extract":
+            extract_results(args)
         elif args.results_command == "convert-to-excel":
             convert_results_to_excel(args)
         else:

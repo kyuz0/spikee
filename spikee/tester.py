@@ -15,6 +15,7 @@ from datetime import datetime
 from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
+from .utilities import read_jsonl_file, write_jsonl_file, append_jsonl_entry, process_jsonl_input_files, validate_and_get_tag
 
 
 class AdvancedTargetWrapper:
@@ -92,41 +93,6 @@ class AdvancedTargetWrapper:
 
         # All retries exhausted
         raise last_error
-
-
-def validate_tag(tag):
-    """
-    Validates that a tag is safe to use in a filename.
-
-    Args:
-        tag (str): The tag to validate
-
-    Returns:
-        tuple: (is_valid, error_message)
-            - is_valid (bool): True if tag is valid, False otherwise
-            - error_message (str): Reason for validation failure or None if valid
-    """
-    if tag is None:
-        return True, None
-
-    # Check for empty string after stripping whitespace
-    if len(tag.strip()) == 0:
-        return False, "Tag cannot be empty or whitespace only"
-
-    # Check length (reasonable max length for filename component)
-    MAX_LENGTH = 50
-    if len(tag) > MAX_LENGTH:
-        return False, f"Tag exceeds maximum length of {MAX_LENGTH} characters"
-
-    # Check for valid characters - alphanumeric, dash and underscore only
-    pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
-    if not pattern.match(tag):
-        return (
-            False,
-            "Tag can only contain letters, numbers, dash (-) and underscore (_)",
-        )
-
-    return True, None
 
 
 def extract_dataset_name(file_name):
@@ -260,26 +226,6 @@ def _maybe_pick_resume_file(args, dataset, is_tty: bool) -> str | None:
         return str(picked) if picked else None
 
     return None
-
-
-def read_jsonl_file(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
-        return [json.loads(line) for line in f]
-
-
-def write_jsonl_file(output_file, data):
-    with open(output_file, "w", encoding="utf-8") as f:
-        for entry in data:
-            json.dump(entry, f, ensure_ascii=False)
-            f.write("\n")
-
-
-def append_jsonl_entry(output_file, entry, file_lock):
-    """Appends a single entry to a JSONL file in a thread-safe manner."""
-    with file_lock:
-        with open(output_file, "a", encoding="utf-8") as f:
-            json.dump(entry, f, ensure_ascii=False)
-            f.write("\n")
 
 
 def check_canary_in_response(response, canary):
@@ -585,16 +531,6 @@ def process_entry(
     return results_list
 
 
-def _validate_and_get_tag(tag):
-    if not tag:
-        return None
-    valid, err = validate_tag(tag)
-    if not valid:
-        print(f"Error: Invalid tag: {err}")
-        exit(1)
-    return tag
-
-
 def _load_attack(attack_name):
     if not attack_name:
         return None
@@ -679,13 +615,6 @@ def _prepare_output_file(results_dir, target_name_full, dataset_path, tag):
     filename = "_".join(parts) + ".jsonl"
     os.makedirs(results_dir, exist_ok=True)
     return os.path.join(results_dir, filename)
-
-
-def _write_initial_results(path, results):
-    with open(path, "w", encoding="utf-8") as f:
-        for r in results:
-            json.dump(r, f, ensure_ascii=False)
-            f.write("\n")
 
 
 def _calculate_total_attempts(
@@ -773,7 +702,7 @@ def test_dataset(args):
     Orchestrate testing of a dataset against a target.
     """
     # 1. Validate inputs and prepare
-    tag = _validate_and_get_tag(args.tag)
+    tag = validate_and_get_tag(args.tag)
 
     attack_module = _load_attack(args.attack)
     target_module = load_target_module(
@@ -784,13 +713,16 @@ def test_dataset(args):
     )
 
     # Obtain datasets and ensure resume-file is only used with single dataset
-    datasets = args.dataset
+    datasets = process_jsonl_input_files(args.dataset, args.dataset_folder)
     if len(datasets) > 1 and args.resume_file is not None:
         print(f"[Error] --resume-file cannot be used when testing multiple datasets. Currently selected {len(datasets)} datasets.")
         exit(1)
 
     print("[Overview] Testing the following dataset(s): ")
     print("\n - " + "\n - ".join(datasets))
+
+    if not args.auto_resume and not args.no_auto_resume and sys.stdin.isatty() and sys.stdout.isatty():
+        print("\n[Info] Spikee supports the following resume flags, instead of the interactive prompt:\n  --auto-resume ~ silently pick the latest matching results file.\n  --no-auto-resume ~ create a new results file.")
 
     for dataset in datasets:
         print(f" \n[Start] Initiating testing of '{dataset.split(os.sep)[-1]}' against target '{args.target}'")
@@ -824,7 +756,7 @@ def test_dataset(args):
             dataset,
             tag,
         )
-        _write_initial_results(output_file, results)
+        write_jsonl_file(output_file, results)
 
         # 2. Run tests
         total_attempts = _calculate_total_attempts(
