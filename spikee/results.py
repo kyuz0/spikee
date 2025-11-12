@@ -10,7 +10,8 @@ import time
 from tqdm import tqdm
 
 from .judge import annotate_judge_options, call_judge
-from .utilities import read_jsonl_file, write_jsonl_file, process_jsonl_input_files, validate_and_get_tag
+from .utilities.jsonl import read_jsonl_file, write_jsonl_file, process_jsonl_input_files
+from .utilities.tags import validate_and_get_tag
 
 
 def encode_special_characters(value):

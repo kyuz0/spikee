@@ -28,4 +28,4 @@ spikee = [ "data/**/*",]
 
 [tool.setuptools.packages.find]
 include = [ "spikee*",]
-exclude = [ "datasets*", "results*", "targets*", "plugins*", "attacks*", "judges*",]
+exclude = [ "datasets*", "results*", "targets*", "plugins*", "attacks*", "judges*", "templates*", "utilities*",]

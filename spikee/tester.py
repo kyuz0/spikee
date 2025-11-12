@@ -2,7 +2,6 @@ import os
 import re
 import json
 import time
-import importlib
 import random
 import threading
 import inspect
@@ -13,10 +12,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from datetime import datetime
 from InquirerPy import inquirer
+from typing import Self
 
 from .judge import annotate_judge_options, call_judge
-from .utilities import read_jsonl_file, write_jsonl_file, append_jsonl_entry, process_jsonl_input_files, validate_and_get_tag
-from .templates.target import Target
+from .utilities.jsonl import read_jsonl_file, write_jsonl_file, append_jsonl_entry, process_jsonl_input_files, extract_resource_name, build_resource_name, build_file_name, does_resource_name_match
+from .utilities.modules import load_module_from_path, get_default_option
+from .utilities.tags import validate_and_get_tag
 
 
 class GuardrailTrigger(Exception):
@@ -43,13 +44,6 @@ class AdvancedTargetWrapper:
 
     def __init__(self, target_module, target_options=None, max_retries=3, throttle=0):
         self.target_module = target_module
-        self.target_type = 'legacy'
-        for _, obj in inspect.getmembers(target_module):
-            if inspect.isclass(obj) and issubclass(obj, Target) and obj is not Target:
-                self.target_module = obj()
-                self.target_type = 'oop'
-                break
-
         self.target_options = target_options
         self.max_retries = max_retries
         self.throttle = throttle
@@ -61,6 +55,19 @@ class AdvancedTargetWrapper:
         self.supports_logprobs = "logprobs" in params
         self.supports_input_id = "input_id" in params
         self.supports_output_file = "output_file" in params
+
+    @classmethod
+    def create_target_wrapper(cls, target_name, target_options, max_retries, throttle) -> Self:
+        """Static method to create an AdvancedTargetWrapper for a given target name."""
+        target_mod = load_module_from_path(target_name, "targets")
+
+        # Wrap the target module with AdvancedTargetWrapper
+        return cls(
+            target_mod,
+            max_retries=max_retries,
+            throttle=throttle,
+            target_options=target_options,
+        )
 
     def process_input(self, input_text, system_message=None, logprobs=False, input_id=None, output_file=None):
         last_error = None
@@ -114,65 +121,146 @@ class AdvancedTargetWrapper:
         raise last_error
 
 
-def extract_dataset_name(file_name):
-    file_name = os.path.basename(file_name)
-    file_name = re.sub(r"^\d+-", "", file_name)
-    file_name = re.sub(r".jsonl$", "", file_name)
-    if file_name.startswith("seeds-"):
-        file_name = file_name[len("seeds-"):]
-    return file_name
-
-
-def _results_prefix(target_name_full: str, dataset_path: str, tag: str | None) -> str:
-    base = extract_dataset_name(dataset_path)
-    parts = [f"results_{target_name_full}", base]
-    if tag:
-        parts.append(tag)
-    return "_".join(parts)
-
-
-def _parse_timestamp_from_filename(p: Path) -> int:
-    # Expect ..._<ts>.jsonl at the end; fall back to mtime if parse fails
-    name = p.name
-    try:
-        ts_str = name.rsplit("_", 1)[-1].removesuffix(".jsonl")
-        return int(ts_str)
-    except Exception:
-        return int(p.stat().st_mtime)
-
-
-def _is_exact_tag_match(p: Path, prefix: str, tag: str | None) -> bool:
+# region resource_utilities
+def _build_target_name(target, target_options):
     """
-    Accept files named like:
-      <prefix>_<ts>.jsonl              when tag is None
-      <prefix-with-tag>_<ts>.jsonl     when tag is not None
-    Reject anything that has extra segments before the timestamp.
+    Builds a target's name, returning "target-target_options". 
+    If no target_options provided, attempts to get default option from target module.
     """
-    name = p.name
-    if not name.startswith(prefix + "_") or not name.endswith(".jsonl"):
-        return False
-    rest = name[
-        len(prefix) + 1: -len(".jsonl")
-    ]  # the part after prefix_, before .jsonl
-    # After the (optional) tag is baked into prefix, only a numeric timestamp must remain.
-    return rest.isdigit()
+
+    regex_pattern = '(^[<>:"/\|?*]+)|([<>:"/\|?*]+$)|([<>:"/\|?*]+)'  # Matches Invalid Windows Characters,
+
+    def replacer(match):
+        if match.group(1) or match.group(2):  # If at start/end of string, just remove
+            return ""
+        else:  # If in middle of string, replace with '~'
+            return "~"
+
+    # If no target options provided, try to get default module option
+    if target_options is None:
+        try:
+            mod = load_module_from_path(target, "targets")
+            target_options = get_default_option(mod)
+        except Exception:
+            pass
+
+    if target_options is None:
+        return target
+
+    target_options = re.sub(regex_pattern, replacer, target_options)  # Remove Invalid Windows Characters
+    return f"{target}-{target_options}"
+
+
+def _prepare_output_file(results_dir, target_name_full, dataset_path, tag):
+    filename = build_file_name("results", target_name_full, extract_resource_name(dataset_path), tag)
+    os.makedirs(results_dir, exist_ok=True)
+    return os.path.join(results_dir, filename)
+
+
+def _load_results_file(resume_file, attack_module, attack_iters):
+    completed_ids, results, already_done = set(), [], 0
+
+    # Load Resume File, if selected.
+    if resume_file and os.path.exists(resume_file):
+        results = read_jsonl_file(resume_file)
+        completed_ids = {r["id"] for r in results}
+        print(f"[Resume] Found {len(completed_ids)} completed entries in {resume_file}.")
+
+        # Identify attack results
+        no_attack = sum(1 for r in results if r.get("attack_name") == "None")
+        with_attack = len(results) - no_attack
+        already_done = no_attack + with_attack * attack_iters
+    return completed_ids, results, already_done
+
+# endregion
+
+
+# region entry_processing
+def _apply_sampling(dataset, sample_percent, sample_seed):
+    """Apply random sampling to the dataset based on sample_percent and sample_seed."""
+    if sample_seed == "random":  # apply random seed
+        seed = random.randint(0, 2**32 - 1)
+        print(f"[Info] Using random seed for sampling: {seed}")
+
+    else:  # apply user-defined seed
+        seed = int(sample_seed)
+        print(f"[Info] Using seed for sampling: {seed}")
+
+    # Obtain random sample
+    random.seed(seed)
+    size = round(len(dataset) * sample_percent)
+    print(f"[Info] Sampled {size} entries from {len(dataset)} total entries ({sample_percent:.1%})")
+    return random.sample(dataset, size)
+
+
+def _calculate_total_attempts(
+    n_entries, attempts, attack_iters, already_done, has_attack
+):
+    per_item = attempts + (attack_iters if has_attack else 0)
+    return n_entries * per_item + already_done
+# endregion
+
+
+# region resume_handling
+def _determine_resume_file(args, dataset, is_tty: bool) -> str | None:
+    """
+    Determine resume behaviour depending on tty status and resume flags. 
+    Returns a result file path, or 'None' to create a new results file.
+    """
+    # Use explicit --resume-file
+    if getattr(args, "resume_file", None):
+        return args.resume_file
+
+    # --no-auto-resume flag - create new results file
+    if getattr(args, "no_auto_resume", False):
+        return None
+
+    # Identify previous results files
+    target_name_full = _build_target_name(args.target, args.target_options)
+    candidates = _find_resume_candidates("results", target_name_full, dataset, args.tag)
+
+    if not candidates:
+        return None
+
+    # --auto-resume flag, silently pick latest results file
+    if getattr(args, "auto_resume", False):
+        print(f"[Auto-Resume] Using latest: {candidates[0].name}")
+        return str(candidates[0])
+
+    # ---- TTY behavior: user select prompt ----
+    if is_tty:
+        picked = _select_resume_file_interactive(candidates, preselect_index=0)
+        return str(picked) if picked else None
+
+    return None
 
 
 def _find_resume_candidates(
-    results_dir: str | Path, target_name_full: str, dataset_path: str, tag: str | None
+    results_dir: str | Path,
+    target_name_full: str,
+    dataset_path: str,
+    tag: str | None
 ) -> list[Path]:
+    """Identify potential resume candidates within the results_dir using the same resource name"""
+    # Load results directory
     results_dir = Path(results_dir)
     if not results_dir.exists():
+        print("BRAVO")
         return []
 
-    prefix = _results_prefix(target_name_full, dataset_path, tag)
+    # Get resource name
+    resource_name = build_resource_name(
+        "results",
+        target_name_full,
+        extract_resource_name(dataset_path),
+        tag
+    )
 
     # Only accept exact matches for the requested tag (or lack of tag).
     # No fallback to untagged files when a tag is specified.
     candidates = [
-        p
-        for p in results_dir.glob(f"{prefix}_*.jsonl")
-        if _is_exact_tag_match(p, prefix, tag)
+        p for p in results_dir.glob(f"{resource_name}_*.jsonl")
+        if does_resource_name_match(p, resource_name)
     ]
 
     return sorted(
@@ -180,6 +268,28 @@ def _find_resume_candidates(
         key=_parse_timestamp_from_filename,
         reverse=True,
     )
+
+
+def _select_resume_file_interactive(
+    cands: list[Path],
+    preselect_index: int = 0
+) -> Path | None:
+    """Interactive Results Prompt"""
+    items = ["Start fresh (do not resume)"] + [_format_candidate_line(p) for p in cands]
+
+    result = inquirer.select(
+        message="Resume from which results file? (Enter = Start fresh)",
+        choices=items,
+        default=items[0],  # default to Start fresh
+        pointer="➤ ",
+    ).execute()
+
+    if result == items[0]:  # "Start fresh" selected
+        return None
+
+    # Find which candidate was selected
+    idx = items.index(result) - 1
+    return cands[idx]
 
 
 def _format_candidate_line(p: Path) -> str:
@@ -198,132 +308,16 @@ def _format_candidate_line(p: Path) -> str:
     return f"[{dt.strftime('%Y-%m-%d %H:%M')}] {p.name}  (age {age})"
 
 
-def _select_resume_file_interactive(
-    cands: list[Path], preselect_index: int = 0
-) -> Path | None:
-    items = ["Start fresh (do not resume)"] + [_format_candidate_line(p) for p in cands]
-
-    result = inquirer.select(
-        message="Resume from which results file? (Enter = Start fresh)",
-        choices=items,
-        default=items[0],  # default to Start fresh
-        pointer="➤ ",
-    ).execute()
-
-    if result == items[0]:  # "Start fresh" selected
-        return None
-
-    # Find which candidate was selected
-    idx = items.index(result) - 1
-    return cands[idx]
-
-
-def _maybe_pick_resume_file(args, dataset, is_tty: bool) -> str | None:
-    # Respect explicit --resume-file
-    if getattr(args, "resume_file", None):
-        return args.resume_file
-
-    # If TTY and user explicitly disabled auto-resume, do nothing (--no-auto-resume)
-    if is_tty and getattr(args, "no_auto_resume", False):
-        return None
-
-    # Build scope and find candidates
-    target_name_full = _build_target_name(args.target, args.target_options)
-    cands = _find_resume_candidates("results", target_name_full, dataset, args.tag)
-
-    if not cands:
-        return None
-
-    # Respect --auto-resume flag, silently pick latest
-    if getattr(args, "auto_resume", False):
-        print(f"[Auto-Resume] Using latest: {cands[0].name}")
-        return str(cands[0])
-
-    # ---- TTY behavior: user select prompt ----
-    if is_tty:
-        picked = _select_resume_file_interactive(cands, preselect_index=0)
-        return str(picked) if picked else None
-
-    return None
-
-
-def check_canary_in_response(response, canary):
-    if not canary:
-        return False
-    return canary in response
-
-
-def load_module_from_path(path, module_name):
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec and spec.loader:
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    raise ImportError(f"Could not load module {module_name} from {path}")
-
-
-def _load_raw_target_module(target_name):
-    """Load target module without wrapping. Returns None if not found."""
-    local_path = os.path.join(os.getcwd(), "targets", f"{target_name}.py")
-    if os.path.isfile(local_path):
-        return load_module_from_path(local_path, target_name)
-    else:
-        try:
-            return importlib.import_module(f"spikee.targets.{target_name}")
-        except ModuleNotFoundError:
-            return None
-
-
-def load_target_module(target_name, target_options, max_retries, throttle):
-    target_mod = _load_raw_target_module(target_name)
-
-    if target_mod is None:
-        raise ValueError(
-            f"Target '{target_name}' not found locally or in spikee.targets/"
-        )
-
-    # Wrap the target module with AdvancedTargetWrapper
-    return AdvancedTargetWrapper(
-        target_mod,
-        max_retries=max_retries,
-        throttle=throttle,
-        target_options=target_options,
-    )
-
-
-def load_attack_by_name(attack_name):
-    """
-    Loads an attack module from a new "attacks" folder or from built-in package data.
-    """
-    local_attack_path = Path(os.getcwd()) / "attacks" / f"{attack_name}.py"
-    if local_attack_path.is_file():
-        spec = importlib.util.spec_from_file_location(attack_name, local_attack_path)
-        attack_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(attack_module)
-        return attack_module
+def _parse_timestamp_from_filename(p: Path) -> int:
+    # Expect ..._<ts>.jsonl at the end; fall back to mtime if parse fails
+    name = p.name
     try:
-        return importlib.import_module(f"spikee.attacks.{attack_name}")
-    except ModuleNotFoundError:
-        raise ValueError(
-            f"Attack '{attack_name}' not found locally or in spikee.attacks"
-        )
+        ts_str = name.rsplit("_", 1)[-1].removesuffix(".jsonl")
+        return int(ts_str)
+    except Exception:
+        return int(p.stat().st_mtime)
 
-
-def _get_effective_attack_options(attack_module, provided_options):
-    """Get effective attack options, using default if none provided and attack supports options."""
-    if provided_options is not None:
-        return provided_options
-
-    # Try to get default option if none provided
-    if attack_module and hasattr(attack_module, "get_available_option_values"):
-        try:
-            available = attack_module.get_available_option_values()
-            if available:
-                return available[0]  # First option is default
-        except Exception:
-            pass
-
-    return None
+# endregion
 
 
 def _do_single_request(
@@ -367,6 +361,7 @@ def _do_single_request(
         success = call_judge(entry, response)
         response_str = response if isinstance(response, str) else ""
         error_message = None
+
     except GuardrailTrigger as gt:
         error_message = str(gt)
         response_str = ""
@@ -442,6 +437,7 @@ def process_entry(
     std_result = None
     std_success = False
 
+    # Attempt Logic
     for attempt_num in range(1, attempts + 1):
         std_result, success_now = _do_single_request(
             entry, original_input, target_module, output_file, attempt_num, attempts_bar, global_lock
@@ -461,10 +457,7 @@ def process_entry(
     if (not std_success) and attack_module:
         try:
             start_time = time.time()
-
-            effective_attack_options = _get_effective_attack_options(
-                attack_module, attack_options
-            )
+            effective_attack_options = attack_options if attack_options else get_default_option(attack_module)
 
             # Check if attack function accepts attack_options parameter
             sig = inspect.signature(attack_module.attack)
@@ -560,104 +553,6 @@ def process_entry(
     return results_list
 
 
-def _load_attack(attack_name):
-    if not attack_name:
-        return None
-    return load_attack_by_name(attack_name)
-
-
-def _apply_sampling(dataset, pct, seed_arg):
-    if pct is None:
-        return dataset
-    if seed_arg == "random":
-        seed = random.randint(0, 2**32 - 1)
-        print(f"[Info] Using random seed for sampling: {seed}")
-    else:
-        seed = int(seed_arg)
-        print(f"[Info] Using seed for sampling: {seed}")
-    random.seed(seed)
-    size = round(len(dataset) * pct)
-    print(
-        f"[Info] Sampled {size} entries from {len(dataset)} total entries ({pct:.1%})"
-    )
-    return random.sample(dataset, size)
-
-
-def _load_resume(resume_file, attack_module, attack_iters):
-    completed, results = set(), []
-    already_done = 0
-    if resume_file and os.path.exists(resume_file):
-        existing = read_jsonl_file(resume_file)
-        completed = {r["id"] for r in existing}
-        results = existing
-        print(f"[Resume] Found {len(completed)} completed entries in {resume_file}.")
-        no_attack = sum(1 for r in existing if r.get("attack_name") == "None")
-        with_attack = len(existing) - no_attack
-        already_done = no_attack + with_attack * attack_iters
-    return completed, results, already_done
-
-
-def _filter_entries(dataset, completed_ids):
-    return [e for e in dataset if e["id"] not in completed_ids]
-
-
-def _build_target_name(name, opts):
-    """Build target name, using default option if opts is None and target supports options."""
-
-    regex_pattern = '(^[<>:"/\|?*]+)|([<>:"/\|?*]+$)|([<>:"/\|?*]+)'  # Matches Invalid Windows Characters,
-
-    def replacer(match):
-        if match.group(1) or match.group(2):  # If at start/end of string, just remove
-            return ""
-        else:  # If in middle of string, replace with '~'
-            return "~"
-
-    if opts is not None:
-        opts = re.sub(
-            regex_pattern, replacer, opts
-        )  # Remove Invalid Windows Characters
-        return f"{name}-{opts}"
-
-    # Try to get default option if none provided
-    try:
-        mod = _load_raw_target_module(name)
-        if mod and hasattr(mod, "get_available_option_values"):
-            available = mod.get_available_option_values()
-            if available:
-                opts = re.sub(
-                    regex_pattern, replacer, available[0]
-                )  # Remove Invalid Windows Characters
-                return f"{name}-{opts}"
-    except Exception:
-        pass
-
-    return name
-
-
-def _prepare_output_file(results_dir, target_name_full, dataset_path, tag):
-    ts = int(time.time())
-    base = extract_dataset_name(dataset_path)
-    parts = [f"results_{target_name_full}", base]
-    if tag:
-        parts.append(tag)
-    parts.append(str(ts))
-    filename = "_".join(parts) + ".jsonl"
-    os.makedirs(results_dir, exist_ok=True)
-    return os.path.join(results_dir, filename)
-
-
-def _calculate_total_attempts(
-    n_entries, attempts, attack_iters, already_done, has_attack
-):
-    per_item = attempts + (attack_iters if has_attack else 0)
-    return n_entries * per_item + already_done
-
-
-def _print_info(n_new, threads, output_file):
-    print(f"[Info] Testing {n_new} new entries (threads={threads}).")
-    print(f"[Info] Output will be saved to: {output_file}")
-
-
 def _run_threaded(
     entries,
     target_module,
@@ -731,11 +626,14 @@ def test_dataset(args):
     """
     Orchestrate testing of a dataset against a target.
     """
-    # 1. Validate inputs and prepare
+    # 1. Validate and process args, load modules and datasets
     tag = validate_and_get_tag(args.tag)
 
-    attack_module = _load_attack(args.attack)
-    target_module = load_target_module(
+    # Load Attack module if specified
+    attack_module = load_module_from_path(args.attack, "attacks") if args.attack else None
+
+    # Load Target module, with AdvancedTargetWrapper
+    target_module = AdvancedTargetWrapper.create_target_wrapper(
         args.target,
         args.target_options,
         args.max_retries,
@@ -744,36 +642,43 @@ def test_dataset(args):
 
     # Obtain datasets and ensure resume-file is only used with single dataset
     datasets = process_jsonl_input_files(args.dataset, args.dataset_folder)
+
+    # Prevent single dataset flags from being used with multiple datasets
     if len(datasets) > 1 and args.resume_file is not None:
         print(f"[Error] --resume-file cannot be used when testing multiple datasets. Currently selected {len(datasets)} datasets.")
         exit(1)
 
+    # Print overview of datasets
     print("[Overview] Testing the following dataset(s): ")
     print("\n - " + "\n - ".join(datasets))
 
-    if not args.auto_resume and not args.no_auto_resume and sys.stdin.isatty() and sys.stdout.isatty():
+    # Print information about alternative resume flags
+    tty = sys.stdin.isatty() and sys.stdout.isatty()
+    if not args.auto_resume and not args.no_auto_resume and tty:
         print("\n[Info] Spikee supports the following resume flags, instead of the interactive prompt:\n  --auto-resume ~ silently pick the latest matching results file.\n  --no-auto-resume ~ create a new results file.")
 
+    # 2. Prep datasets
     for dataset in datasets:
         print(f" \n[Start] Initiating testing of '{dataset.split(os.sep)[-1]}' against target '{args.target}'")
 
         dataset_json = read_jsonl_file(dataset)
-        dataset_json = _apply_sampling(dataset_json, args.sample, args.sample_seed)
+        dataset_json = _apply_sampling(dataset_json, args.sample, args.sample_seed) if args.sample else dataset_json
 
-        # Determine resume status (decide resume file before loading anything)
-        tty = sys.stdin.isatty() and sys.stdout.isatty()
-        picked = _maybe_pick_resume_file(args, dataset, tty)
+        # Determine resume action / file
+        picked = _determine_resume_file(args, dataset, tty)
         if picked:
             args.resume_file = picked
 
         # Load resume data if any has been selected
-        completed_ids, results, already_done = _load_resume(
+        completed_ids, results, already_done = _load_results_file(
             args.resume_file, attack_module, args.attack_iterations
         )
 
-        to_process = _filter_entries(dataset_json, completed_ids)
+        # Identify unprocessed entries
+        to_process = [entry for entry in dataset_json if entry["id"] not in completed_ids]
         to_process = annotate_judge_options(to_process, args.judge_options)
 
+        # Print if results completed, and skip
         if len(to_process) == 0:
             print(f"[Done] All entries have already been processed for dataset '{dataset}'. Skipping, please use `--no-auto-resume` to re-test.")
             continue
@@ -788,7 +693,7 @@ def test_dataset(args):
         )
         write_jsonl_file(output_file, results)
 
-        # 2. Run tests
+    # 3. Run tests
         total_attempts = _calculate_total_attempts(
             len(to_process),
             args.attempts,
@@ -796,7 +701,8 @@ def test_dataset(args):
             already_done,
             bool(attack_module),
         )
-        _print_info(len(to_process), args.threads, output_file)
+        print(f"[Info] Testing {len(to_process)} new entries (threads={args.threads}).")
+        print(f"[Info] Output will be saved to: {output_file}")
 
         success_count = sum(1 for r in results if r.get("success"))
         _run_threaded(

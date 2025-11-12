@@ -277,12 +277,12 @@ def main():
     group_resume.add_argument(
         "--auto-resume",
         action="store_true",
-        help="silently pick the latest matching results file if present",
+        help="Silently pick the latest matching results file if present",
     )
     group_resume.add_argument(
         "--no-auto-resume",
         action="store_true",
-        help="(tty) disable interactive auto-resume prompt",
+        help="Create new results file, do not attempt to resume",
     )
 
     # === [RESULTS] Sub-command ================================================
