@@ -1,10 +1,12 @@
 import os
+import inspect
 import json
 import time
 from collections import defaultdict
 from tabulate import tabulate
 from pathlib import Path
 
+from .templates.plugin import Plugin
 from .utilities.jsonl import read_jsonl_file, read_toml_file, write_jsonl_file
 from .utilities.modules import load_module_from_path
 from .utilities.tags import validate_tag
@@ -315,8 +317,8 @@ def load_plugins(plugin_names):
     for name in plugin_names:
         try:
             plugins.append((name, load_module_from_path(name, "plugins")))
-        except (ImportError, ValueError):
-            print(f"Warning: Plugin '{name}' not found locally or in built-in plugins.")
+        except (ImportError, ValueError) as e:
+            print(f"Warning: Plugin '{name}' not found locally or in built-in plugins.: {e}")
     return plugins
 
 
@@ -341,9 +343,9 @@ def apply_plugin(plugin_module, text, exclude_patterns=None, plugin_option=None)
     """
     Applies a plugin module's transform function to the given text if available.
     """
+
     if hasattr(plugin_module, "transform"):
         # Check if the plugin's transform function accepts plugin_option parameter
-        import inspect
 
         sig = inspect.signature(plugin_module.transform)
         params = sig.parameters
@@ -353,6 +355,7 @@ def apply_plugin(plugin_module, text, exclude_patterns=None, plugin_option=None)
         else:
             # Older plugin without plugin_option support
             return plugin_module.transform(text, exclude_patterns)
+
     print(f"Plugin '{plugin_module.__name__}' does not have a 'transform' function.")
     return text
 # endregion
