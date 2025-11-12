@@ -34,6 +34,7 @@ def get_available_option_values() -> List[str]:
 
 def process_input(
     input_text: str,
+    input_id: Optional[str] = None,
     system_message: Optional[str] = None,
     target_options: Optional[str] = None,
     logprobs=False,

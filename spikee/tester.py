@@ -59,8 +59,10 @@ class AdvancedTargetWrapper:
         # detect optional parameters that were only added in newer Spikee versions
         self.supports_options = "target_options" in params
         self.supports_logprobs = "logprobs" in params
+        self.supports_input_id = "input_id" in params
+        self.supports_output_file = "output_file" in params
 
-    def process_input(self, input_text, system_message=None, logprobs=False):
+    def process_input(self, input_text, system_message=None, logprobs=False, input_id=None, output_file=None):
         last_error = None
         retries = 0
 
@@ -73,6 +75,10 @@ class AdvancedTargetWrapper:
                     kwargs["target_options"] = self.target_options
                 if self.supports_logprobs:
                     kwargs["logprobs"] = logprobs
+                if self.supports_input_id:
+                    kwargs["input_id"] = input_id
+                if self.supports_output_file:
+                    kwargs["output_file"] = output_file
 
                 # Delegate to the wrapped process_input
                 if kwargs:
@@ -321,7 +327,7 @@ def _get_effective_attack_options(attack_module, provided_options):
 
 
 def _do_single_request(
-    entry, input_text, target_module, num_attempt, attempts_bar, global_lock
+    entry, input_text, target_module, output_file, num_attempt, attempts_bar, global_lock
 ):
     """
     Executes one request against the target by calling its process_input() method.
@@ -340,6 +346,7 @@ def _do_single_request(
       tuple: (result_dict, success)
     """
     # Extract metadata from the entry.
+    entry_id = entry.get("id", None)
     task_type = entry.get("task_type", None)
     jailbreak_type = entry.get("jailbreak_type", None)
     instruction_type = entry.get("instruction_type", None)
@@ -354,7 +361,7 @@ def _do_single_request(
 
     try:
         start_time = time.time()
-        response, _ = target_module.process_input(input_text, system_message)
+        response, _ = target_module.process_input(input_text, system_message, False, entry_id, output_file)
         end_time = time.time()
         response_time = end_time - start_time
         success = call_judge(entry, response)
@@ -413,6 +420,7 @@ def process_entry(
     attack_module=None,
     attack_iterations=0,
     attack_options=None,
+    output_file=None,
     attempts_bar=None,
     global_lock=None,
 ):
@@ -436,7 +444,7 @@ def process_entry(
 
     for attempt_num in range(1, attempts + 1):
         std_result, success_now = _do_single_request(
-            entry, original_input, target_module, attempt_num, attempts_bar, global_lock
+            entry, original_input, target_module, output_file, attempt_num, attempts_bar, global_lock
         )
         if success_now:
             std_success = True
@@ -686,6 +694,7 @@ def _run_threaded(
             attack_module,
             attack_iters,
             attack_options,
+            output_file,
             bar_all,
             lock,
         ): entry
