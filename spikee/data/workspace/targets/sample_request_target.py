@@ -18,8 +18,6 @@ import json
 import requests
 from typing import Optional, Dict, List
 
-from workspace.targets.sample_target import SampleTarget
-
 
 class SampleRequestTarget(Target):
 
