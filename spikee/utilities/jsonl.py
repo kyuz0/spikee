@@ -3,14 +3,35 @@ from pathlib import Path
 import os
 import re
 import time
+import toml
 from typing import List
 
 
 # ==== File I/O Operations for JSONL files ====
 def read_jsonl_file(file_path):
     """Reads a JSONL file and returns a list of JSON objects."""
+    data = []
     with open(file_path, "r", encoding="utf-8") as f:
-        return [json.loads(line) for line in f]
+        for i, line in enumerate(f, start=1):
+            line = line.rstrip()
+            if not line:
+                continue
+            try:
+                data.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                print(f"JSONDecodeError on line {i}: {e}")
+                print(f"Faulty line {i}: {line}")
+                raise
+
+    return data
+
+
+def read_toml_file(file_path):
+    """
+    Reads a TOML file and returns its parsed content.
+    """
+    with open(file_path, "r", encoding="utf-8") as f:
+        return toml.load(f)
 
 
 def write_jsonl_file(output_file, data):

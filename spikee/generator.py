@@ -1,12 +1,36 @@
 import os
 import json
-import toml
-import re
-import importlib.util
 import time
 from collections import defaultdict
 from tabulate import tabulate
 from pathlib import Path
+
+from .utilities.jsonl import read_jsonl_file, read_toml_file, write_jsonl_file
+from .utilities.modules import load_module_from_path
+from .utilities.tags import validate_tag
+
+
+# region resolve file
+def resolve_seed_folder(seed_folder_name):
+    """
+    Return the absolute path to the seed folder, searching local workspace first,
+    then built-in package data.
+    """
+    # local path
+    local_path = os.path.join(os.getcwd(), seed_folder_name)
+    if os.path.isdir(local_path):
+        return local_path
+
+    # built-in path
+    builtin_path = os.path.join(os.path.dirname(__file__), "data", seed_folder_name)
+    if os.path.isdir(builtin_path):
+        return builtin_path
+
+    # Fallback: raise error
+    raise FileNotFoundError(
+        f"Seed folder '{seed_folder_name}' not found "
+        f"in local datasets/ or in built-in spikee/data/"
+    )
 
 
 def resolve_base_inputs_path(seed_folder: str) -> Path:
@@ -40,107 +64,10 @@ def resolve_standalone_inputs_path(seed_folder: str, include_flag: bool):
         "No standalone_user_inputs.jsonl or standalone_attacks.jsonl found in seed folder "
         "(required by --include-standalone-inputs)."
     )
+# endregion
 
 
-def validate_tag(tag):
-    """
-    Validates that a tag is safe to use in a filename.
-
-    Args:
-        tag (str): The tag to validate
-
-    Returns:
-        tuple: (is_valid, error_message)
-            - is_valid (bool): True if tag is valid, False otherwise
-            - error_message (str): Reason for validation failure or None if valid
-    """
-    if tag is None:
-        return True, None
-
-    # Check for empty string after stripping whitespace
-    if len(tag.strip()) == 0:
-        return False, "Tag cannot be empty or whitespace only"
-
-    # Check length (reasonable max length for filename component)
-    MAX_LENGTH = 50
-    if len(tag) > MAX_LENGTH:
-        return False, f"Tag exceeds maximum length of {MAX_LENGTH} characters"
-
-    # Check for valid characters - alphanumeric, dash and underscore only
-    pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
-    if not pattern.match(tag):
-        return (
-            False,
-            "Tag can only contain letters, numbers, dash (-) and underscore (_)",
-        )
-
-    return True, None
-
-
-def read_jsonl(file_path):
-    """
-    Reads a JSONL file and returns a list of dictionaries.
-    If an error occurs, it prints the faulty line for debugging.
-    """
-    data = []
-    with open(file_path, "r", encoding="utf-8") as f:
-        for i, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                data.append(json.loads(line))
-            except json.JSONDecodeError as e:
-                print(f"JSONDecodeError on line {i}: {e}")
-                print(f"Faulty line {i}: {line}")
-                raise
-    return data
-
-
-def read_toml(file_path):
-    """
-    Reads a TOML file and returns its parsed content.
-    """
-    with open(file_path, "r", encoding="utf-8") as f:
-        return toml.load(f)
-
-
-def parse_plugin_options(plugin_options_str):
-    """
-    Parse plugin options string like "plugin1:option1;plugin2:option2"
-    Returns dict mapping plugin name to option string.
-    """
-    if not plugin_options_str:
-        return {}
-
-    options_map = {}
-    pairs = plugin_options_str.split(";")
-    for pair in pairs:
-        if ":" in pair:
-            plugin_name, option = pair.split(":", 1)
-            options_map[plugin_name.strip()] = option.strip()
-    return options_map
-
-
-def get_system_message(system_message_config, spotlighting_data_marker=None):
-    """
-    Retrieves the appropriate system message from the system_message_config
-    based on a given spotlighting data marker. Falls back to 'default' if no
-    exact match is found.
-    """
-    if system_message_config is None:
-        return None
-
-    for config in system_message_config["configurations"]:
-        if config["spotlighting_data_markers"] == spotlighting_data_marker:
-            return config["system_message"]
-    for config in system_message_config["configurations"]:
-        if config["spotlighting_data_markers"] == "default":
-            return config["system_message"]
-
-    return None
-
-
+# region dataset builders
 def substitute_instruction(jailbreak_text, instruction_text):
     """
     Replaces <INSTRUCTION> in the jailbreak text with the given instruction text.
@@ -148,28 +75,6 @@ def substitute_instruction(jailbreak_text, instruction_text):
     if "<INSTRUCTION>" in jailbreak_text:
         return jailbreak_text.replace("<INSTRUCTION>", instruction_text)
     return jailbreak_text
-
-
-def find_nearest_whitespace(text, index):
-    """
-    Finds the nearest whitespace character to the given index in the text.
-    Returns the index of that whitespace character (or original index if none found).
-    """
-    forward_index = text.find(" ", index)
-    backward_index = text.rfind(" ", 0, index)
-
-    if forward_index == -1 and backward_index == -1:
-        return index
-    elif forward_index == -1:
-        return backward_index
-    elif backward_index == -1:
-        return forward_index
-    else:
-        return (
-            forward_index
-            if abs(forward_index - index) < abs(index - backward_index)
-            else backward_index
-        )
 
 
 def insert_jailbreak(document, combined_text, position, injection_pattern, placeholder):
@@ -201,185 +106,45 @@ def insert_jailbreak(document, combined_text, position, injection_pattern, place
         raise ValueError(f"Invalid position: {position}")
 
 
-def load_plugins(plugin_names):
+def find_nearest_whitespace(text, index):
     """
-    For each plugin name, try:
-      1) <cwd>/plugins/<name>.py
-      2) built-in package plugin (spikee.plugins.<name>)
-    If found, dynamically import and return it.
+    Finds the nearest whitespace character to the given index in the text.
+    Returns the index of that whitespace character (or original index if none found).
     """
-    plugins = []
-    for name in plugin_names:
-        # 1) Check local
-        local_path = os.path.join(os.getcwd(), "plugins", f"{name}.py")
-        if os.path.isfile(local_path):
-            mod = load_plugin_from_path(local_path, name)
-            if mod:
-                plugins.append((name, mod))
-                continue
+    forward_index = text.find(" ", index)
+    backward_index = text.rfind(" ", 0, index)
 
-        # 2) Check built-in
-        try:
-            # e.g. "spikee.plugins.name"
-            builtin_module = importlib.import_module(f"spikee.plugins.{name}")
-            plugins.append((name, builtin_module))
-            continue
-        except ModuleNotFoundError:
-            pass
-
-        print(f"Warning: Plugin '{name}' not found locally or in built-in plugins.")
-    return plugins
-
-
-def load_plugin_from_path(plugin_path, plugin_name):
-    spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
-    if spec and spec.loader:
-        plugin_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(plugin_module)
-        return plugin_module
+    if forward_index == -1 and backward_index == -1:
+        return index
+    elif forward_index == -1:
+        return backward_index
+    elif backward_index == -1:
+        return forward_index
     else:
+        return (
+            forward_index
+            if abs(forward_index - index) < abs(index - backward_index)
+            else backward_index
+        )
+
+
+def get_system_message(system_message_config, spotlighting_data_marker=None):
+    """
+    Retrieves the appropriate system message from the system_message_config
+    based on a given spotlighting data marker. Falls back to 'default' if no
+    exact match is found.
+    """
+    if system_message_config is None:
         return None
 
+    for config in system_message_config["configurations"]:
+        if config["spotlighting_data_markers"] == spotlighting_data_marker:
+            return config["system_message"]
+    for config in system_message_config["configurations"]:
+        if config["spotlighting_data_markers"] == "default":
+            return config["system_message"]
 
-def apply_plugin(plugin_module, text, exclude_patterns=None, plugin_option=None):
-    """
-    Applies a plugin module's transform function to the given text if available.
-    """
-    if hasattr(plugin_module, "transform"):
-        # Check if the plugin's transform function accepts plugin_option parameter
-        import inspect
-
-        sig = inspect.signature(plugin_module.transform)
-        params = sig.parameters
-
-        if "plugin_option" in params:
-            return plugin_module.transform(text, exclude_patterns, plugin_option)
-        else:
-            # Older plugin without plugin_option support
-            return plugin_module.transform(text, exclude_patterns)
-    print(f"Plugin '{plugin_module.__name__}' does not have a 'transform' function.")
-    return text
-
-
-def process_standalone_attacks(
-    standalone_attacks,
-    dataset,
-    entry_id,
-    plugins=None,
-    output_format="full-prompt",
-    plugin_options_map=None,
-):
-    """
-    Processes standalone attacks and appends them to the dataset.
-    If plugins are provided, applies them to each standalone attack.
-    Returns the updated dataset and the next entry_id.
-    """
-    for attack in standalone_attacks:
-        # If no judge_name, fallback
-        if "judge_name" not in attack:
-            attack["judge_name"] = "canary"
-        if "judge_args" not in attack:
-            attack["judge_args"] = attack.get("canary", "")
-
-        # Get the base attack text
-        attack_text = attack["text"]
-        exclude_patterns = attack.get("exclude_from_transformations_regex", None)
-
-        # Process the base attack without plugins first
-        entry = {
-            "id": entry_id,
-            "long_id": attack["id"],
-            "text": attack_text,
-            "judge_name": attack["judge_name"],
-            "judge_args": attack["judge_args"],
-            "injected": "true",
-            "jailbreak_type": attack.get("jailbreak_type", ""),
-            "instruction_type": attack.get("instruction_type", ""),
-            "task_type": None,
-            "document_id": None,
-            "position": None,
-            "spotlighting_data_markers": None,
-            "injection_delimiters": None,
-            "lang": attack.get("lang", "en"),
-            "suffix_id": None,
-            "payload": attack_text,
-            "plugin": None,
-            "exclude_from_transformations_regex": exclude_patterns,
-        }
-        dataset.append(entry)
-        entry_id += 1
-
-        # Apply plugins if provided
-        if plugins:
-            for plugin_name, plugin_module in plugins:
-                try:
-                    # Get option for this specific plugin
-                    plugin_option = (
-                        plugin_options_map.get(plugin_name)
-                        if plugin_options_map
-                        else None
-                    )
-
-                    # Convert exclude_patterns to a list if it's a string or None
-                    exclude_list = []
-                    if exclude_patterns:
-                        if isinstance(exclude_patterns, list):
-                            exclude_list = exclude_patterns
-                        else:
-                            exclude_list = [exclude_patterns]
-
-                    # Get the transformed text(s) from the plugin
-                    plugin_result = apply_plugin(
-                        plugin_module, attack_text, exclude_list, plugin_option
-                    )
-
-                    # Ensure the result is a list of variations
-                    if not isinstance(plugin_result, list):
-                        plugin_result = [plugin_result]
-
-                    # Add each plugin variation as a separate entry
-                    for variant_index, plugin_variant in enumerate(
-                        plugin_result, start=1
-                    ):
-                        plugin_entry = {
-                            "id": entry_id,
-                            "long_id": f"{attack['id']}_{plugin_name}-{variant_index}",
-                            "text": plugin_variant,
-                            "judge_name": attack["judge_name"],
-                            "judge_args": attack["judge_args"],
-                            "injected": "true",
-                            "jailbreak_type": attack.get("jailbreak_type", ""),
-                            "instruction_type": attack.get("instruction_type", ""),
-                            "task_type": None,
-                            "document_id": None,
-                            "position": None,
-                            "spotlighting_data_markers": None,
-                            "injection_delimiters": None,
-                            "lang": attack.get("lang", "en"),
-                            "suffix_id": None,
-                            "payload": plugin_variant,
-                            "plugin": plugin_name,
-                            "exclude_from_transformations_regex": exclude_patterns,
-                        }
-                        dataset.append(plugin_entry)
-                        entry_id += 1
-                except Exception as e:
-                    print(
-                        f"Warning: Plugin '{plugin_name}' failed for standalone attack '{attack['id']}': {e}"
-                    )
-                    continue
-
-    return dataset, entry_id
-
-
-def write_jsonl(data, output_file):
-    """
-    Writes a list of dictionaries to a JSONL file.
-    """
-    with open(output_file, "w", encoding="utf-8") as f:
-        for entry in data:
-            json.dump(entry, f, ensure_ascii=False)
-            f.write("\n")
+    return None
 
 
 def _create_summary_entry(
@@ -534,6 +299,174 @@ def _create_document_entry(
     if system_message:
         doc_entry["long_id"] += "-sys"
     return doc_entry
+# endregion
+
+
+# region plugins
+def load_plugins(plugin_names):
+    """
+    For each plugin name, try:
+      1) <cwd>/plugins/<name>.py
+      2) built-in package plugin (spikee.plugins.<name>)
+    If found, dynamically import and return it.
+    """
+    plugins = []
+
+    for name in plugin_names:
+        try:
+            plugins.append((name, load_module_from_path(name, "plugins")))
+        except (ImportError, ValueError):
+            print(f"Warning: Plugin '{name}' not found locally or in built-in plugins.")
+    return plugins
+
+
+def parse_plugin_options(plugin_options_str):
+    """
+    Parse plugin options string like "plugin1:option1;plugin2:option2"
+    Returns dict mapping plugin name to option string.
+    """
+    if not plugin_options_str:
+        return {}
+
+    options_map = {}
+    pairs = plugin_options_str.split(";")
+    for pair in pairs:
+        if ":" in pair:
+            plugin_name, option = pair.split(":", 1)
+            options_map[plugin_name.strip()] = option.strip()
+    return options_map
+
+
+def apply_plugin(plugin_module, text, exclude_patterns=None, plugin_option=None):
+    """
+    Applies a plugin module's transform function to the given text if available.
+    """
+    if hasattr(plugin_module, "transform"):
+        # Check if the plugin's transform function accepts plugin_option parameter
+        import inspect
+
+        sig = inspect.signature(plugin_module.transform)
+        params = sig.parameters
+
+        if "plugin_option" in params:
+            return plugin_module.transform(text, exclude_patterns, plugin_option)
+        else:
+            # Older plugin without plugin_option support
+            return plugin_module.transform(text, exclude_patterns)
+    print(f"Plugin '{plugin_module.__name__}' does not have a 'transform' function.")
+    return text
+# endregion
+
+
+def process_standalone_attacks(
+    standalone_attacks,
+    dataset,
+    entry_id,
+    plugins=None,
+    output_format="full-prompt",
+    plugin_options_map=None,
+):
+    """
+    Processes standalone attacks and appends them to the dataset.
+    If plugins are provided, applies them to each standalone attack.
+    Returns the updated dataset and the next entry_id.
+    """
+    for attack in standalone_attacks:
+        # If no judge_name, fallback
+        if "judge_name" not in attack:
+            attack["judge_name"] = "canary"
+        if "judge_args" not in attack:
+            attack["judge_args"] = attack.get("canary", "")
+
+        # Get the base attack text
+        attack_text = attack["text"]
+        exclude_patterns = attack.get("exclude_from_transformations_regex", None)
+
+        # Process the base attack without plugins first
+        entry = {
+            "id": entry_id,
+            "long_id": attack["id"],
+            "text": attack_text,
+            "judge_name": attack["judge_name"],
+            "judge_args": attack["judge_args"],
+            "injected": "true",
+            "jailbreak_type": attack.get("jailbreak_type", ""),
+            "instruction_type": attack.get("instruction_type", ""),
+            "task_type": None,
+            "document_id": None,
+            "position": None,
+            "spotlighting_data_markers": None,
+            "injection_delimiters": None,
+            "lang": attack.get("lang", "en"),
+            "suffix_id": None,
+            "payload": attack_text,
+            "plugin": None,
+            "exclude_from_transformations_regex": exclude_patterns,
+        }
+        dataset.append(entry)
+        entry_id += 1
+
+        # Apply plugins if provided
+        if plugins:
+            for plugin_name, plugin_module in plugins:
+                try:
+                    # Get option for this specific plugin
+                    plugin_option = (
+                        plugin_options_map.get(plugin_name)
+                        if plugin_options_map
+                        else None
+                    )
+
+                    # Convert exclude_patterns to a list if it's a string or None
+                    exclude_list = []
+                    if exclude_patterns:
+                        if isinstance(exclude_patterns, list):
+                            exclude_list = exclude_patterns
+                        else:
+                            exclude_list = [exclude_patterns]
+
+                    # Get the transformed text(s) from the plugin
+                    plugin_result = apply_plugin(
+                        plugin_module, attack_text, exclude_list, plugin_option
+                    )
+
+                    # Ensure the result is a list of variations
+                    if not isinstance(plugin_result, list):
+                        plugin_result = [plugin_result]
+
+                    # Add each plugin variation as a separate entry
+                    for variant_index, plugin_variant in enumerate(
+                        plugin_result, start=1
+                    ):
+                        plugin_entry = {
+                            "id": entry_id,
+                            "long_id": f"{attack['id']}_{plugin_name}-{variant_index}",
+                            "text": plugin_variant,
+                            "judge_name": attack["judge_name"],
+                            "judge_args": attack["judge_args"],
+                            "injected": "true",
+                            "jailbreak_type": attack.get("jailbreak_type", ""),
+                            "instruction_type": attack.get("instruction_type", ""),
+                            "task_type": None,
+                            "document_id": None,
+                            "position": None,
+                            "spotlighting_data_markers": None,
+                            "injection_delimiters": None,
+                            "lang": attack.get("lang", "en"),
+                            "suffix_id": None,
+                            "payload": plugin_variant,
+                            "plugin": plugin_name,
+                            "exclude_from_transformations_regex": exclude_patterns,
+                        }
+                        dataset.append(plugin_entry)
+                        entry_id += 1
+                except Exception as e:
+                    print(
+                        f"Warning: Plugin '{plugin_name}' failed for standalone attack '{attack['id']}': {e}"
+                    )
+                    continue
+
+    return dataset, entry_id
 
 
 def generate_variations(
@@ -892,27 +825,6 @@ def generate_variations(
     return dataset, entry_id
 
 
-def resolve_seed_folder(seed_folder_name):
-    """
-    Return the absolute path to the seed folder, searching local workspace first,
-    then built-in package data.
-    """
-    local_path = os.path.join(os.getcwd(), seed_folder_name)
-    if os.path.isdir(local_path):
-        return local_path
-
-    # built-in path
-    builtin_path = os.path.join(os.path.dirname(__file__), "data", seed_folder_name)
-    if os.path.isdir(builtin_path):
-        return builtin_path
-
-    # Fallback: raise error
-    raise FileNotFoundError(
-        f"Seed folder '{seed_folder_name}' not found "
-        f"in local datasets/ or in built-in spikee/data/"
-    )
-
-
 def generate_dataset(args):
     """
     Main entry point for generating the dataset. Loads files, filters content,
@@ -920,17 +832,25 @@ def generate_dataset(args):
     """
     seed_folder = resolve_seed_folder(args.seed_folder)
     output_format = args.format
-    injection_delimiters_input = args.injection_delimiters
-    spotlighting_data_markers_input = args.spotlighting_data_markers
     include_system_message = args.include_system_message
     plugin_options_map = parse_plugin_options(args.plugin_options)
 
+    # Tags
     tag = args.tag
     if tag:
         is_valid_tag, tag_error = validate_tag(tag)
         if not is_valid_tag:
             print(f"Error: Invalid tag: {tag_error}")
             return
+
+    # Pattern Lists
+    injection_delimiters_input = args.injection_delimiters
+    spotlighting_data_markers_input = args.spotlighting_data_markers
+    languages_input = args.languages
+    match_languages = args.match_languages
+    instruction_filter_input = args.instruction_filter
+    jailbreak_filter_input = args.jailbreak_filter
+    include_suffixes = args.include_suffixes
 
     injection_delimiters = [
         delim.encode("utf-8").decode("unicode_escape")
@@ -940,12 +860,6 @@ def generate_dataset(args):
         marker.encode("utf-8").decode("unicode_escape")
         for marker in spotlighting_data_markers_input.split(",")
     ]
-
-    languages_input = args.languages
-    match_languages = args.match_languages
-    instruction_filter_input = args.instruction_filter
-    jailbreak_filter_input = args.jailbreak_filter
-    include_suffixes = args.include_suffixes
 
     if languages_input:
         languages = [lang.strip() for lang in languages_input.split(",")]
@@ -962,14 +876,17 @@ def generate_dataset(args):
     else:
         jailbreak_filters = None
 
+    # Get Base Inputs
     base_file = resolve_base_inputs_path(seed_folder)
     base_documents_file = str(base_file)
 
+    # Get Additional Files
     jailbreaks_file = os.path.join(seed_folder, "jailbreaks.jsonl")
     instructions_file = os.path.join(seed_folder, "instructions.jsonl")
     adv_suffixes_file = os.path.join(seed_folder, "adv_suffixes.jsonl")
     system_messages = os.path.join(seed_folder, "system_messages.toml")
 
+    # Validate Files
     required_files = [base_documents_file, jailbreaks_file, instructions_file]
     if include_suffixes:
         required_files.append(adv_suffixes_file)
@@ -979,48 +896,53 @@ def generate_dataset(args):
             print(f"Error: File not found: {file_path}")
             return
 
-    base_docs = read_jsonl(base_documents_file)
-    jailbreaks = read_jsonl(jailbreaks_file)
-    instructions = read_jsonl(instructions_file)
-    adv_suffixes = read_jsonl(adv_suffixes_file) if include_suffixes else None
+    # Read/Ingest Files
+    base_docs = read_jsonl_file(base_documents_file)
+    jailbreaks = read_jsonl_file(jailbreaks_file)
+    instructions = read_jsonl_file(instructions_file)
+    adv_suffixes = read_jsonl_file(adv_suffixes_file) if include_suffixes else None
 
+    # Process Jailbreaks
     processed_jailbreaks = []
     for jb in jailbreaks:
-        jb_lang = jb.get("lang", "en")
-        jb["lang"] = jb_lang
+        jb["lang"] = jb.get("lang", "en")
         jb_type = jb.get("jailbreak_type", "")
-        if languages and jb_lang not in languages:
+
+        # Jailbreak does not match user-defined language or jb filter, skip.
+        if (languages and jb["lang"] not in languages) or (jailbreak_filters and jb_type not in jailbreak_filters):
             continue
-        if jailbreak_filters and jb_type not in jailbreak_filters:
-            continue
+
         processed_jailbreaks.append(jb)
     jailbreaks = processed_jailbreaks
 
+    # Process Instructions
     processed_instructions = []
     for instr in instructions:
-        instr_lang = instr.get("lang", "en")
-        instr["lang"] = instr_lang
+        instr["lang"] = instr.get("lang", "en")
         instr_type = instr.get("instruction_type", "")
 
         # If no judge_name, fallback to 'canary'
         if "judge_name" not in instr:
             instr["judge_name"] = "canary"
+
         # If no judge_args, fallback to any 'canary' string or empty (compatibility with v0.1)
         if "judge_args" not in instr:
             instr["judge_args"] = instr.get("canary", "")
 
-        if languages and instr_lang not in languages:
+        # Instruction does not match user-defined language or instruction filter, skip.
+        if (languages and instr["lang"] not in languages) or instruction_filters and instr_type not in instruction_filters:
             continue
-        if instruction_filters and instr_type not in instruction_filters:
-            continue
+
         processed_instructions.append(instr)
     instructions = processed_instructions
 
+    # Load user-defined plugins
     plugins = load_plugins(args.plugins)
-    system_message_config = (
-        read_toml(system_messages) if include_system_message else None
-    )
 
+    # Load system message config
+    system_message_config = (read_toml_file(system_messages) if include_system_message else None)
+
+    # Generate Dataset
     dataset, entry_id = generate_variations(
         base_docs,
         jailbreaks,
@@ -1038,7 +960,7 @@ def generate_dataset(args):
 
     if getattr(args, "include_standalone_inputs", False):
         standalone_file = resolve_standalone_inputs_path(seed_folder, True)
-        standalone_inputs = read_jsonl(str(standalone_file))
+        standalone_inputs = read_jsonl_file(str(standalone_file))
         dataset, entry_id = process_standalone_attacks(
             standalone_inputs,
             dataset,
@@ -1069,7 +991,7 @@ def generate_dataset(args):
     else:
         output_file_path += f"-dataset-{timestamp}.jsonl"
         os.makedirs("datasets", exist_ok=True)
-        write_jsonl(dataset, output_file_path)
+        write_jsonl_file(output_file_path, dataset)
 
     print(f"Dataset generated and saved to {output_file_path}")
 

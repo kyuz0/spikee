@@ -4,6 +4,8 @@ import os
 
 from ..templates.target import Target
 from ..templates.judge import Judge
+from ..templates.llm_judge import LLMJudge
+from ..templates.plugin import Plugin
 
 
 # ==== Loading Modules ====
@@ -21,9 +23,15 @@ def load_module_from_path(name, module_type):
                     for _, obj in inspect.getmembers(mod):
                         if inspect.isclass(obj) and issubclass(obj, Target) and obj is not Target:
                             return obj()
+
                 case "judges":
                     for _, obj in inspect.getmembers(mod):
-                        if inspect.isclass(obj) and issubclass(obj, Judge) and obj is not Judge:
+                        if inspect.isclass(obj) and (issubclass(obj, Judge) or issubclass(obj, LLMJudge)) and (obj is not Judge and obj is not LLMJudge):
+                            return obj()
+
+                case "plugins":
+                    for _, obj in inspect.getmembers(mod):
+                        if inspect.isclass(obj) and issubclass(obj, Plugin) and obj is not Plugin:
                             return obj()
 
             return mod
