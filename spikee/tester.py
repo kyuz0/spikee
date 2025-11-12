@@ -16,6 +16,12 @@ from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
 from .utilities import read_jsonl_file, write_jsonl_file, append_jsonl_entry, process_jsonl_input_files, validate_and_get_tag
+from .templates.target import Target
+
+
+class GuardrailTrigger(Exception):
+    """Exception raised when a guardrail is triggered."""
+    pass
 
 
 class AdvancedTargetWrapper:
@@ -37,6 +43,13 @@ class AdvancedTargetWrapper:
 
     def __init__(self, target_module, target_options=None, max_retries=3, throttle=0):
         self.target_module = target_module
+        self.target_type = 'legacy'
+        for _, obj in inspect.getmembers(target_module):
+            if inspect.isclass(obj) and issubclass(obj, Target) and obj is not Target:
+                self.target_module = obj()
+                self.target_type = 'oop'
+                break
+
         self.target_options = target_options
         self.max_retries = max_retries
         self.throttle = throttle
@@ -257,6 +270,7 @@ def _load_raw_target_module(target_name):
 
 def load_target_module(target_name, target_options, max_retries, throttle):
     target_mod = _load_raw_target_module(target_name)
+
     if target_mod is None:
         raise ValueError(
             f"Target '{target_name}' not found locally or in spikee.targets/"
@@ -346,6 +360,13 @@ def _do_single_request(
         success = call_judge(entry, response)
         response_str = response if isinstance(response, str) else ""
         error_message = None
+    except GuardrailTrigger as gt:
+        error_message = str(gt)
+        response_str = ""
+        response_time = time.time() - start_time
+        success = False
+        print("[Guardrail Triggered] {}: {}".format(entry["id"], error_message))
+
     except Exception as e:
         error_message = str(e)
         response_str = ""
