@@ -381,10 +381,6 @@ def main():
     parser_extract.add_argument(
         "--tag", default=None, help="Include a tag at the end of the results filename"
     )
-    parser_extract.add_argument(
-        "--pretty-print",
-        help="(WIP) Pretty print results to CLI, specify format: None (default)",
-    )
 
     # --- convert-to-excel
     parser_convert_to_excel = subparsers_results.add_parser(
