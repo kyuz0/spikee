@@ -18,7 +18,7 @@ class Target(ABC):
         input_text: str,
         system_message: Optional[str] = None,
         target_options: Optional[str] = None,
-    ) -> str:
+    ) -> object:
         """Sends prompts to the defined target
 
         Args:
