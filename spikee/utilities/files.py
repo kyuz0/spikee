@@ -74,7 +74,7 @@ def list_jsonl_files(folder_path, startswith=None):
     return [
         os.path.join(folder_path, f)
         for f in os.listdir(folder_path)
-        if (startswith is None or f.startswith(startswith)) and f.endswith(".jsonl") and os.path.isfile(os.path.join(folder_path, f))
+        if (startswith is None or any(f.startswith(prefix) for prefix in startswith)) and f.endswith(".jsonl") and os.path.isfile(os.path.join(folder_path, f))
     ]
 
 

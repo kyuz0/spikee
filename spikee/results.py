@@ -91,7 +91,7 @@ def escape_special_chars(text):
 
 # region analyze
 def analyze_results(args):
-    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type="results")
+    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type=["results", "rejudge"])
     output_format = args.output_format
 
     # False positive status and multi-file check
