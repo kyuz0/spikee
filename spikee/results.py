@@ -10,7 +10,7 @@ from tqdm import tqdm
 from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
-from .utilities.files import read_jsonl_file, write_jsonl_file, process_jsonl_input_files, prepare_output_file
+from .utilities.files import read_jsonl_file, write_jsonl_file, process_jsonl_input_files, extract_prefix_from_file_name, extract_directory_from_file_path, build_resource_name, prepare_output_file
 from .utilities.tags import validate_and_get_tag
 
 
@@ -769,6 +769,10 @@ def rejudge_results(args):
     for result_file in result_files:
         print(f" \n\n[Start] Currently Re-judging: {result_file.split(os.sep)[-1]}")
 
+        # Obtain file names
+        file_dir = extract_directory_from_file_path(result_file)
+        prefix, resource_name = extract_prefix_from_file_name(result_file)
+
         # Obtain results to re-judge and annotate judge options
         results = read_jsonl_file(result_file)
 
@@ -783,17 +787,15 @@ def rejudge_results(args):
 
         if args.resume:
             # Attempt to obtain file name
-            file_dir, prefix_name = os.path.split(os.path.abspath(result_file))
-            prefix_name = prefix_name.removesuffix(".jsonl") + "-rejudge-"
-
+            resume_name = build_resource_name("rejudge" + resource_name)
             file_index = os.listdir(file_dir)
             newest = 0
 
             # Obtain newest valid rejudge file, or fallback to new rejudge file.
             for file in file_index:
-                if str(file).startswith(prefix_name):
+                if str(file).startswith(resume_name):
                     try:
-                        age = int(file.removeprefix(prefix_name).removesuffix(".jsonl"))
+                        age = int(file.removeprefix(resume_name).removesuffix(".jsonl"))
 
                         if age > newest:
                             newest = age
@@ -802,8 +804,9 @@ def rejudge_results(args):
                     except Exception:
                         continue
 
+            # Resume file exists
             if output_file is not None:
-                output_file = file_dir + os.path.sep + output_file
+                output_file = os.path.join(file_dir, output_file)
 
                 existing = read_jsonl_file(output_file)
                 completed_ids = {r["id"] for r in existing}
@@ -819,12 +822,7 @@ def rejudge_results(args):
                 )
 
         if output_file is None:
-            output_file = (
-                result_file.removesuffix(".jsonl")
-                + "-rejudge-"
-                + str(round(time.time()))
-                + ".jsonl"
-            )
+            output_file = prepare_output_file(file_dir, "rejudge", resource_name, None, None)
             mode = "w"
 
         # Stream write, allows CTRL+C leaves a partial file
