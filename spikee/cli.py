@@ -133,7 +133,7 @@ def main():
         "--format",
         choices=["user-input", "full-prompt", "burp"],
         default="user-input",
-        help="Output format: user-input (default, for apps), full-prompt, or burp",
+        help="Output format: user-input (default, for apps), full-prompt (for llms), or burp",
     )
     parser_generate.add_argument(
         "--spotlighting-data-markers",
