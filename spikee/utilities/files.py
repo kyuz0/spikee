@@ -121,3 +121,15 @@ def does_resource_name_match(path: Path, resource_name: str) -> bool:
         return remainder.isdigit()
     else:
         return False
+
+
+def prepare_output_file(directory, file_type, name_full, dataset_path, tag):
+    filename = build_file_name(
+        file_type,
+        name_full,
+        None if dataset_path is None else extract_resource_name(dataset_path),
+        tag
+    )
+
+    os.makedirs(directory, exist_ok=True)
+    return os.path.join(directory, filename)

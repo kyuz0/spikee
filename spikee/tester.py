@@ -14,7 +14,7 @@ from datetime import datetime
 from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
-from .utilities.jsonl import read_jsonl_file, write_jsonl_file, append_jsonl_entry, process_jsonl_input_files, extract_resource_name, build_resource_name, build_file_name, does_resource_name_match
+from .utilities.files import read_jsonl_file, write_jsonl_file, append_jsonl_entry, process_jsonl_input_files, extract_resource_name, build_resource_name, prepare_output_file, does_resource_name_match
 from .utilities.modules import load_module_from_path, get_default_option
 from .utilities.tags import validate_and_get_tag
 
@@ -148,12 +148,6 @@ def _build_target_name(target, target_options):
 
     target_options = re.sub(regex_pattern, replacer, target_options)  # Remove Invalid Windows Characters
     return f"{target}-{target_options}"
-
-
-def _prepare_output_file(results_dir, target_name_full, dataset_path, tag):
-    filename = build_file_name("results", target_name_full, extract_resource_name(dataset_path), tag)
-    os.makedirs(results_dir, exist_ok=True)
-    return os.path.join(results_dir, filename)
 
 
 def _load_results_file(resume_file, attack_module, attack_iters):
@@ -684,7 +678,8 @@ def test_dataset(args):
 
         # Create new results file and for resume, write existing results
         target_name_full = _build_target_name(args.target, args.target_options)
-        output_file = _prepare_output_file(
+        output_file = prepare_output_file(
+            "results",
             "results",
             target_name_full,
             dataset,

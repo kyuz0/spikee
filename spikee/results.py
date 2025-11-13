@@ -1,6 +1,5 @@
 import json
 import os
-from unittest import result
 import pandas as pd  # Required for Excel conversion
 from collections import defaultdict
 from tabulate import tabulate
@@ -8,9 +7,10 @@ import html
 import traceback
 import time
 from tqdm import tqdm
+from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
-from .utilities.jsonl import read_jsonl_file, write_jsonl_file, process_jsonl_input_files
+from .utilities.files import read_jsonl_file, write_jsonl_file, process_jsonl_input_files, prepare_output_file
 from .utilities.tags import validate_and_get_tag
 
 
@@ -82,25 +82,6 @@ def group_entries_with_attacks(results):
     return groups, attack_to_original
 
 
-def convert_results_to_excel(args):
-    result_file = args.result_file
-
-    # Read results
-    results = read_jsonl_file(result_file)
-
-    # Preprocess results to encode special characters
-    results = preprocess_results(results)
-
-    # Convert to DataFrame
-    df = pd.DataFrame(results)
-
-    # Output Excel file
-    output_file = os.path.splitext(result_file)[0] + ".xlsx"
-    df.to_excel(output_file, index=False)
-
-    print(f"Results successfully converted to Excel: {output_file}")
-
-
 def escape_special_chars(text):
     """Escapes special characters for console output."""
     if text is None:
@@ -108,6 +89,7 @@ def escape_special_chars(text):
     return repr(text)
 
 
+# region analyze
 def analyze_results(args):
     result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type="results")
     output_format = args.output_format
@@ -775,6 +757,7 @@ def print_combination_stats(title, combo_list, has_dynamic_attacks):
         ]
 
     print(tabulate(table, headers=headers), "\n")
+# endregion
 
 
 def rejudge_results(args):
@@ -938,15 +921,8 @@ def extract_results(args):
                         matching_results.append(result)
 
     # Output File
-    ts = int(time.time())
     tag = validate_and_get_tag(args.tag)
-    parts = ["extract", category]
-    if tag:
-        parts.append(tag)
-    parts.append(str(ts))
-
-    os.makedirs("results", exist_ok=True)
-    output_file = os.path.join("results", "_".join(parts) + ".jsonl")
+    output_file = prepare_output_file("results", "extract", category, None, tag)
 
     # Output matching results
     write_jsonl_file(output_file, matching_results)
@@ -955,6 +931,103 @@ def extract_results(args):
     print_format = args.pretty_print
     if print_format:
         pass
+
+
+def dataset_comparison(args):
+    # Get and sort result file data
+    dataset = sorted(read_jsonl_file(args.dataset), key=lambda r: r.get('long_id', ''))
+
+    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type="results")
+    results = {}
+    for result_file in result_files:
+        file_results = {r.get('long_id', '').removesuffix("-ERROR"): r for r in read_jsonl_file(result_file)}
+        results[result_file] = file_results
+
+    print("[Overview] Comparing dataset entries against results from the following file(s): ")
+    print(" - " + "\n - ".join(result_files))
+
+    # Dataset validation
+    if args.skip_validation:
+        print("[Warning] Skipping dataset validation as per user request.")
+    else:
+        errors = {}
+        for entry in dataset:
+            entry_long_id = entry['long_id']
+
+            for result_file, file_results in results.items():
+                if entry_long_id not in file_results:
+                    if result_file not in errors:
+                        errors[result_file] = 0
+                    errors[result_file] += 1
+
+        if len(errors) > 0:
+            print("[Error] Dataset validation failed. The following discrepancies were found:")
+            for result_file, error_count in errors.items():
+                print(f" - {result_file}: {error_count} missing entries")
+
+    # Dataset Comparison
+    success_rates = {}
+    successful_entries = []
+    for entry in dataset:
+        entry_long_id = entry['long_id']
+        success_rates[entry_long_id] = 0
+
+        # Obtain successes across result files
+        for result_file, file_results in results.items():
+            if entry_long_id in file_results and file_results[entry_long_id].get('success', False):
+                success_rates[entry_long_id] += 1
+
+        # Calculate success rate
+        success_rates[entry_long_id] = success_rates[entry_long_id] / len(result_files)
+
+        # Check against success criteria
+        match args.success_definition:
+            case "gt":
+                if success_rates[entry_long_id] > args.success_threshold:
+                    entry['success_rate'] = success_rates[entry_long_id]
+                    successful_entries.append(entry)
+
+            case "lt":
+                if success_rates[entry_long_id] < args.success_threshold:
+                    entry['success_rate'] = success_rates[entry_long_id]
+                    successful_entries.append(entry)
+
+    print(f"[Overview] Dataset comparison completed. {len(successful_entries)} entries matched the success criteria.")
+    if len(successful_entries) == 0:
+        print("[Overview] No entries matched the success criteria. No output file will be generated.")
+        return
+
+    # Sort entries by success rate descending
+    successful_entries.sort(key=lambda e: e['success_rate'], reverse=True)
+
+    if args.number > 0:
+        print(f"[Overview] Limiting output to top {args.number} entries based on success rate.")
+        successful_entries = successful_entries[: args.number]
+
+    tag = validate_and_get_tag(args.tag)
+    output_file = prepare_output_file("datasets", "comparison", None, args.dataset, tag)
+
+    write_jsonl_file(output_file, successful_entries)
+    print(f"[Overview] Comparison dataset saved to {output_file}.")
+
+
+def convert_results_to_excel(args):
+    result_file = args.result_file
+
+    # Read results
+    results = read_jsonl_file(result_file)
+
+    # Preprocess results to encode special characters
+    results = preprocess_results(results)
+
+    # Convert to DataFrame
+    df = pd.DataFrame(results)
+
+    # Output Excel file
+    output_file = os.path.splitext(result_file)[0] + ".xlsx"
+    df.to_excel(output_file, index=False)
+
+    print(f"Results successfully converted to Excel: {output_file}")
 
 
 def generate_html_report(

@@ -7,7 +7,7 @@ from tabulate import tabulate
 from pathlib import Path
 
 from .templates.plugin import Plugin
-from .utilities.jsonl import read_jsonl_file, read_toml_file, write_jsonl_file
+from .utilities.files import read_jsonl_file, read_toml_file, write_jsonl_file
 from .utilities.modules import load_module_from_path
 from .utilities.tags import validate_tag
 
@@ -127,13 +127,13 @@ def get_system_message(system_message_config, spotlighting_data_marker=None):
     """
     if system_message_config is None:
         return None
-    
+
     default = None
 
     for config in system_message_config["configurations"]:
         if config["spotlighting_data_markers"] == spotlighting_data_marker:
             return config["system_message"]
-        
+
         if config["spotlighting_data_markers"] == "default":
             default = config["system_message"]
 
@@ -495,7 +495,7 @@ def generate_variations(
             jailbreak_text = jailbreak["text"]
             jailbreak_type = jailbreak.get("jailbreak_type", "")
             jailbreak_lang = jailbreak.get("lang", "en")
-            
+
             for instruction in instructions:
                 instruction_id = instruction["id"]
                 instruction_text = instruction["instruction"]
@@ -507,13 +507,13 @@ def generate_variations(
                 # If match_languages is enabled, skip if jailbreak and instruction languages do not match
                 if match_languages and jailbreak_lang != instruction_lang:
                     continue
-                
+
                 # Creates combined jailbreak and instruction texts
                 # Instruction is placed into jailbreak at <INSTRUCTION> placeholder
                 if "<INSTRUCTION>" in jailbreak_text:
                     combined_text = jailbreak_text.replace("<INSTRUCTION>", instruction_text)
                     lang = instruction_lang
-                else: # TODO / BUG: If no instruction it will just repeat the variant instruction times.
+                else:  # TODO / BUG: If no instruction it will just repeat the variant instruction times.
                     combined_text = jailbreak_text
                     lang = jailbreak_lang
 
@@ -527,20 +527,20 @@ def generate_variations(
                         else:
                             local_exclude.append(value)
 
-                local_exclude = list(set(local_exclude)) # Remove duplicates
+                local_exclude = list(set(local_exclude))  # Remove duplicates
 
                 # 1) No-plugin entries
-                for suffix in suffixes: # Applied with --include-suffixes, by defualt [None]
-                    
+                for suffix in suffixes:  # Applied with --include-suffixes, by defualt [None]
+
                     # Combine suffix with combined text (jailbreak + instruction)
                     suffix_combined_text, suffix_id = combined_text, None
                     if suffix:
                         suffix_combined_text += " " + suffix["suffix"]
                         suffix_id = suffix["id"]
 
-                    for position in insert_positions: # Applied with --positions, by default ['end']
-                        for injection_pattern in injection_delimiters: # Applied with --injection-delimiters, by default "\nINJECTION_PAYLOAD\n"
-                            
+                    for position in insert_positions:  # Applied with --positions, by default ['end']
+                        for injection_pattern in injection_delimiters:  # Applied with --injection-delimiters, by default "\nINJECTION_PAYLOAD\n"
+
                             # Combine document with suffix_combined_text (jailbreak + instruction + suffix)
                             # suffix_combined_text is inserted into the injection_pattern at 'INJECTION_PAYLOAD' placeholder
                             # Document Placeholder: Injection is placed into document placeholder
@@ -557,20 +557,20 @@ def generate_variations(
                                 burp_payload_encoded = json.dumps(injected_doc)[1:-1]
                                 dataset.append(burp_payload_encoded)
                             else:
-                                for (spotlighting_data_marker) in spotlighting_data_markers_list: # Applied with --spotlighting-data-markers, by default "\nDOCUMENT\n"
-                                    
+                                for (spotlighting_data_marker) in spotlighting_data_markers_list:  # Applied with --spotlighting-data-markers, by default "\nDOCUMENT\n"
+
                                     # Applied with --include-system-message flag - gets system message associated with spotlighting data marker
                                     system_message = get_system_message(system_message_config, spotlighting_data_marker)
 
                                     if output_format == "full-prompt":
                                         # Combines injected document with spotlighting data marker
                                         wrapped_document = (injected_doc
-                                            if spotlighting_data_marker == "none"
-                                            else spotlighting_data_marker.replace(
-                                                "DOCUMENT", injected_doc
-                                            )
-                                        )
-                                        
+                                                            if spotlighting_data_marker == "none"
+                                                            else spotlighting_data_marker.replace(
+                                                                "DOCUMENT", injected_doc
+                                                            )
+                                                            )
+
                                         # Create summary entry - "Summarize the following document: {wrapped_document}"
                                         summary_entry = _create_summary_entry(
                                             entry_id,
@@ -668,20 +668,20 @@ def generate_variations(
                             if not isinstance(plugin_result, list):
                                 plugin_result = [plugin_result]
                             suffix_id = None
-                            
+
                             # Combine suffix with plugin_results (jailbreak + instruction | plugin transformation)
                             if suffix:
                                 plugin_result = [variation + " " + suffix["suffix"] for variation in plugin_result]
                                 suffix_id = suffix["id"]
-                            
+
                             # Iterate over each variation (with index)
                             for variant_index, plugin_variant in enumerate(plugin_result, start=1):
                                 # Create a plugin suffix that includes the plugin name and variant index.
                                 plugin_suffix = f"_{plugin_name}-{variant_index}"
-                                
-                                for position in insert_positions: # Applied with --positions, by default ['end']
-                                    for injection_pattern in injection_delimiters: # Applied with --injection-delimiters, by default "\nINJECTION_PAYLOAD\n"
-                                        
+
+                                for position in insert_positions:  # Applied with --positions, by default ['end']
+                                    for injection_pattern in injection_delimiters:  # Applied with --injection-delimiters, by default "\nINJECTION_PAYLOAD\n"
+
                                         # Combine document with plugin_variant ((jailbreak + instruction | plugin transformation) + suffix)
                                         injected_doc = insert_jailbreak(
                                             document,
@@ -696,18 +696,18 @@ def generate_variations(
                                             dataset.append(burp_payload_encoded)
                                         else:
                                             for (spotlighting_data_marker) in spotlighting_data_markers_list:
-                                                
+
                                                 # Applied with --include-system-message flag - gets system message associated with spotlighting data marker
                                                 system_message = get_system_message(system_message_config, spotlighting_data_marker)
 
                                                 if output_format == "full-prompt":
                                                     # Combines injected document with spotlighting data marker
                                                     wrapped_document = (injected_doc
-                                                        if spotlighting_data_marker == "none"
-                                                        else spotlighting_data_marker.replace(
-                                                            "DOCUMENT", injected_doc
-                                                        )
-                                                    )
+                                                                        if spotlighting_data_marker == "none"
+                                                                        else spotlighting_data_marker.replace(
+                                                                            "DOCUMENT", injected_doc
+                                                                        )
+                                                                        )
                                                     # Create summary entry - "Summarize the following document: {wrapped_document}"
                                                     summary_entry = _create_summary_entry(
                                                         entry_id,
@@ -733,8 +733,8 @@ def generate_variations(
                                                     )
                                                     dataset.append(summary_entry)
                                                     entry_id += 1
-                                                    
-                                                    # Create Q&A entry - "Given this document: {wrapped_document} Answer the following question: {question}"    
+
+                                                    # Create Q&A entry - "Given this document: {wrapped_document} Answer the following question: {question}"
                                                     qa_entry = _create_qa_entry(
                                                         entry_id,
                                                         base_id,

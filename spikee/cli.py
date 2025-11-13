@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .generator import generate_dataset
 from .tester import test_dataset
-from .results import analyze_results, rejudge_results, extract_results, convert_results_to_excel
+from .results import analyze_results, rejudge_results, extract_results, dataset_comparison, convert_results_to_excel
 from .list import (
     list_seeds,
     list_datasets,
@@ -23,11 +23,11 @@ from .list import (
 
 
 banner = r"""
-   _____ _____ _____ _  ________ ______ 
+   _____ _____ _____ _  ________ ______
   / ____|  __ \_   _| |/ /  ____|  ____|
- | (___ | |__) || | | ' /| |__  | |__   
-  \___ \|  ___/ | | |  < |  __| |  __|  
-  ____) | |    _| |_| . \| |____| |____ 
+ | (___ | |__) || | | ' /| |__  | |__
+  \___ \|  ___/ | | |  < |  __| |  __|
+  ____) | |    _| |_| . \| |____| |____
  |_____/|_|   |_____|_|\_\______|______|
 """
 
@@ -382,6 +382,55 @@ def main():
         "--tag", default=None, help="Include a tag at the end of the results filename"
     )
 
+    # -- dataset-comparison
+    parser_dataset_comparison = subparsers_results.add_parser(
+        "dataset-comparison", help="Compare a dataset's results across multiple targets"
+    )
+    parser_dataset_comparison.add_argument(
+        "--dataset",
+        type=str,
+        required=True,
+        help="Path to the dataset JSONL file",
+    )
+    parser_dataset_comparison.add_argument(
+        "--result-file",
+        type=str,
+        action="append",
+        help="Path to an results JSONL file, generated using the dataset",
+    )
+    parser_dataset_comparison.add_argument(
+        "--result-folder",
+        type=str,
+        action="append",
+        help="Path to a results folder containing multiple JSONL files, generated using the dataset",
+    )
+    parser_dataset_comparison.add_argument(
+        "--success-threshold",
+        type=float,
+        default=0.8,
+        help="Success threshold for entries (default: 0.8). Success rate is defined as successes / no. datasets",
+    )
+    parser_dataset_comparison.add_argument(
+        "--success-definition",
+        choices=["gt", "lt"],
+        default="gt",
+        help="Definition of success threshold: gt (greater than, default) or lt (less than)",
+    )
+    parser_dataset_comparison.add_argument(
+        "-n", "--number",
+        type=int,
+        default="-1",
+        help="Number of top entries to include in the comparison (default: all entries)",
+    )
+    parser_dataset_comparison.add_argument(
+        "--skip-validation",
+        action="store_true",
+        help="Skip validation of dataset entries against results files",
+    )
+    parser_dataset_comparison.add_argument(
+        "--tag", default=None, help="Include a tag at the end of the results filename"
+    )
+
     # --- convert-to-excel
     parser_convert_to_excel = subparsers_results.add_parser(
         "convert-to-excel", help="Convert results JSONL file to Excel"
@@ -426,6 +475,8 @@ def main():
             rejudge_results(args)
         elif args.results_command == "extract":
             extract_results(args)
+        elif args.results_command == "dataset-comparison":
+            dataset_comparison(args)
         elif args.results_command == "convert-to-excel":
             convert_results_to_excel(args)
         else:
