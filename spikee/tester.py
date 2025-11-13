@@ -12,7 +12,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from datetime import datetime
 from InquirerPy import inquirer
-from typing import Self
 
 from .judge import annotate_judge_options, call_judge
 from .utilities.jsonl import read_jsonl_file, write_jsonl_file, append_jsonl_entry, process_jsonl_input_files, extract_resource_name, build_resource_name, build_file_name, does_resource_name_match
@@ -57,7 +56,7 @@ class AdvancedTargetWrapper:
         self.supports_output_file = "output_file" in params
 
     @classmethod
-    def create_target_wrapper(cls, target_name, target_options, max_retries, throttle) -> Self:
+    def create_target_wrapper(cls, target_name, target_options, max_retries, throttle):
         """Static method to create an AdvancedTargetWrapper for a given target name."""
         target_mod = load_module_from_path(target_name, "targets")
 
