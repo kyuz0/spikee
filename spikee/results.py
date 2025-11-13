@@ -872,41 +872,34 @@ def rejudge_results(args):
 def extract_results(args):
     result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type="results")
 
-    # Category Check
+    # Category validation
     category = args.category or "success"
     if category not in ["success", "failure", "error", "custom"]:
         print(f"[Error] Invalid category '{category}' specified for extraction. Must be one of: success, failure, error, custom.")
         exit(1)
 
-    if args.category == "custom" and args.custom_search is None:
-        print("[Error] Custom search requires the --custom_value to be specified.")
-        exit(1)
-
+    # Custom Category
+    custom_field = None
+    custom_query = None
     if args.category == "custom":
-        query = args.custom_search.split(":")
-
-        if len(query) == 1:
-            custom_field = None
-            custom_query = query[0].strip()
-        elif len(query) == 2:
-            custom_field = query[0].strip()
-            custom_query = query[1].strip()
-        else:
-            print("[Error] Custom search format is invalid. Use --custom_search 'search_string' or 'field:search_string'")
+        if args.custom_search is None:
+            print("[Error] Custom search requires the --custom_value to be specified.")
             exit(1)
-    else:
-        custom_field = None
-        custom_query = None
 
-    print(custom_field, custom_query)
+        query = args.custom_search.split(":", 1)
+        query.reverse()
+
+        custom_query = query[0].strip()
+        custom_field = query[1].strip() if len(query) == 2 else None
 
     # Print overview
     print("[Overview] Results will be extracted from the following file(s): ")
 
     matching_results = []
-    count = 0
+    id_count = 0
+    total_count = 0
     for result_file in result_files:
-        print(" - {}".format(result_file))
+        print(f" - {result_file}")
 
         result_name = result_file.split(os.sep)[-1].removesuffix(".jsonl")
 
@@ -914,35 +907,36 @@ def extract_results(args):
         results = read_jsonl_file(result_file)
 
         for result in results:
+            total_count += 1
             result['source_file'] = result_file  # Track source file for each entry
             match category:
                 case "success":
                     if result.get("success", False):
-                        count += 1
-                        result['id'] = count
+                        id_count += 1
+                        result['id'] = id_count
                         result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
 
                         matching_results.append(result)
 
                 case "failure":
                     if not result.get("success", False):
-                        count += 1
-                        result['id'] = count
+                        id_count += 1
+                        result['id'] = id_count
                         result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
 
                         matching_results.append(result)
 
                 case "error":
                     if result.get("error", None) not in [None, "No response received"]:
-                        count += 1
-                        result['id'] = count
+                        id_count += 1
+                        result['id'] = id_count
                         result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
 
                         matching_results.append(result)
                 case "custom":
                     if custom_field is None and custom_query in str(result):
-                        count += 1
-                        result['id'] = count
+                        id_count += 1
+                        result['id'] = id_count
                         result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
 
                         matching_results.append(result)
@@ -950,8 +944,8 @@ def extract_results(args):
                     elif custom_field is not None:
                         search = result.get(custom_field, None)
                         if search and custom_query in search:
-                            count += 1
-                            result['id'] = count
+                            id_count += 1
+                            result['id'] = id_count
                             result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
 
                             matching_results.append(result)
@@ -962,7 +956,7 @@ def extract_results(args):
 
     # Output matching results
     write_jsonl_file(output_file, matching_results)
-    print(f"[Overview] Extracted {len(matching_results)} results to {output_file}.")
+    print(f"[Overview] Extracted {id_count} / {total_count} results to {output_file}. Extraction Rate: {round(id_count / total_count if total_count > 0 else 0, 2)}")
 
 
 def dataset_comparison(args):
