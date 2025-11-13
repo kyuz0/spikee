@@ -874,9 +874,31 @@ def extract_results(args):
 
     # Category Check
     category = args.category or "success"
-    if category not in ["success", "failure", "error"]:
-        print(f"[Error] Invalid category '{category}' specified for extraction. Must be one of: success, failure, error.")
+    if category not in ["success", "failure", "error", "custom"]:
+        print(f"[Error] Invalid category '{category}' specified for extraction. Must be one of: success, failure, error, custom.")
         exit(1)
+
+    if args.category == "custom" and args.custom_search is None:
+        print("[Error] Custom search requires the --custom_value to be specified.")
+        exit(1)
+
+    if args.category == "custom":
+        query = args.custom_search.split(":")
+
+        if len(query) == 1:
+            custom_field = None
+            custom_query = query[0].strip()
+        elif len(query) == 2:
+            custom_field = query[0].strip()
+            custom_query = query[1].strip()
+        else:
+            print("[Error] Custom search format is invalid. Use --custom_search 'search_string' or 'field:search_string'")
+            exit(1)
+    else:
+        custom_field = None
+        custom_query = None
+
+    print(custom_field, custom_query)
 
     # Print overview
     print("[Overview] Results will be extracted from the following file(s): ")
@@ -917,6 +939,22 @@ def extract_results(args):
                         result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
 
                         matching_results.append(result)
+                case "custom":
+                    if custom_field is None and custom_query in str(result):
+                        count += 1
+                        result['id'] = count
+                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+
+                        matching_results.append(result)
+
+                    elif custom_field is not None:
+                        search = result.get(custom_field, None)
+                        if search and custom_query in search:
+                            count += 1
+                            result['id'] = count
+                            result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+
+                            matching_results.append(result)
 
     # Output File
     tag = validate_and_get_tag(args.tag)

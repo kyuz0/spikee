@@ -376,7 +376,13 @@ def main():
     )
     parser_extract.add_argument(
         "--category",
-        help="Extracts prompts by category: success (default), fail, error",
+        help="Extracts prompts by category: success (default), fail, error, custom",
+    )
+    parser_extract.add_argument(
+        "--custom-search",
+        type=str,
+        default=None,
+        help="Custom search string to filter prompts when --category=custom. Formats: 'search_string' or 'field:search_string'",
     )
     parser_extract.add_argument(
         "--tag", default=None, help="Include a tag at the end of the results filename"
