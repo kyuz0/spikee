@@ -51,10 +51,6 @@ def test_spikee_results_analyze(run_spikee, workspace_dir):
 def test_spikee_results_rejudge_with_options(run_spikee, workspace_dir):
     results_file = _create_judge_results(run_spikee, workspace_dir)
 
-    existing = {
-        path for path in results_file.parent.glob(f"{results_file.stem}-rejudge-*.jsonl")
-    }
-
     rejudge = run_results_command(
         run_spikee,
         workspace_dir,
@@ -66,23 +62,25 @@ def test_spikee_results_rejudge_with_options(run_spikee, workspace_dir):
             "test_judge:mode=success",
         ],
     )
-    assert "Re-judging the following file(s)" in rejudge.stdout
+    assert "Currently Re-judging" in rejudge.stdout
 
-    # Identify new rejudge file
+    from spikee.utilities.files import extract_prefix_from_file_name
+
+    _, resource_name = extract_prefix_from_file_name(results_file.name)
+    expected_prefix = f"rejudge_{resource_name}_"
+
     timeout = time.time() + 5
     new_file = None
-    while time.time() < timeout and new_file is None:
-        candidates = {
+    while time.time() < timeout:
+        candidates = list(
             path
-            for path in results_file.parent.glob(
-                f"{results_file.stem}-rejudge-*.jsonl"
-            )
-        }
-        new_candidates = candidates - existing
-        if new_candidates:
-            new_file = max(new_candidates, key=lambda p: p.stat().st_mtime)
-        else:
-            time.sleep(0.1)
+            for path in results_file.parent.glob("rejudge_*.jsonl")
+            if path.name.startswith(expected_prefix)
+        )
+        if candidates:
+            new_file = max(candidates, key=lambda p: p.stat().st_mtime)
+            break
+        time.sleep(0.2)
 
     assert new_file and new_file.exists(), "Rejudge output file not created"
 

@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from spikee.templates.plugin import Plugin as BasePlugin
+
 from .utils import (
     base_long_id,
     filter_entries,
@@ -21,6 +23,13 @@ _filter_entries = filter_entries
 _base_long_id = base_long_id
 _split_base_and_plugin_entries = split_base_and_plugin_entries
 _load_plugin_module = load_plugin_module
+
+
+def _instantiate_plugin(module):
+    for attr in vars(module).values():
+        if isinstance(attr, type) and issubclass(attr, BasePlugin) and attr is not BasePlugin:
+            return attr()
+    raise AssertionError(f"No Plugin subclass found in {module.__name__}")
 
 
 @pytest.mark.parametrize("match_languages", [True, False])
@@ -243,11 +252,12 @@ def test_generate_with_builtin_deterministic_plugins(run_spikee, workspace_dir, 
         assert plugin_entries, f"No entries generated for plugin {plugin}"
 
         module = _load_plugin_module(project_root, module_path)
+        plugin_instance = _instantiate_plugin(module)
 
         for entry in plugin_entries:
             base_long_id = _base_long_id(entry["long_id"], plugin)
             base_entry = base_by_long_id[base_long_id]
-            expected = module.transform(
+            expected = plugin_instance.transform(
                 base_entry["payload"],
                 base_entry.get("exclude_from_transformations_regex"),
             )
