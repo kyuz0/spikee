@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+
+
+SEED_FOLDER = "datasets/seeds-functional-basic"
+
+
+def _dataset_files(datasets_dir: Path) -> set[Path]:
+    return set(datasets_dir.glob("*-dataset-*.jsonl"))
+
+
+def run_generate_command(
+    run_spikee,
+    workspace: Path,
+    extra_args: list[str] | None = None,
+    match_languages: bool = True,
+):
+    datasets_dir = workspace / "datasets"
+    before = _dataset_files(datasets_dir)
+    args = ["generate", "--seed-folder", SEED_FOLDER]
+    if not match_languages:
+        args.extend(["--match-languages", "false"])
+    if extra_args:
+        args.extend(extra_args)
+    result = run_spikee(args, cwd=workspace)
+    after = _dataset_files(datasets_dir)
+    new_files = after - before
+    assert len(new_files) == 1, f"Expected one new dataset, found {len(new_files)}"
+    dataset_path = new_files.pop()
+    return dataset_path, result
+
+
+def run_test_command(run_spikee, workspace: Path, extra_args: list[str]):
+    args = ["test", *extra_args]
+    return run_spikee(args, cwd=workspace)
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    entries = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            entries.append(json.loads(line))
+    return entries
+
+
+def filter_entries(entries: list[dict], **criteria) -> list[dict]:
+    return [
+        entry
+        for entry in entries
+        if all(entry.get(key) == value for key, value in criteria.items())
+    ]
+
+
+def base_long_id(long_id: str, plugin_name: str) -> str:
+    marker = f"_{plugin_name}-"
+    assert marker in long_id, f"Expected '{marker}' in long_id '{long_id}'"
+    return long_id.rsplit(marker, 1)[0]
+
+
+def split_base_and_plugin_entries(entries: list[dict], plugin_name: str):
+    base_entries = [entry for entry in entries if entry.get("plugin") in (None, "None")]
+    plugin_entries = [entry for entry in entries if entry.get("plugin") == plugin_name]
+    base_by_long_id = {entry["long_id"]: entry for entry in base_entries}
+    return base_entries, plugin_entries, base_by_long_id
+
+
+def load_plugin_module(project_root: Path, module_path: str):
+    module_rel = Path(*module_path.split("."))
+    module_file = (project_root / module_rel).with_suffix(".py")
+    assert module_file.exists(), f"Plugin module file not found: {module_file}"
+    spec = importlib.util.spec_from_file_location(module_path, module_file)
+    assert spec and spec.loader, f"Unable to load spec for {module_path}"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def extract_results_path(stdout: str, workspace: Path) -> Path:
+    for line in reversed(stdout.splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        if "Results saved to" in line or "Output will be saved to" in line:
+            _, path_str = line.split("to", 1)
+            path_str = path_str.strip()
+            candidates = [
+                workspace / path_str,
+                Path(path_str),
+            ]
+            for candidate in candidates:
+                candidate = candidate.expanduser().resolve()
+                if candidate.exists():
+                    return candidate
+    raise AssertionError(f"Could not determine results path from output:\n{stdout}")
