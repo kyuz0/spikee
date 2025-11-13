@@ -35,9 +35,7 @@ def _resolve_impl_class(module, module_type):
 
 def _instantiate_impl(module, module_type):
     impl_class = _resolve_impl_class(module, module_type)
-    if impl_class:
-        return impl_class()
-    return None
+    return impl_class() if impl_class else None
 
 
 # ==== Loading Modules ====
@@ -87,9 +85,7 @@ def get_options_from_module(module, module_type=None):
 
 def get_default_option(module, module_type=None):
     available = get_options_from_module(module, module_type)
-    if available:
-        return available[0]
-    return None
+    return available[0] if available else None
 
 
 if __name__ == "__main__":
