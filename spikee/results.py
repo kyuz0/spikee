@@ -926,10 +926,6 @@ def extract_results(args):
     write_jsonl_file(output_file, matching_results)
     print(f"[Overview] Extracted {len(matching_results)} results to {output_file}.")
 
-    print_format = args.pretty_print
-    if print_format:
-        pass
-
 
 def dataset_comparison(args):
     # Get and sort result file data
