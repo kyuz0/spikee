@@ -138,6 +138,50 @@ def test_spikee_test_partial_success_target(run_spikee, workspace_dir):
     assert all(not entry["success"] for entry in attack_results)
 
 
+def test_spikee_test_custom_judge_default_mode(run_spikee, workspace_dir):
+    dataset_path = workspace_dir / "datasets" / "test_judge_dataset.jsonl"
+    assert dataset_path.exists()
+
+    result = run_test_command(
+        run_spikee,
+        workspace_dir,
+        [
+            "--dataset",
+            str(dataset_path),
+            "--target",
+            "always_success",
+        ],
+    )
+
+    results_file = extract_results_path(result.stdout, workspace_dir)
+    results = read_jsonl(results_file)
+    assert results
+    assert all(not entry["success"] for entry in results)
+
+
+def test_spikee_test_custom_judge_with_options(run_spikee, workspace_dir):
+    dataset_path = workspace_dir / "datasets" / "test_judge_dataset.jsonl"
+    assert dataset_path.exists()
+
+    result = run_test_command(
+        run_spikee,
+        workspace_dir,
+        [
+            "--dataset",
+            str(dataset_path),
+            "--target",
+            "always_success",
+            "--judge-options",
+            "test_judge:mode=success",
+        ],
+    )
+
+    results_file = extract_results_path(result.stdout, workspace_dir)
+    results = read_jsonl(results_file)
+    assert results
+    assert all(entry["success"] for entry in results)
+
+
 @pytest.mark.parametrize(
     "attack_name",
     [

@@ -35,7 +35,7 @@ def test_spikee_list_datasets(run_spikee, workspace_dir):
 
 def test_spikee_list_judges(run_spikee, workspace_dir):
     output_lines = _run_list(run_spikee, workspace_dir, "judges")
-    expected_builtins = {"canary", "regex"}
+    expected_builtins = {"canary", "regex", "test_judge"}
     _assert_contains(output_lines, expected_builtins)
 
 
