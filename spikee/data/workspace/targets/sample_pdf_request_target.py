@@ -1,13 +1,14 @@
 """
-sample_request_target.py
+sample_pdf_request_target.py
 
 This is an example HTTP(s) request target for spikee that calls an external API, based on target options.
 The example URLs are fictional and meant to illustrate how to structure such a target.
+Demonstrates converting the incoming text into a PDF document before sending it to the application.
 
 Usage:
     1. Place this file in your local `targets/` folder.
     2. Run the spikee test command, pointing to this target, e.g.:
-         spikee test --dataset datasets/example.jsonl --target sample_request_target
+         spikee test --dataset datasets/example.jsonl --target sample_pdf_request_target
 """
 
 from spikee.templates.target import Target
