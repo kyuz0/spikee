@@ -84,7 +84,7 @@ def extract_resource_name(file_name: str):
     Takes a file path/name and extracts the resource name
 
     Example:
-    datasets\cybersec-2025-04-user-input-dataset-1762359770.jsonl => cybersec-2025-04-user-input-dataset-1762359770
+    datasets\\cybersec-2025-04-user-input-dataset-1762359770.jsonl => cybersec-2025-04-user-input-dataset-1762359770
 
     """
     file_name = os.path.basename(file_name)
