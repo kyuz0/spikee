@@ -72,7 +72,11 @@ def main():
     parser = argparse.ArgumentParser(
         description=f"SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation - Version: {__version__}\n"
     )
-    parser.add_argument('-b', '--no-banner', action='store_true', help='No banner on run')
+    parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress banner and informational messages"
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
 
@@ -461,7 +465,8 @@ def main():
 
     args = convert_to_new_args(parser.parse_args())
 
-    if not args.no_banner:
+    # Print banner and info unless quiet mode is enabled
+    if not getattr(args, 'quiet', False):
         print(banner)
         print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
         print(f"Version: {__version__}\n")
