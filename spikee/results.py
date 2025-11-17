@@ -896,6 +896,7 @@ def extract_results(args):
                 query = query[1:]
 
             result = query in text
+            print("SEARCH", query, text, result, invert)
             return not result if invert else result
 
     # Print overview
@@ -945,7 +946,14 @@ def extract_results(args):
                         if len(query) > 1:
                             field = result.get(query[1], None)
                             if field is None:
-                                query_match = False
+                                invert = query[0].startswith("!")
+                                if invert:
+                                    query[0] = query[0][1:]
+
+                                if query[0] is "none" or query[0] == "null":
+                                    query_match = not invert
+                                else:
+                                    query_match = False if not invert else True
                                 break
 
                             if not search(query[0], field):
