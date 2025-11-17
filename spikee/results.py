@@ -944,11 +944,16 @@ def extract_results(args):
                     for query in custom_query:
                         if len(query) > 1:
                             field = result.get(query[1], None)
-                            if field is None:
-                                query_match = False
-                                break
 
-                            if not search(query[0], field):
+                            if field is None:
+                                trimmed_query = query[0].lstrip("!")
+                                invert = query[0].startswith("!")
+                                if trimmed_query == "None" or trimmed_query == "null":
+                                    query_match = not invert
+                                else:
+                                    query_match = invert
+
+                            elif not search(query[0], field):
                                 query_match = False
 
                         elif not search(query[0], result):
