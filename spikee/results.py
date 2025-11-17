@@ -896,7 +896,6 @@ def extract_results(args):
                 query = query[1:]
 
             result = query in text
-            print("SEARCH", query, text, result, invert)
             return not result if invert else result
 
     # Print overview
