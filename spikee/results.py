@@ -944,7 +944,6 @@ def extract_results(args):
                     for query in custom_query:
                         if len(query) > 1:
                             field = result.get(query[1], None)
-
                             if field is None:
                                 trimmed_query = query[0].lstrip("!")
                                 invert = query[0].startswith("!")
