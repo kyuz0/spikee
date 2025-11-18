@@ -1,8 +1,3 @@
-from abc import abstractmethod
-from typing import List
-import random
-import string
-
 from .judge import Judge
 
 
@@ -15,11 +10,14 @@ class LLMJudge(Judge):
         "ollama-phi4-mini",
         "ollama-gemma3",
         "ollama-llama3.2",
+        "bedrock-us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "bedrock-us.meta.llama4-scout-17b-instruct-v1:0",
         "llamaccp-server",
+        "llamaccp-server-[port]",
         "offline",
     ]
 
-    DEFAULT_BASE_LLAMACPP_URL = "http://localhost:8080/"
+    PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-"]
 
     def get_available_option_values(self):
         """
@@ -33,7 +31,7 @@ class LLMJudge(Judge):
         """
         Initialize and return the appropriate LLM based on judge_options.
         """
-        if judge_options not in self.SUPPORTED_LLM_MODELS:
+        if (judge_options not in self.SUPPORTED_LLM_MODELS and not any(judge_options.startswith(prefix) for prefix in self.PREFIXES)):
             raise ValueError(
                 f"Unsupported LLM judge option: '{judge_options}'. "
                 f"Supported options: {self.get_available_option_values()}"
@@ -63,11 +61,32 @@ class LLMJudge(Judge):
                 max_retries=2,
             )
 
+        elif judge_options.startswith("bedrock-"):
+            from langchain_aws import ChatBedrock
+
+            model_name = judge_options.replace("bedrock-", "")
+            return ChatBedrock(
+                model=model_name,
+                max_tokens=8,
+                temperature=0
+            )
+
         elif judge_options.startswith("llamaccp-server"):
             from langchain_openai import ChatOpenAI
 
+            if judge_options == "llamaccp-server":
+                url = "http://localhost:8080/"
+            else:
+                try:
+                    port = int(judge_options.split("llamaccp-server-")[-1])
+                    url = f"http://localhost:{port}/"
+                except ValueError as e:
+                    raise ValueError(
+                        f"Invalid port in judge_options: '{judge_options}'. Expected format 'llamaccp-server-[port]', for example 'llamaccp-server-8080'."
+                    ) from e
+
             return ChatOpenAI(
-                base_url=self.DEFAULT_BASE_LLAMACPP_URL,
+                base_url=url,
                 api_key="abc",
                 max_tokens=None,
                 timeout=None,
@@ -78,5 +97,5 @@ class LLMJudge(Judge):
 
         else:
             raise ValueError(
-                f"Invalid judge_options format: '{judge_options}'. Expected prefix 'openai-' or 'ollama-'."
+                f"Invalid judge_options format: '{judge_options}'. Expected prefix 'openai-', 'ollama-', 'bedrock-', 'llamaccp-server', or 'offline'."
             )
