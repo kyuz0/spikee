@@ -18,10 +18,12 @@ def run_generate_command(
     workspace: Path,
     extra_args: list[str] | None = None,
     match_languages: bool = True,
+    seed_folder: str | None = None,
 ):
     datasets_dir = workspace / "datasets"
     before = _dataset_files(datasets_dir)
-    args = ["generate", "--seed-folder", SEED_FOLDER]
+    folder = seed_folder or SEED_FOLDER
+    args = ["generate", "--seed-folder", folder]
     if not match_languages:
         args.extend(["--match-languages", "false"])
     if extra_args:
