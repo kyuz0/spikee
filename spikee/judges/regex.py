@@ -35,8 +35,19 @@ class RegexJudge(Judge):
         if not judge_args:
             return False
 
-        pattern = re.compile(judge_args)
-        return bool(pattern.search(llm_output))
+        if isinstance(judge_args, str):
+            pattern = re.compile(judge_args)
+            return bool(pattern.search(llm_output))
+
+        elif isinstance(judge_args, list):
+            for arg in judge_args:
+                pattern = re.compile(arg)
+                if pattern.search(llm_output):
+                    return True
+            return False
+
+        else:
+            raise ValueError("judge_args must be a string or list of strings representing regex patterns.")
 
 
 if __name__ == "__main__":

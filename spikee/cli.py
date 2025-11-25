@@ -380,7 +380,9 @@ def main():
     )
     parser_extract.add_argument(
         "--category",
-        help="Extracts prompts by category: success (default), fail, error, custom",
+        choices=["success", "fail", "error", "guardrail", "no-guardrail", "custom"],
+        default="success",
+        help="Extracts prompts by category: success (default), fail, error, guardrail, no-guardrail, custom",
     )
     parser_extract.add_argument(
         "--custom-search",

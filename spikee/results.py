@@ -91,7 +91,7 @@ def escape_special_chars(text):
 
 # region analyze
 def analyze_results(args):
-    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type=["results", "rejudge"])
+    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type=["results", "rejudge", "extract"])
     output_format = args.output_format
 
     # False positive status and multi-file check
@@ -116,6 +116,7 @@ def analyze_results(args):
         initially_successful_groups = 0  # Succeeded without dynamic attack
         attack_only_successful_groups = 0  # Succeeded only with dynamic attack
         failed_groups = 0
+        guardrail_groups = 0
         error_groups = 0
         total_attempts = 0
 
@@ -124,6 +125,9 @@ def analyze_results(args):
 
         # Track which unique features (like jailbreak_type) are associated with each group
         group_features = {}
+
+        # Track Triggered Guardrail Categories
+        guardrail_categories = {}
 
         # Check if any dynamic attacks were used
         has_dynamic_attacks = False
@@ -155,6 +159,11 @@ def analyze_results(args):
             # Overall success
             group_success = initial_success or attack_success
 
+            # check if any entry had guardrail triggered
+            group_has_guardrail = all(
+                entry.get("guardrail", False) for entry in entries
+            )
+
             # Check if all entries had errors
             group_has_error = all(
                 entry.get("error") not in [None, "No response received"]
@@ -176,6 +185,9 @@ def analyze_results(args):
                     if attack_entry.get("success", False):
                         attack_types[clean_attack_name]["successes"] += 1
 
+                    elif attack_entry.get("guardrail", False):
+                        attack_types[clean_attack_name]["guardrail"] += 1
+
             # Increment appropriate counters
             if group_success:
                 successful_groups += 1
@@ -185,8 +197,20 @@ def analyze_results(args):
                     attack_only_successful_groups += 1
             elif group_has_error:
                 error_groups += 1
+                if group_has_guardrail:
+                    guardrail_groups += 1
             else:
                 failed_groups += 1
+
+            # Increment guardrail categories
+            for entry in entries:
+                if entry.get("guardrail", False):
+                    categories = entry.get("guardrail_categories", {})
+                    for category, triggered in categories.items():
+                        if triggered:
+                            if category not in guardrail_categories:
+                                guardrail_categories[category] = 0
+                            guardrail_categories[category] += 1
 
             # Store the original entry's features to use in breakdowns
             # (We use the original entry for consistency)
@@ -218,13 +242,15 @@ def analyze_results(args):
         print(f"Total Unique Entries: {total_entries}")
 
         if has_dynamic_attacks:
-            print(f"Successful Attacks (Total): {successful_groups}")
-            print(f"  - Initially Successful: {initially_successful_groups}")
+            print(f"Successful Attacks (Total): {successful_groups} [{(successful_groups / total_entries) * 100:.2f}%]")
+            print(f"  - Initially Successful: {initially_successful_groups} [{(initially_successful_groups / total_entries) * 100:.2f}%]")
             print(
-                f"  - Only Successful with Dynamic Attack: {attack_only_successful_groups}"
+                f"  - Only Successful with Dynamic Attack: {attack_only_successful_groups} [{(attack_only_successful_groups / total_entries) * 100:.2f}%]"
             )
-            print(f"Failed Attacks: {failed_groups}")
-            print(f"Errors: {error_groups}")
+            print(f"Failed Attacks: {failed_groups} [{(failed_groups / total_entries) * 100:.2f}%]")
+            print(f"Errors: {error_groups} [{(error_groups / total_entries) * 100:.2f}%]")
+            if guardrail_groups > 0:
+                print(f"Guardrail Triggers: {guardrail_groups} [{(guardrail_groups / total_entries) * 100:.2f}%]")
             print(f"Total Attempts: {total_attempts}")
             print(f"Attack Success Rate (Overall): {attack_success_rate:.2f}%")
             print(
@@ -234,9 +260,11 @@ def analyze_results(args):
                 f"Attack Success Rate (Improvement from Dynamic Attack): {attack_improvement:.2f}%\n"
             )
         else:
-            print(f"Successful Attacks: {successful_groups}")
-            print(f"Failed Attacks: {failed_groups}")
-            print(f"Errors: {error_groups}")
+            print(f"Successful Attacks: {successful_groups} [{(successful_groups / total_entries) * 100:.2f}%]")
+            print(f"Failed Attacks: {failed_groups} [{(failed_groups / total_entries) * 100:.2f}%]")
+            print(f"Errors: {error_groups} [{(error_groups / total_entries) * 100:.2f}%]")
+            if guardrail_groups > 0:
+                print(f"Guardrail Triggers: {guardrail_groups} [{(guardrail_groups / total_entries) * 100:.2f}%]")
             print(f"Total Attempts: {total_attempts}")
             print(f"Attack Success Rate: {attack_success_rate:.2f}%\n")
 
@@ -254,6 +282,7 @@ def analyze_results(args):
                         stats["total"],
                         stats["successes"],
                         stats["attempts"],
+                        stats["guardrail"],
                         f"{success_rate:.2f}%",
                     ]
                 )
@@ -283,7 +312,19 @@ def analyze_results(args):
                 if data:
                     print_breakdown(field, data, has_dynamic_attacks)
 
-            # --- 7. COMBINATION ANALYSIS ---
+            # --- 7. GUARDRAIL CATEGORIES ---
+            if len(guardrail_categories) > 0:
+                print("=== Guardrail Category Breakdown ===")
+                table = []
+                for category, count in guardrail_categories.items():
+                    table.append([category, count, f"{(count / total_entries) * 100:.2f}%"])
+                # Sort by count descending
+                table.sort(key=lambda x: x[1], reverse=True)
+                headers = ["Guardrail Category", "Trigger Count", "Trigger Rate"]
+                print(tabulate(table, headers=headers))
+                print()
+
+            # --- 8. COMBINATION ANALYSIS ---
             top_10, bottom_10, combination_stats_sorted = calc_combinations(combination_counts)
 
             # Print top 10 and bottom 10 combinations
@@ -874,8 +915,8 @@ def extract_results(args):
 
     # Category validation
     category = args.category or "success"
-    if category not in ["success", "failure", "error", "custom"]:
-        print(f"[Error] Invalid category '{category}' specified for extraction. Must be one of: success, failure, error, custom.")
+    if category not in ["success", "failure", "error", "guardrail", "no-guardrail", "custom"]:
+        print(f"[Error] Invalid category '{category}' specified for extraction. Must be one of: success, failure, error, guardrail, no-guardrail, custom.")
         exit(1)
 
     # Custom Category
@@ -939,6 +980,23 @@ def extract_results(args):
                         result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
 
                         matching_results.append(result)
+
+                case "guardrail":
+                    if result.get("guardrail_triggered", False):
+                        id_count += 1
+                        result['id'] = id_count
+                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+
+                        matching_results.append(result)
+
+                case "no-guardrail":
+                    if not result.get("guardrail_triggered", False):
+                        id_count += 1
+                        result['id'] = id_count
+                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+
+                        matching_results.append(result)
+
                 case "custom":
                     query_match = True
                     for query in custom_query:

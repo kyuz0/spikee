@@ -24,14 +24,22 @@ class CanaryJudge(Judge):
         Args:
             llm_input (str): The original text/prompt sent to the model (not used here, but provided).
             llm_output (str): The model's response.
-            judge_args (str): The canary substring we want to detect.
+            judge_args (str | list[str]): The canary substring we want to detect.
 
         Returns:
             bool: True if 'judge_args' is found in llm_output, otherwise False.
         """
         if not judge_args:
             return False
-        return judge_args in llm_output
+
+        if isinstance(judge_args, str):
+            return judge_args in llm_output
+
+        elif isinstance(judge_args, list):
+            return any(arg in llm_output for arg in judge_args)
+
+        else:
+            raise ValueError("judge_args must be a string or list of strings.")
 
 
 if __name__ == "__main__":

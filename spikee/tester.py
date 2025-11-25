@@ -21,7 +21,18 @@ from .utilities.tags import validate_and_get_tag
 
 class GuardrailTrigger(Exception):
     """Exception raised when a guardrail is triggered."""
-    pass
+
+    def __init__(self, message, categories={}):
+        super().__init__(message)
+        self.categories = categories
+
+
+class RetryableError(Exception):
+    """Exception raised for errors that are retryable, such as 429 errors."""
+
+    def __init__(self, message, retry_period=None):
+        super().__init__(message)
+        self.retry_period = retry_period
 
 
 class AdvancedTargetWrapper:
@@ -106,6 +117,15 @@ class AdvancedTargetWrapper:
                     time.sleep(self.throttle)
 
                 return response, lp
+
+            except RetryableError as e:
+                last_error = e
+                if retries < self.max_retries - 1:
+                    wait_time = e.retry_period if e.retry_period is not None else random.randint(30, 120)
+                    time.sleep(wait_time)
+                    retries += 1
+                else:
+                    break
 
             except Exception as e:
                 last_error = e
@@ -346,6 +366,10 @@ def _do_single_request(
     system_message = entry.get("system_message", None)
     plugin = entry.get("plugin", None)
 
+    # Guardrail Specific Errors
+    guardrail = False
+    guardrail_categories = {}
+
     try:
         start_time = time.time()
         response, _ = target_module.process_input(input_text, system_message, False, entry_id, output_file)
@@ -360,6 +384,9 @@ def _do_single_request(
         response_str = ""
         response_time = time.time() - start_time
         success = False
+        guardrail = True
+        if hasattr(gt, 'categories'):
+            guardrail_categories = gt.categories
         print("[Guardrail Triggered] {}: {}".format(entry["id"], error_message))
 
     except Exception as e:
@@ -398,6 +425,12 @@ def _do_single_request(
         "attack_name": "None",
         "error": error_message,
     }
+
+    # Add guardrail info if triggered
+    if guardrail:
+        result_dict["guardrail"] = True
+        result_dict["guardrail_categories"] = guardrail_categories
+
     return result_dict, success
 
 
