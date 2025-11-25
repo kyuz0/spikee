@@ -57,6 +57,14 @@ def read_jsonl(path: Path) -> list[dict]:
     return entries
 
 
+def write_jsonl(path: Path, entries: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for entry in entries:
+            json.dump(entry, handle, ensure_ascii=False)
+            handle.write("\n")
+
+
 def filter_entries(entries: list[dict], **criteria) -> list[dict]:
     return [
         entry
