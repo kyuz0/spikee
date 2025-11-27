@@ -1,3 +1,5 @@
+from typing import Dict
+
 SUPPORTED_LLM_MODELS = [
     "openai-gpt-4.1-mini",
     "openai-gpt-4o-mini",
@@ -12,11 +14,51 @@ SUPPORTED_LLM_MODELS = [
     "llamaccp-server",
     "llamaccp-server-[port]",
 
+    "gemma2-8b",
+    "gemma2-27b",
+    "llama4-maverick-fp8", 
+    "llama4-scout",
+    "llama31-8b",
+    "llama31-70b", 
+    "llama31-405b", 
+    "llama33-70b", 
+    "mixtral-8x7b",
+    "mixtral-8x22b",
+    "qwen3-235b-fp8",
+
     "offline",
 ]
 
-SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-"]
+SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "gemma-", "llama-", "mixtral-"]
 
+
+# Map of shorthand keys to TogetherAI model identifiers
+OPTION_MAP: Dict[str, str] = {
+    "gemma2-8b": "google/gemma-2-9b-it",
+    "gemma2-27b": "google/gemma-2-27b-it",
+    "llama4-maverick-fp8": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "llama4-scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    "llama31-8b": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+    "llama31-70b": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+    "llama31-405b": "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+    "llama33-70b": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "mixtral-8x7b": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    "mixtral-8x22b": "mistralai/Mixtral-8x22B-Instruct-v0.1",
+    "qwen3-235b-fp8": "Qwen/Qwen3-235B-A22B-fp8-tput",
+}
+
+# Default shorthand key
+DEFAULT_KEY = "llama31-8b"
+
+def _resolve_model(key: str) -> str:
+    """
+    Convert a shorthand key to the full model identifier.
+    Raises ValueError for unknown keys.
+    """
+    if key not in OPTION_MAP:
+        valid = ", ".join(OPTION_MAP.keys())
+        raise ValueError(f"Unknown model key '{key}'. Valid keys: {valid}")
+    return OPTION_MAP[key]
 
 def get_llm(options=None):
     """
@@ -80,6 +122,23 @@ def get_llm(options=None):
             base_url=url,
             api_key="abc",
             max_tokens=None,
+            timeout=None,
+            max_retries=2,
+        )
+
+    elif options.startswith( ("gemma", "llama", "mixtral", "qwen") ):
+        from langchain_together import ChatTogether   
+   
+        # Choose the model key
+        key = options if options is not None else DEFAULT_KEY
+        # Resolve to full model name or raise
+        model_name = _resolve_model(key)
+        # Initialize the TogetherAI client
+        
+        return ChatTogether(
+            model=model_name,
+            max_tokens=8,
+            temperature=0,
             timeout=None,
             max_retries=2,
         )
