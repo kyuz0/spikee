@@ -14,23 +14,22 @@ SUPPORTED_LLM_MODELS = [
     "llamaccp-server",
     "llamaccp-server-[port]",
 
-    "gemma2-8b",
-    "gemma2-27b",
-    "llama4-maverick-fp8", 
-    "llama4-scout",
-    "llama31-8b",
-    "llama31-70b", 
-    "llama31-405b", 
-    "llama33-70b", 
-    "mixtral-8x7b",
-    "mixtral-8x22b",
-    "qwen3-235b-fp8",
+    "together-gemma2-8b",
+    "together-gemma2-27b",
+    "together-llama4-maverick-fp8", 
+    "together-llama4-scout",
+    "together-llama31-8b",
+    "together-llama31-70b", 
+    "together-llama31-405b", 
+    "together-llama33-70b", 
+    "together-mixtral-8x7b",
+    "together-mixtral-8x22b",
+    "together-qwen3-235b-fp8",
 
     "offline",
 ]
 
-SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "gemma-", "llama-", "mixtral-"]
-
+SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-"]
 
 # Map of shorthand keys to TogetherAI model identifiers
 OPTION_MAP: Dict[str, str] = {
@@ -126,14 +125,12 @@ def get_llm(options=None):
             max_retries=2,
         )
 
-    elif options.startswith( ("gemma", "llama", "mixtral", "qwen") ):
+    elif options.startswith("together"):
         from langchain_together import ChatTogether   
    
-        # Choose the model key
-        key = options if options is not None else DEFAULT_KEY
-        # Resolve to full model name or raise
+        model_name_key = options.replace("together-", "")
+        key = model_name_key if options is not None else DEFAULT_KEY
         model_name = _resolve_model(key)
-        # Initialize the TogetherAI client
         
         return ChatTogether(
             model=model_name,
@@ -148,5 +145,5 @@ def get_llm(options=None):
 
     else:
         raise ValueError(
-            f"Invalid options format: '{options}'. Expected prefix 'openai-', 'ollama-', 'bedrock-', 'llamaccp-server', or 'offline'."
+            f"Invalid options format: '{options}'. Expected prefix 'openai-', 'ollama-', 'bedrock-', 'llamaccp-server', 'together-', or 'offline'."
         )
