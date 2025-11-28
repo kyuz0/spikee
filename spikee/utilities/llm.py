@@ -32,7 +32,7 @@ SUPPORTED_LLM_MODELS = [
 SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-"]
 
 # Map of shorthand keys to TogetherAI model identifiers
-OPTION_MAP: Dict[str, str] = {
+TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
     "gemma2-8b": "google/gemma-2-9b-it",
     "gemma2-27b": "google/gemma-2-27b-it",
     "llama4-maverick-fp8": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
@@ -47,17 +47,17 @@ OPTION_MAP: Dict[str, str] = {
 }
 
 # Default shorthand key
-DEFAULT_KEY = "llama31-8b"
+DEFAULT_TOGETHER_AI_KEY = "llama31-8b"
 
 def _resolve_model(key: str) -> str:
     """
     Convert a shorthand key to the full model identifier.
     Raises ValueError for unknown keys.
     """
-    if key not in OPTION_MAP:
-        valid = ", ".join(OPTION_MAP.keys())
+    if key not in TOGETHER_AI_MODEL_MAP:
+        valid = ", ".join(TOGETHER_AI_MODEL_MAP.keys())
         raise ValueError(f"Unknown model key '{key}'. Valid keys: {valid}")
-    return OPTION_MAP[key]
+    return TOGETHER_AI_MODEL_MAP[key]
 
 def get_llm(options=None):
     """
@@ -129,7 +129,7 @@ def get_llm(options=None):
         from langchain_together import ChatTogether   
    
         model_name_key = options.replace("together-", "")
-        key = model_name_key if options is not None else DEFAULT_KEY
+        key = model_name_key if options is not None else DEFAULT_TOGETHER_AI_KEY
         model_name = _resolve_model(key)
         
         return ChatTogether(
