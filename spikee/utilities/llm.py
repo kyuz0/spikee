@@ -1,3 +1,5 @@
+from typing import Dict
+
 SUPPORTED_LLM_MODELS = [
     "openai-gpt-4.1-mini",
     "openai-gpt-4o-mini",
@@ -12,11 +14,50 @@ SUPPORTED_LLM_MODELS = [
     "llamaccp-server",
     "llamaccp-server-[port]",
 
+    "together-gemma2-8b",
+    "together-gemma2-27b",
+    "together-llama4-maverick-fp8", 
+    "together-llama4-scout",
+    "together-llama31-8b",
+    "together-llama31-70b", 
+    "together-llama31-405b", 
+    "together-llama33-70b", 
+    "together-mixtral-8x7b",
+    "together-mixtral-8x22b",
+    "together-qwen3-235b-fp8",
+
     "offline",
 ]
 
-SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-"]
+SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-"]
 
+# Map of shorthand keys to TogetherAI model identifiers
+TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
+    "gemma2-8b": "google/gemma-2-9b-it",
+    "gemma2-27b": "google/gemma-2-27b-it",
+    "llama4-maverick-fp8": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "llama4-scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    "llama31-8b": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+    "llama31-70b": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+    "llama31-405b": "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+    "llama33-70b": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "mixtral-8x7b": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    "mixtral-8x22b": "mistralai/Mixtral-8x22B-Instruct-v0.1",
+    "qwen3-235b-fp8": "Qwen/Qwen3-235B-A22B-fp8-tput",
+}
+
+# Default shorthand key
+DEFAULT_TOGETHER_AI_KEY = "llama31-8b"
+
+def _resolve_model(key: str) -> str:
+    """
+    Convert a shorthand key to the full model identifier.
+    Raises ValueError for unknown keys.
+    """
+    if key not in TOGETHER_AI_MODEL_MAP:
+        valid = ", ".join(TOGETHER_AI_MODEL_MAP.keys())
+        raise ValueError(f"Unknown model key '{key}'. Valid keys: {valid}")
+    return TOGETHER_AI_MODEL_MAP[key]
 
 def get_llm(options=None):
     """
@@ -84,10 +125,25 @@ def get_llm(options=None):
             max_retries=2,
         )
 
+    elif options.startswith("together"):
+        from langchain_together import ChatTogether   
+   
+        model_name_key = options.replace("together-", "")
+        key = model_name_key if options is not None else DEFAULT_TOGETHER_AI_KEY
+        model_name = _resolve_model(key)
+        
+        return ChatTogether(
+            model=model_name,
+            max_tokens=8,
+            temperature=0,
+            timeout=None,
+            max_retries=2,
+        )
+
     elif options.startswith("offline"):
         return None
 
     else:
         raise ValueError(
-            f"Invalid options format: '{options}'. Expected prefix 'openai-', 'ollama-', 'bedrock-', 'llamaccp-server', or 'offline'."
+            f"Invalid options format: '{options}'. Expected prefix 'openai-', 'ollama-', 'bedrock-', 'llamaccp-server', 'together-', or 'offline'."
         )
