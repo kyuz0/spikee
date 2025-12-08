@@ -9,6 +9,8 @@ Usage:
     spikee generate --plugins prompt_decomposition --plugin-options "prompt_decomposition:variants=15;mode=gpt4o-mini"
 """
 
+# TODO: Update to modern OOP LLM
+
 from typing import List
 import json
 import random

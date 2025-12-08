@@ -159,7 +159,7 @@ def analyze_results(args):
             # Overall success
             group_success = initial_success or attack_success
 
-            # check if any entry had guardrail triggered
+            # check if all entries had guardrail triggered
             group_has_guardrail = all(
                 entry.get("guardrail", False) for entry in entries
             )

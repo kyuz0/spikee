@@ -10,6 +10,9 @@ Usage:
     spikee test --attack prompt_decomposition --attack-options "mode=gpt4o-mini"
 """
 
+# TODO: Update to modern OOP LLM
+
+
 import json
 import random
 from typing import List, Dict, Any, Tuple

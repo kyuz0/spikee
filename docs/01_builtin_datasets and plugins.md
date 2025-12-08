@@ -1,4 +1,4 @@
-# Guide to Seed Datasets
+# Built-in Seed Datasets
 
 Spikee comes with a variety of built-in seed datasets, each designed for a specific testing purpose. These seeds are located in the `datasets/` directory after you run `spikee init`. You can list them at any time with `spikee list seeds`.
 
@@ -52,3 +52,47 @@ This guide provides an overview of each available seed folder.
 
 ### `zzz_LEGACY_seeds-targeted-2024-12`
 *   **Purpose:** A legacy dataset that has been superseded by `seeds-cybersec-2025-04`. It is kept for backward compatibility.
+
+# Build-in Plugins
+
+Spikee includes several build-in plugins, that can be leverages to enhance dataset generation. These are scripts that will apply static transformations to payloads during dataset generation, creating multiple iterations of each entry. Built-in plugins are located in the `spikee/plugins/` directory, local plugins are located in the `plugins/` directory within your workspace. You can list them at any time with `spikee list plugins`.
+
+You can customize the behavior of attacks using the following command-line options:
+* `--plugin-options`: Passes a single string option to the plugin script for custom behavior (e.g., `"<plugin_name>:variants=50"`).
+
+The following list provides an overview of each build-in plugin, further information on each plugin can be found within the plugin file.
+
+
+## Basic Plugins
+* `1337`: Transforms text into "leet speak" by replacing certain letters with numbers or symbols.
+* `ascii_smuggler`: Transforms ASCII text into a series of Unicode rags that are generally invisible to most UI elements (bypassing content filters).
+* `base64`: Encodes text using Base64 encoding.
+* `ceasar`: Applies a Caesar cipher to the text, shifting letters by a specified number of positions.
+    * Options: `shift` (number of positions to shift, default: 3).
+* `hex`: Encodes text into its hexadecimal representation.
+* `morse`: Encodes text into Morse code.
+* `splat`: Obfuscates the text using splat-based techniques (e.g., asterisks '*', special characters,
+and spacing tricks), to bypass basic filters.
+
+
+## Attack Plugins
+
+These plugins are based on dynamic attack techniques, but have been adapted to work as static transformations during dataset generation.
+
+* `anti_spotlighting`: Generates variations of delimiter-based attacks to test
+LLM applications against spotlighting vulnerabilities.
+    * Options: `variants` (number of variations to generate, default: 50).
+* `best_of_n`: Implements ["Best-of-N Jailbreaking" John Hughes et al., 2024](https://arxiv.org/html/2412.03556v1#A1) to apply character scrambling, random capitalization, and character noising.
+    * Options: `variants` (number of variations to generate, default: 50).
+* `prompt_decomposition`: Decomposes a prompt into chunks and generates shuffled variations.
+    * Options: 
+        `modes` (LLM model to apply, default: dumb),
+        `variants` (number of variations to generate, default: 50).
+
+## Usage Example
+```bash
+# base64 and best_of_n plugin
+spikee generate --seed-folder datasets/seeds-cybersec-2025-04 \
+                --plugin base64 best_of_n \
+                --plugin-options "best_of_n:variants=20"
+```

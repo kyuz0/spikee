@@ -1,6 +1,6 @@
 # Judges: Evaluating Attack Success
 
-In Spikee, a **Judge** is a Python module responsible for one critical task: determining if an attack was successful. After `spikee test` receives a response from a target, it passes that response to a Judge, which returns a simple `True` (success) or `False` (failure).
+In Spikee, a **Judge** is a Python module responsible for determining if an attack was successful. After `spikee test` receives a response from a target, it passes that response to a Judge, which returns a simple `True` (success) or `False` (failure).
 
 This modular system allows for flexible and precise evaluation of test outcomes.
 
@@ -15,30 +15,14 @@ This modular system allows for flexible and precise evaluation of test outcomes.
 
 3.  **Evaluation**: Spikee calls the `judge()` function within the module, which then returns `True` or `False`.
 
-## Built-in Judges
+## Types of Judges
+These are basic judges that evaluate responses based on simple criteria.
 
-Spikee comes with several ready-to-use judges for common checks.
+* **Basic Judges**: Evaluates target responses based on simple criteria, such as keyword searching or regex matching. (e.g., `canary`, `regex`).
+* **LLM-Based Judges**: Use a separate LLM to evaluate the target's response against natural language criteria.(e.g., `llm_judge_harmful`, `llm_judge_output_criteria`).
 
-### `canary` (Default Judge)
-This judge checks for the presence of a specific substring.
-*   **`judge_name`**: `"canary"`
-*   **`judge_args`**: The exact string to search for.
-*   **Success Condition**: `True` if the `judge_args` string is found anywhere in the target's response.
+Further information about built-in basic and LLM judges, supported LLM models and usage examples can be found in **[Built-in targets, attacks and judges](04_builtin_targets_attacks_and_judges.md)**.
 
-### `regex`
-This judge uses a regular expression for more flexible pattern matching.
-*   **`judge_name`**: `"regex"`
-*   **`judge_args`**: A Python-compatible regular expression.
-*   **Success Condition**: `True` if the regular expression finds a match in the target's response.
-
-## LLM-Based Judges
-
-For some test cases, success cannot be determined by a simple keyword or pattern. For instance, did the model's response contain harmful advice, or did it refuse to answer a question on a restricted topic?
-
-LLM-based judges address this by using a separate LLM to evaluate the target's response against a natural language criterion.
-
-### How it Works
-The `llm_judge_output_only` judge sends the target's response and your `judge_args` (the success criteria) to a second LLM (the "Judge LLM"). It then asks the Judge LLM to decide if the response meets the criteria. This is particularly useful for evaluating guardrail bypasses or harmful content generation.
 
 ### Cloud vs. Local Judge Models
 You can configure LLM judges to use either cloud APIs or local models, depending on your needs.
@@ -69,56 +53,75 @@ To help you choose a judge model, we benchmarked their agreement against a stron
 | `ollama-llama3.2`     | 69.81%                      |
 | `ollama-phi4-mini`    | 62.26%                      |
 
-#### Recommendations
+#### Recommendations (as of July 2025)
 *   **For best local accuracy**: `ollama-gemma3` shows the highest agreement among local models.
 *   **For best local balance**: `ollama-llama3.2` offers a reasonable balance of performance and resource usage.
 *   **For fastest local evaluation**: `ollama-phi4-mini` is the lightest option.
 *   **For critical evaluations**: Prefer cloud models like `openai-gpt-4o-mini` for the highest confidence in results.
-
-### How to Use a Local Judge Model
-Specify a local model via the `--judge-options` flag during your test.
-
-```bash
-# Use a local Llama 3.2 model for all judging during this test run
-spikee test --dataset datasets/my_harmful_content_test.jsonl \
-            --target openai_api \
-            --judge-options ollama-llama3.2
-```
 
 ## Creating a Custom Judge
 
 You can create your own judge to implement any custom evaluation logic you need.
 
 ### 1. Define Your Judge Script
-Create a new Python file in `./judges/my_custom_judge.py`. The file must contain a function named `judge`.
+Create a new Python file in the `workspace/judges/` directory, created by running `spikee init`.
 
+Spikee implements two types of judge template:
+
+#### Basic Judge Template
 ```python
-# ./judges/my_custom_judge.py
+from spikee.templates.judge import Judge
 
-def judge(llm_input: str, llm_output: str, judge_args: str, judge_options: str) -> bool:
-    """
-    A custom judge to evaluate LLM output based on specific arguments.
-    
-    Args:
-        llm_input: The original prompt sent to the target.
-        llm_output: The response received from the target.
-        judge_args: The criteria string from the dataset's 'judge_args' field.
-        judge_options: The options string from the '--judge-options' command line flag.
-    
-    Returns:
-        True if the attack is successful, False otherwise.
-    """
-    if judge_args.startswith("KEYWORD:"):
-        keyword = judge_args.split(":", 1)[1]
-        return llm_output.startswith("SUCCESS:") and keyword in llm_output
-    
-    elif judge_args == "CHECK_LENGTH_AND_CONTENT":
-        return len(llm_output) > 100 and "Expected Content" in llm_output
-        
-    else:
-        # It's good practice to handle unknown arguments.
-        print(f"Warning: Unknown judge_args format in my_custom_judge: {judge_args}")
-        return False
+class SampleJudge(Judge):
+    def get_available_option_values(self):
+        """Returns a list of supported option values, first is default. None if no options."""
+        return None
+
+    def judge(
+        self,
+        llm_input,
+        llm_output,
+        judge_args,
+        judge_options=None
+    ) -> bool:
+        """
+        Args:
+            llm_input (str): The user prompt sent to the target.
+            llm_output (str): The target's response.
+            judge_args (str | list[str]): Judge specific arguments.
+            judge_options (str, optional): Judge specific options.
+
+        Returns:
+            bool: True if the attack is successful, False otherwise.
+        """
+        # Your implementation here...
+```
+
+#### LLM-Based Judge Template
+```python
+from spikee.templates.llm_judge import LLMJudge
+
+class SampleLLMJudge(LLMJudge):
+    # get_available_option_values is handled by LLMJudge to select an LLM model for judging, do not redefine.
+
+    def judge(
+        self,
+        llm_input,
+        llm_output,
+        judge_args="",
+        judge_options=None
+    ) -> bool:
+        """
+        Evaluates whether an LLM's output is harmful.
+        """
+        llm = self._get_llm(judge_options or self.DEFAULT_LLM_MODEL)
+
+        # Fail if no LLM is available
+        if llm is None:
+            return False
+
+        # Your implementation here...
+
 ```
 
 ### 2. Reference Your Judge in a Dataset
@@ -134,10 +137,12 @@ In your dataset `.jsonl` file, set `judge_name` to your script's filename (witho
 ```
 When Spikee processes this entry, it will load `my_custom_judge.py` and call its `judge` function to determine if the test was a success.
 
-## Using Rejudging
+## Re-judging
 This allows you to re-perform judging on existing results datasets. 
 
-For example, if a scan was performed within a restrictive environment without access to an LLM for judging, it would allow you to perform judging in a less restrictive environment or would allow you to rejudge an existing results file with a different judge.
+For example, if a scan was performed within a restrictive environment without access to an LLM for judging, it would allow you to perform judging in a less restrictive environment or would allow you to rejudge an existing results file with a different judge. 
+
+See **[Installing Spikee in Isolated Environments](./11_installing_spikee_in_isolated_environments.md)** for more information about restricted environments.
 
 ### 1. Scan Using Offline Judge
 Specify the offline judge model, with the `--judge-options offline` flag during your test.
