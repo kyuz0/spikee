@@ -121,7 +121,7 @@ def analyze_results(args):
         total_attempts = 0
 
         # Track which attack types were successful
-        attack_types = defaultdict(lambda: {"total": 0, "successes": 0, "attempts": 0})
+        attack_types = defaultdict(lambda: {"total": 0, "successes": 0, "attempts": 0, "guardrail": 0})
 
         # Track which unique features (like jailbreak_type) are associated with each group
         group_features = {}
@@ -159,7 +159,7 @@ def analyze_results(args):
             # Overall success
             group_success = initial_success or attack_success
 
-            # check if all entries had guardrail triggered
+            # check if all entries had guardrails triggered
             group_has_guardrail = all(
                 entry.get("guardrail", False) for entry in entries
             )
@@ -288,8 +288,8 @@ def analyze_results(args):
                 )
 
             # Sort by success rate
-            table.sort(key=lambda x: float(x[4].strip("%")), reverse=True)
-            headers = ["Attack Type", "Total", "Successes", "Attempts", "Success Rate"]
+            table.sort(key=lambda x: float(x[5].strip("%")), reverse=True)
+            headers = ["Attack Type", "Total", "Successes", "Attempts", "Guardrail", "Success Rate"]
             print(tabulate(table, headers=headers))
             print()
 
