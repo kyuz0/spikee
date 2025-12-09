@@ -79,7 +79,7 @@ Spikee operates in two stages: generating a test dataset, and executing tests ag
 
 This README provides a practical guide to the core workflow. For advanced topics, see the detailed documentation:
 
-1.  **[Built-in Seeds, Datasets and Plugins](./docs/01_builtin_datasets and plugins.md)**: An overview of all built-in datasets and plugins.
+1.  **[Built-in Seeds, Datasets and Plugins](./docs/01_builtin_datasets_and_plugins.md)**: An overview of all built-in datasets and plugins.
 2.  **[Dataset Generation](./docs/02_dataset_generation.md)**: A reference for `spikee generate`.
 3.  **[Built-in Targets, Attacks and Judges](./docs/03_builtin_targets_attacks_and_judges.md)**: An overview of all built-in targets, attacks and judges.
 4.  **[Creating Custom Targets](./docs/04_custom_targets.md)**: Interact with any LLM, API, or guardrail.
@@ -165,7 +165,7 @@ spikee list attacks
 
 Your testing scenario determines what kind of testing dataset you need to generate.
 
-> A list of build-in datasets and plugins is available within the **[Built-in Seeds and Datasets](./docs/01_builtin_datasets and plugins.md)** documentation and a complete list of dataset generation options is available in the **[Dataset Generation](./docs/02_dataset_generation.md)** documentation.
+> A list of build-in datasets and plugins is available within the **[Built-in Seeds and Datasets](./docs/01_builtin_datasets_and_plugins.md)** documentation and a complete list of dataset generation options is available in the **[Dataset Generation](./docs/02_dataset_generation.md)** documentation.
 
 
 #### Scenario A: Testing a Standalone LLM
