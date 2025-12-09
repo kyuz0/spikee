@@ -1,5 +1,5 @@
 from .judge import Judge
-from spikee.utilities.llm import get_llm, SUPPORTED_LLM_MODELS
+from spikee.utilities.llm import get_llm, get_supported_llm_models
 
 
 class LLMJudge(Judge):
@@ -10,7 +10,7 @@ class LLMJudge(Judge):
         Returns the list of supported judge_options; first option is default.
         """
         options = [self.DEFAULT_LLM_MODEL]  # Default first
-        options.extend([model for model in SUPPORTED_LLM_MODELS if model != self.DEFAULT_LLM_MODEL])
+        options.extend([model for model in get_supported_llm_models() if model != self.DEFAULT_LLM_MODEL])
         return options
 
     def _get_llm(self, judge_options):

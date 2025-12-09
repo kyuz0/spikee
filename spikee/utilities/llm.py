@@ -1,4 +1,5 @@
-from typing import Dict
+from typing import Dict, List
+import os
 
 SUPPORTED_LLM_MODELS = [
     "openai-gpt-4.1-mini",
@@ -16,20 +17,30 @@ SUPPORTED_LLM_MODELS = [
 
     "together-gemma2-8b",
     "together-gemma2-27b",
-    "together-llama4-maverick-fp8", 
+    "together-llama4-maverick-fp8",
     "together-llama4-scout",
     "together-llama31-8b",
-    "together-llama31-70b", 
-    "together-llama31-405b", 
-    "together-llama33-70b", 
+    "together-llama31-70b",
+    "together-llama31-405b",
+    "together-llama33-70b",
     "together-mixtral-8x7b",
     "together-mixtral-8x22b",
     "together-qwen3-235b-fp8",
 
-    "offline",
+    "offline"
 ]
 
-SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-"]
+TESTING_LLM_MODELS = [
+    "mock"
+]
+
+SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-", "mock-"]
+
+
+def get_supported_llm_models() -> List[str]:
+    """Return the list of supported LLM models."""
+    return SUPPORTED_LLM_MODELS
+
 
 # Map of shorthand keys to TogetherAI model identifiers
 TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
@@ -49,7 +60,8 @@ TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
 # Default shorthand key
 DEFAULT_TOGETHER_AI_KEY = "llama31-8b"
 
-def _resolve_model(key: str) -> str:
+
+def _resolve_togetherai_model(key: str) -> str:
     """
     Convert a shorthand key to the full model identifier.
     Raises ValueError for unknown keys.
@@ -59,9 +71,21 @@ def _resolve_model(key: str) -> str:
         raise ValueError(f"Unknown model key '{key}'. Valid keys: {valid}")
     return TOGETHER_AI_MODEL_MAP[key]
 
-def get_llm(options=None):
+
+def validate_llm_option(option: str) -> bool:
+    """
+    Validate if the provided options correspond to a supported LLM model.
+    """
+    return option in SUPPORTED_LLM_MODELS or any(option.startswith(prefix) for prefix in SUPPORTED_PREFIXES)
+
+
+def get_llm(options=None, max_tokens=8):
     """
     Initialize and return the appropriate LLM based on options.
+
+    Arguments:
+        options (str): The LLM model option string.
+        max_tokens (int): Maximum tokens for the LLM response (Default: 8 for LLM Judging).
     """
     if (options not in SUPPORTED_LLM_MODELS and not any(options.startswith(prefix) for prefix in SUPPORTED_PREFIXES)):
         raise ValueError(
@@ -75,7 +99,7 @@ def get_llm(options=None):
         model_name = options.replace("openai-", "")
         return ChatOpenAI(
             model=model_name,
-            max_tokens=8,
+            max_tokens=max_tokens,
             temperature=0,
             timeout=None,
             max_retries=2,
@@ -87,7 +111,7 @@ def get_llm(options=None):
         model_name = options.replace("ollama-", "")
         return ChatOllama(
             model=model_name,
-            max_tokens=8,
+            max_tokens=max_tokens,
             temperature=0,
             timeout=None,
             max_retries=2,
@@ -99,7 +123,7 @@ def get_llm(options=None):
         model_name = options.replace("bedrock-", "")
         return ChatBedrock(
             model=model_name,
-            max_tokens=8,
+            max_tokens=max_tokens,
             temperature=0
         )
 
@@ -126,15 +150,15 @@ def get_llm(options=None):
         )
 
     elif options.startswith("together"):
-        from langchain_together import ChatTogether   
-   
+        from langchain_together import ChatTogether
+
         model_name_key = options.replace("together-", "")
         key = model_name_key if options is not None else DEFAULT_TOGETHER_AI_KEY
-        model_name = _resolve_model(key)
-        
+        model_name = _resolve_togetherai_model(key)
+
         return ChatTogether(
             model=model_name,
-            max_tokens=8,
+            max_tokens=max_tokens,
             temperature=0,
             timeout=None,
             max_retries=2,
@@ -143,7 +167,39 @@ def get_llm(options=None):
     elif options.startswith("offline"):
         return None
 
+    elif options == "mock":
+        return MockLLM(max_tokens=max_tokens)
+
+    elif options.startswith("mock"):
+        return MockLLM(options[5:], max_tokens=max_tokens)  # Pass model name after 'mock'
+
     else:
         raise ValueError(
             f"Invalid options format: '{options}'. Expected prefix 'openai-', 'ollama-', 'bedrock-', 'llamaccp-server', 'together-', or 'offline'."
         )
+
+
+class MockLLM:
+    # A mock LLM class for testing purposes
+
+    def __init__(self, model_name=None, max_tokens=8):
+        if model_name is None or model_name == "":
+            print("[MockLLM] No model name provided; using default mock behavior.")
+            self.model = None
+
+        else:
+            print("[MockLLM] Initializing mock LLM with model name:", model_name)
+            self.model = get_llm(model_name, max_tokens=max_tokens)
+
+    def invoke(self, messages):
+        if self.model:
+            response = self.model.invoke(messages)
+
+        else:
+            response = "This is a mock response from the LLM."
+
+        print("[Mock LLM] Message:", messages)
+        print("[Mock LLM] Response:", response, " ======== ", response.content if hasattr(response, 'content') else "")
+        print("--------------------------------")
+
+        return response
