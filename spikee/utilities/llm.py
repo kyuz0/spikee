@@ -34,7 +34,7 @@ TESTING_LLM_MODELS = [
     "mock"
 ]
 
-SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-", "mock-"]
+SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-", "mock"]
 
 
 def get_supported_llm_models() -> List[str]:
@@ -186,6 +186,7 @@ class MockLLM:
         if model_name is None or model_name == "":
             print("[MockLLM] No model name provided; using default mock behavior.")
             self.model = None
+            self.max_tokens = max_tokens
 
         else:
             print("[MockLLM] Initializing mock LLM with model name:", model_name)
@@ -198,8 +199,11 @@ class MockLLM:
         else:
             response = "This is a mock response from the LLM."
 
+            if self.max_tokens is not None:
+                response = response[:self.max_tokens]
+
         print("[Mock LLM] Message:", messages)
-        print("[Mock LLM] Response:", response, " ======== ", response.content if hasattr(response, 'content') else "")
+        print("[Mock LLM] Response:", response, (" ======== " + response.content) if hasattr(response, 'content') else "")
         print("--------------------------------")
 
         return response
