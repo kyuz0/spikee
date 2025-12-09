@@ -17,6 +17,7 @@ import random
 from dotenv import load_dotenv
 
 from spikee.templates.plugin import Plugin
+from spikee.utilities.llm import get_supported_llm_models, get_llm, validate_llm_option
 
 
 class PromptDecompositionPlugin(Plugin):
@@ -25,15 +26,7 @@ class PromptDecompositionPlugin(Plugin):
     DEFAULT_MODE = "dumb"
 
     # Supported modes
-    SUPPORTED_MODES = [
-        "dumb",
-        "gpt4o-mini",
-        "gpt4.1-mini",
-        "ollama-llama3.2",
-        "ollama-mistral-nemo",
-        "ollama-gemma3",
-        "ollama-phi4-mini",
-    ]
+    SUPPORTED_MODES = [DEFAULT_MODE] + [model for model in get_supported_llm_models() if model != "offline"]
 
     def get_available_option_values(self) -> List[str]:
         """Return supported options; first option is default."""
@@ -60,44 +53,10 @@ class PromptDecompositionPlugin(Plugin):
                     pass
             elif option.startswith("mode="):
                 mode_value = option.replace("mode=", "")
-                if mode_value in self.SUPPORTED_MODES:
+                if validate_llm_option(mode_value):
                     mode = mode_value
 
         return num_variants, mode
-
-    def _get_llm(self, mode: str):
-        """Initialize and return the appropriate LLM based on mode."""
-        if mode == "gpt4o-mini":
-            from langchain_openai import ChatOpenAI
-
-            return ChatOpenAI(
-                model="gpt-4o-mini",
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        elif mode == "gpt4.1-mini":
-            from langchain_openai import ChatOpenAI
-
-            return ChatOpenAI(
-                model="gpt-4.1-mini",
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        elif mode.startswith("ollama-"):
-            from langchain_ollama import ChatOllama
-
-            model_name = mode.replace("ollama-", "")
-            return ChatOllama(
-                model=model_name,
-                max_tokens=None,
-                temperature=0,
-                timeout=None,
-                max_retries=2,
-            )
-        else:
-            raise ValueError(f"Unsupported mode: {mode}")
 
     def _decompose_dumb(self, text: str, num_variants: int) -> List[str]:
         """
@@ -152,7 +111,7 @@ class PromptDecompositionPlugin(Plugin):
         """
         Uses an LLM to decompose a prompt and return structured, shuffled, instructional variations.
         """
-        llm = self._get_llm(mode)
+        llm = get_llm(mode, max_tokens=None)
 
         system_message = (
             "You are a prompt decomposition tool. Given a user prompt, break it into meaningful labeled components "

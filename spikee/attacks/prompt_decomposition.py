@@ -19,6 +19,7 @@ from typing import List, Dict, Any, Tuple
 from dotenv import load_dotenv
 
 from spikee.templates.attack import Attack
+from spikee.utilities.llm import get_supported_llm_models, get_llm, validate_llm_option
 
 
 class PromptDecompositionAttack(Attack):
@@ -30,27 +31,11 @@ class PromptDecompositionAttack(Attack):
     DEFAULT_MODE = "dumb"
 
     # Supported modes
-    SUPPORTED_MODES = [
-        "dumb",
-        "gpt4o-mini",
-        "gpt4.1-mini",
-        "ollama-llama3.2",
-        "ollama-mistral-nemo",
-        "ollama-gemma3",
-        "ollama-phi4-mini",
-    ]
+    SUPPORTED_MODES = [DEFAULT_MODE] + [model for model in get_supported_llm_models() if model != "offline"]
 
     def get_available_option_values(self) -> List[str]:
         """Return supported modes; first option is default."""
-        return [
-            "mode=dumb",
-            "mode=gpt4o-mini",
-            "mode=gpt4.1-mini",
-            "mode=ollama-llama3.2",
-            "mode=ollama-mistral-nemo",
-            "mode=ollama-gemma3",
-            "mode=ollama-phi4-mini",
-        ]
+        return [f"mode={mode}" for mode in self.SUPPORTED_MODES]
 
     def _parse_mode(self, attack_option: str) -> str:
         """Parse attack option and return mode."""
@@ -59,44 +44,10 @@ class PromptDecompositionAttack(Attack):
 
         if attack_option.startswith("mode="):
             mode_value = attack_option.replace("mode=", "")
-            if mode_value in self.SUPPORTED_MODES:
+            if validate_llm_option(mode_value):
                 return mode_value
 
         return self.DEFAULT_MODE
-
-    def _get_llm(self, mode: str):
-        """Initialize and return the appropriate LLM based on mode."""
-        if mode == "gpt4o-mini":
-            from langchain_openai import ChatOpenAI
-
-            return ChatOpenAI(
-                model="gpt-4o-mini",
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        elif mode == "gpt4.1-mini":
-            from langchain_openai import ChatOpenAI
-
-            return ChatOpenAI(
-                model="gpt-4.1-mini",
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        elif mode.startswith("ollama-"):
-            from langchain_ollama import ChatOllama
-
-            model_name = mode.replace("ollama-", "")
-            return ChatOllama(
-                model=model_name,
-                max_tokens=None,
-                temperature=0,
-                timeout=None,
-                max_retries=2,
-            )
-        else:
-            raise ValueError(f"Unsupported mode: {mode}")
 
     def _generate_variants_dumb(self, text: str) -> List[str]:
         """
@@ -166,7 +117,7 @@ class PromptDecompositionAttack(Attack):
         Uses an LLM to decompose a prompt into meaningful components and generate
         variations that present those parts in shuffled order with instructions.
         """
-        llm = self._get_llm(mode)
+        llm = get_llm(mode, max_tokens=None)
         system_message = (
             "You are a prompt decomposition tool. Given a user prompt, break it into meaningful labeled components "
             "(e.g., VERB, OBJECT, CONTEXT, TOPIC). Then generate 10 variations that present those parts in shuffled order, "
