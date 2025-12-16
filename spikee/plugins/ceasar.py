@@ -61,10 +61,7 @@ class CeasarPlugin(Plugin):
         return "".join(result)
 
     def transform(
-        self,
-        text: str,
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None
+        self, text: str, exclude_patterns: List[str] = None, plugin_option: str = None
     ) -> str:
         """
         Transforms the input text using the Caesar cipher.

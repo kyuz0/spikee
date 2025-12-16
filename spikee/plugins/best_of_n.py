@@ -53,10 +53,7 @@ class BestOfN(Plugin):
         return self.DEFAULT_SAMPLES
 
     def transform(
-        self,
-        text: str,
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None
+        self, text: str, exclude_patterns: List[str] = None, plugin_option: str = None
     ) -> List[str]:
         """
         Generates a configurable number of augmented samples from the input text.

@@ -6,7 +6,6 @@ from collections import defaultdict
 from tabulate import tabulate
 from pathlib import Path
 
-from .templates.plugin import Plugin
 from .utilities.files import read_jsonl_file, read_toml_file, write_jsonl_file
 from .utilities.modules import load_module_from_path
 from .utilities.tags import validate_tag
@@ -64,6 +63,8 @@ def resolve_standalone_inputs_path(seed_folder: str):
         "No standalone_user_inputs.jsonl or standalone_attacks.jsonl found in seed folder "
         "(required by --include-standalone-inputs)."
     )
+
+
 # endregion
 
 
@@ -292,6 +293,8 @@ def _create_document_entry(
     if system_message:
         doc_entry["long_id"] += "-sys"
     return doc_entry
+
+
 # endregion
 
 
@@ -309,7 +312,9 @@ def load_plugins(plugin_names):
         try:
             plugins.append((name, load_module_from_path(name, "plugins")))
         except (ImportError, ValueError) as e:
-            print(f"Warning: Plugin '{name}' not found locally or in built-in plugins.: {e}")
+            print(
+                f"Warning: Plugin '{name}' not found locally or in built-in plugins.: {e}"
+            )
     return plugins
 
 
@@ -349,6 +354,8 @@ def apply_plugin(plugin_module, text, exclude_patterns=None, plugin_option=None)
 
     print(f"Plugin '{plugin_module.__name__}' does not have a 'transform' function.")
     return text
+
+
 # endregion
 
 
@@ -358,7 +365,7 @@ def process_standalone_attacks(
     entry_id,
     plugins=None,
     output_format="full-prompt",
-    plugin_options_map=None
+    plugin_options_map=None,
 ):
     """
     Processes standalone attacks and appends them to the dataset.
@@ -405,7 +412,11 @@ def process_standalone_attacks(
             for plugin_name, plugin_module in plugins:
                 try:
                     # Get option for this specific plugin
-                    plugin_option = (plugin_options_map.get(plugin_name) if plugin_options_map else None)
+                    plugin_option = (
+                        plugin_options_map.get(plugin_name)
+                        if plugin_options_map
+                        else None
+                    )
 
                     # Convert exclude_patterns to a list if it's a string or None
                     exclude_list = []
@@ -416,14 +427,18 @@ def process_standalone_attacks(
                             exclude_list = [exclude_patterns]
 
                     # Get the transformed text(s) from the plugin
-                    plugin_result = apply_plugin(plugin_module, attack_text, exclude_list, plugin_option)
+                    plugin_result = apply_plugin(
+                        plugin_module, attack_text, exclude_list, plugin_option
+                    )
 
                     # Ensure the result is a list of variations
                     if not isinstance(plugin_result, list):
                         plugin_result = [plugin_result]
 
                     # Add each plugin variation as a separate entry
-                    for variant_index, plugin_variant in enumerate(plugin_result, start=1):
+                    for variant_index, plugin_variant in enumerate(
+                        plugin_result, start=1
+                    ):
                         plugin_entry = {
                             "id": entry_id,
                             "long_id": f"{attack['id']}_{plugin_name}-{variant_index}",
@@ -447,7 +462,9 @@ def process_standalone_attacks(
                         dataset.append(plugin_entry)
                         entry_id += 1
                 except Exception as e:
-                    print(f"Warning: Plugin '{plugin_name}' failed for standalone attack '{attack['id']}': {e}")
+                    print(
+                        f"Warning: Plugin '{plugin_name}' failed for standalone attack '{attack['id']}': {e}"
+                    )
                     continue
 
     return dataset, entry_id
@@ -502,7 +519,9 @@ def generate_variations(
                 instruction_type = instruction.get("instruction_type", "")
                 instruction_lang = instruction.get("lang", "en")
                 judge_name = instruction.get("judge_name", "canary")
-                judge_args = instruction.get("judge_args", instruction.get("canary", ""))
+                judge_args = instruction.get(
+                    "judge_args", instruction.get("canary", "")
+                )
 
                 # If match_languages is enabled, skip if jailbreak and instruction languages do not match
                 if match_languages and jailbreak_lang != instruction_lang:
@@ -511,7 +530,9 @@ def generate_variations(
                 # Creates combined jailbreak and instruction texts
                 # Instruction is placed into jailbreak at <INSTRUCTION> placeholder
                 if "<INSTRUCTION>" in jailbreak_text:
-                    combined_text = jailbreak_text.replace("<INSTRUCTION>", instruction_text)
+                    combined_text = jailbreak_text.replace(
+                        "<INSTRUCTION>", instruction_text
+                    )
                     lang = instruction_lang
                 else:  # TODO / BUG: If no instruction it will just repeat the variant instruction times.
                     combined_text = jailbreak_text
@@ -530,17 +551,19 @@ def generate_variations(
                 local_exclude = list(set(local_exclude))  # Remove duplicates
 
                 # 1) No-plugin entries
-                for suffix in suffixes:  # Applied with --include-suffixes, by defualt [None]
-
+                for (
+                    suffix
+                ) in suffixes:  # Applied with --include-suffixes, by defualt [None]
                     # Combine suffix with combined text (jailbreak + instruction)
                     suffix_combined_text, suffix_id = combined_text, None
                     if suffix:
                         suffix_combined_text += " " + suffix["suffix"]
                         suffix_id = suffix["id"]
 
-                    for position in insert_positions:  # Applied with --positions, by default ['end']
+                    for position in (
+                        insert_positions
+                    ):  # Applied with --positions, by default ['end']
                         for injection_pattern in injection_delimiters:  # Applied with --injection-delimiters, by default "\nINJECTION_PAYLOAD\n"
-
                             # Combine document with suffix_combined_text (jailbreak + instruction + suffix)
                             # suffix_combined_text is inserted into the injection_pattern at 'INJECTION_PAYLOAD' placeholder
                             # Document Placeholder: Injection is placed into document placeholder
@@ -557,19 +580,21 @@ def generate_variations(
                                 burp_payload_encoded = json.dumps(injected_doc)[1:-1]
                                 dataset.append(burp_payload_encoded)
                             else:
-                                for (spotlighting_data_marker) in spotlighting_data_markers_list:  # Applied with --spotlighting-data-markers, by default "\nDOCUMENT\n"
-
+                                for spotlighting_data_marker in spotlighting_data_markers_list:  # Applied with --spotlighting-data-markers, by default "\nDOCUMENT\n"
                                     # Applied with --include-system-message flag - gets system message associated with spotlighting data marker
-                                    system_message = get_system_message(system_message_config, spotlighting_data_marker)
+                                    system_message = get_system_message(
+                                        system_message_config, spotlighting_data_marker
+                                    )
 
                                     if output_format == "full-prompt":
                                         # Combines injected document with spotlighting data marker
-                                        wrapped_document = (injected_doc
-                                                            if spotlighting_data_marker == "none"
-                                                            else spotlighting_data_marker.replace(
-                                                                "DOCUMENT", injected_doc
-                                                            )
-                                                            )
+                                        wrapped_document = (
+                                            injected_doc
+                                            if spotlighting_data_marker == "none"
+                                            else spotlighting_data_marker.replace(
+                                                "DOCUMENT", injected_doc
+                                            )
+                                        )
 
                                         # Create summary entry - "Summarize the following document: {wrapped_document}"
                                         summary_entry = _create_summary_entry(
@@ -653,7 +678,11 @@ def generate_variations(
 
                     # 2) Plugin entries
                     for plugin_name, plugin_module in plugins:
-                        plugin_option = (plugin_options_map.get(plugin_name) if plugin_options_map else None)
+                        plugin_option = (
+                            plugin_options_map.get(plugin_name)
+                            if plugin_options_map
+                            else None
+                        )
 
                         for suffix in suffixes:
                             # Get the transformed text(s) from the plugin.
@@ -671,17 +700,23 @@ def generate_variations(
 
                             # Combine suffix with plugin_results (jailbreak + instruction | plugin transformation)
                             if suffix:
-                                plugin_result = [variation + " " + suffix["suffix"] for variation in plugin_result]
+                                plugin_result = [
+                                    variation + " " + suffix["suffix"]
+                                    for variation in plugin_result
+                                ]
                                 suffix_id = suffix["id"]
 
                             # Iterate over each variation (with index)
-                            for variant_index, plugin_variant in enumerate(plugin_result, start=1):
+                            for variant_index, plugin_variant in enumerate(
+                                plugin_result, start=1
+                            ):
                                 # Create a plugin suffix that includes the plugin name and variant index.
                                 plugin_suffix = f"_{plugin_name}-{variant_index}"
 
-                                for position in insert_positions:  # Applied with --positions, by default ['end']
+                                for position in (
+                                    insert_positions
+                                ):  # Applied with --positions, by default ['end']
                                     for injection_pattern in injection_delimiters:  # Applied with --injection-delimiters, by default "\nINJECTION_PAYLOAD\n"
-
                                         # Combine document with plugin_variant ((jailbreak + instruction | plugin transformation) + suffix)
                                         injected_doc = insert_jailbreak(
                                             document,
@@ -692,44 +727,54 @@ def generate_variations(
                                         )
 
                                         if output_format == "burp":
-                                            burp_payload_encoded = json.dumps(injected_doc)[1:-1]
+                                            burp_payload_encoded = json.dumps(
+                                                injected_doc
+                                            )[1:-1]
                                             dataset.append(burp_payload_encoded)
                                         else:
-                                            for (spotlighting_data_marker) in spotlighting_data_markers_list:
-
+                                            for (
+                                                spotlighting_data_marker
+                                            ) in spotlighting_data_markers_list:
                                                 # Applied with --include-system-message flag - gets system message associated with spotlighting data marker
-                                                system_message = get_system_message(system_message_config, spotlighting_data_marker)
+                                                system_message = get_system_message(
+                                                    system_message_config,
+                                                    spotlighting_data_marker,
+                                                )
 
                                                 if output_format == "full-prompt":
                                                     # Combines injected document with spotlighting data marker
-                                                    wrapped_document = (injected_doc
-                                                                        if spotlighting_data_marker == "none"
-                                                                        else spotlighting_data_marker.replace(
-                                                                            "DOCUMENT", injected_doc
-                                                                        )
-                                                                        )
+                                                    wrapped_document = (
+                                                        injected_doc
+                                                        if spotlighting_data_marker
+                                                        == "none"
+                                                        else spotlighting_data_marker.replace(
+                                                            "DOCUMENT", injected_doc
+                                                        )
+                                                    )
                                                     # Create summary entry - "Summarize the following document: {wrapped_document}"
-                                                    summary_entry = _create_summary_entry(
-                                                        entry_id,
-                                                        base_id,
-                                                        jailbreak_id,
-                                                        instruction_id,
-                                                        position,
-                                                        plugin_suffix,
-                                                        wrapped_document,
-                                                        judge_name,
-                                                        judge_args,
-                                                        ideal_summary,
-                                                        jailbreak_type,
-                                                        instruction_type,
-                                                        injection_pattern,
-                                                        spotlighting_data_marker,
-                                                        lang,
-                                                        suffix_id,
-                                                        system_message,
-                                                        plugin_name,
-                                                        plugin_variant,
-                                                        local_exclude,
+                                                    summary_entry = (
+                                                        _create_summary_entry(
+                                                            entry_id,
+                                                            base_id,
+                                                            jailbreak_id,
+                                                            instruction_id,
+                                                            position,
+                                                            plugin_suffix,
+                                                            wrapped_document,
+                                                            judge_name,
+                                                            judge_args,
+                                                            ideal_summary,
+                                                            jailbreak_type,
+                                                            instruction_type,
+                                                            injection_pattern,
+                                                            spotlighting_data_marker,
+                                                            lang,
+                                                            suffix_id,
+                                                            system_message,
+                                                            plugin_name,
+                                                            plugin_variant,
+                                                            local_exclude,
+                                                        )
                                                     )
                                                     dataset.append(summary_entry)
                                                     entry_id += 1
@@ -875,7 +920,9 @@ def generate_dataset(args):
         jb_type = jb.get("jailbreak_type", "")
 
         # Jailbreak does not match user-defined language or jb filter, skip.
-        if (languages and jb["lang"] not in languages) or (jailbreak_filters and jb_type not in jailbreak_filters):
+        if (languages and jb["lang"] not in languages) or (
+            jailbreak_filters and jb_type not in jailbreak_filters
+        ):
             continue
 
         processed_jailbreaks.append(jb)
@@ -896,7 +943,11 @@ def generate_dataset(args):
             instr["judge_args"] = instr.get("canary", "")
 
         # Instruction does not match user-defined language or instruction filter, skip.
-        if (languages and instr["lang"] not in languages) or instruction_filters and instr_type not in instruction_filters:
+        if (
+            (languages and instr["lang"] not in languages)
+            or instruction_filters
+            and instr_type not in instruction_filters
+        ):
             continue
 
         processed_instructions.append(instr)
@@ -906,7 +957,9 @@ def generate_dataset(args):
     plugins = load_plugins(args.plugins)
 
     # Load system message config
-    system_message_config = (read_toml_file(system_messages) if include_system_message else None)
+    system_message_config = (
+        read_toml_file(system_messages) if include_system_message else None
+    )
 
     # Generate Dataset
     dataset, entry_id = generate_variations(

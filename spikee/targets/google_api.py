@@ -11,6 +11,7 @@ Exposed:
     get_available_option_values() -> list of supported model names (default marked)
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
+
 from spikee.templates.target import Target
 
 from typing import List, Optional
@@ -19,7 +20,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 class GoogleAPITarget(Target):
-
     # Supported model names
     _SUPPORTED_MODELS: List[str] = [
         "gemini-2.5-pro",
@@ -36,7 +36,9 @@ class GoogleAPITarget(Target):
     def get_available_option_values(self) -> List[str]:
         """Return supported model names; first option is default."""
         options = [self.DEFAULT_MODEL]  # Default first
-        options.extend([model for model in self._SUPPORTED_MODELS if model != self.DEFAULT_MODEL])
+        options.extend(
+            [model for model in self._SUPPORTED_MODELS if model != self.DEFAULT_MODEL]
+        )
         return options
 
     def process_input(
@@ -52,7 +54,9 @@ class GoogleAPITarget(Target):
             ValueError if target_options is provided but invalid.
         """
         # Determine model to use
-        model_name = target_options if target_options is not None else self.DEFAULT_MODEL
+        model_name = (
+            target_options if target_options is not None else self.DEFAULT_MODEL
+        )
         if model_name not in self._SUPPORTED_MODELS:
             valid = ", ".join(self._SUPPORTED_MODELS)
             raise ValueError(f"Unknown model '{model_name}'. Valid models: {valid}")

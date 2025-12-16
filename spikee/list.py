@@ -66,9 +66,7 @@ def _has_options(path: Path) -> bool:
     try:
         tree = ast.parse(path.read_text())
         return any(
-            (
-                isinstance(n, ast.FunctionDef) and n.name == "get_available_option_values"
-            )
+            (isinstance(n, ast.FunctionDef) and n.name == "get_available_option_values")
             or (
                 isinstance(n, ast.ClassDef)
                 and any(

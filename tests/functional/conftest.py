@@ -30,7 +30,9 @@ def pytest_sessionstart(session: pytest.Session) -> None:
         [sys.executable, "-m", "venv", "--system-site-packages", str(venv_dir)],
         check=True,
     )
-    pip_executable = venv_dir / ("Scripts" if sys.platform == "win32" else "bin") / "pip"
+    pip_executable = (
+        venv_dir / ("Scripts" if sys.platform == "win32" else "bin") / "pip"
+    )
     subprocess.run(
         [str(pip_executable), "install", "."],
         cwd=project_root,
@@ -78,7 +80,9 @@ def workspace_dir(tmp_path, project_root: Path, run_spikee):
     workspace.mkdir()
     run_spikee(["init"], cwd=workspace)
 
-    fixtures_workspace = project_root / "tests" / "functional" / "fixtures" / "workspace"
+    fixtures_workspace = (
+        project_root / "tests" / "functional" / "fixtures" / "workspace"
+    )
     if fixtures_workspace.exists():
         for item in fixtures_workspace.iterdir():
             target = workspace / item.name

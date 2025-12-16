@@ -26,11 +26,16 @@ class PromptDecompositionPlugin(Plugin):
     DEFAULT_MODE = "dumb"
 
     # Supported modes
-    SUPPORTED_MODES = [DEFAULT_MODE] + [model for model in get_supported_llm_models() if model != "offline"]
+    SUPPORTED_MODES = [DEFAULT_MODE] + [
+        model for model in get_supported_llm_models() if model != "offline"
+    ]
 
     def get_available_option_values(self) -> List[str]:
         """Return supported options; first option is default."""
-        return ["mode=dumb,variants=10", "available modes: " + ", ".join(self.SUPPORTED_MODES)]
+        return [
+            "mode=dumb,variants=10",
+            "available modes: " + ", ".join(self.SUPPORTED_MODES),
+        ]
 
     def _parse_options(self, plugin_option: str) -> tuple:
         """Parse plugin option and return (num_variants, mode)."""
@@ -176,10 +181,7 @@ class PromptDecompositionPlugin(Plugin):
             return self._decompose_dumb(text, num_variants)
 
     def transform(
-        self,
-        text: str,
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None
+        self, text: str, exclude_patterns: List[str] = None, plugin_option: str = None
     ) -> List[str]:
         """
         Decomposes a prompt into labeled components and generates shuffled variations.
@@ -215,7 +217,9 @@ if __name__ == "__main__":
 
     print("\nTesting LLM mode:")
     try:
-        result_llm = plugin.transform(test_prompt, plugin_option="variants=3,mode=gpt4o-mini")
+        result_llm = plugin.transform(
+            test_prompt, plugin_option="variants=3,mode=gpt4o-mini"
+        )
         for i, var in enumerate(result_llm, 1):
             print(f"{i}: {var}")
     except Exception as e:

@@ -25,7 +25,6 @@ from spikee.templates.plugin import Plugin
 
 
 class MorsePlugin(Plugin):
-
     MORSE_CODE_DICT = {
         "A": ".-",
         "B": "-...",
@@ -118,7 +117,9 @@ class MorsePlugin(Plugin):
                 # Leave excluded substrings untouched.
                 result_chunks.append(chunk)
             else:
-                transformed = " ".join(self.MORSE_CODE_DICT.get(c.upper(), c) for c in chunk)
+                transformed = " ".join(
+                    self.MORSE_CODE_DICT.get(c.upper(), c) for c in chunk
+                )
                 result_chunks.append(transformed)
 
         return " ".join(result_chunks)

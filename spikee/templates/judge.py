@@ -15,13 +15,7 @@ class Judge(ABC):
         return None
 
     @abstractmethod
-    def judge(
-        self,
-        llm_input,
-        llm_output,
-        judge_args="",
-        judge_options=None
-    ) -> bool:
+    def judge(self, llm_input, llm_output, judge_args="", judge_options=None) -> bool:
         pass
 
     def _generate_random_token(self, length=8):

@@ -41,7 +41,9 @@ def run_test_command(run_spikee, workspace: Path, extra_args: list[str]):
     return run_spikee(args, cwd=workspace)
 
 
-def run_results_command(run_spikee, workspace: Path, subcommand: str, extra_args: list[str]):
+def run_results_command(
+    run_spikee, workspace: Path, subcommand: str, extra_args: list[str]
+):
     args = ["results", subcommand, *extra_args]
     return run_spikee(args, cwd=workspace)
 

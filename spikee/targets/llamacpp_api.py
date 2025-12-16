@@ -12,15 +12,15 @@ Exposed:
         - For models supporting logprobs: returns (content, logprobs)
         - Otherwise: returns content only
 """
+
 from spikee.templates.target import Target
 
-from typing import Optional, List, Tuple, Union
+from typing import Optional, List
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
 
 class LlamacppAPITarget(Target):
-
     DEFAULT_BASE_URL = "http://localhost:8080/"
 
     def get_available_option_values(self) -> List[str]:

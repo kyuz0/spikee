@@ -11,7 +11,13 @@ from pathlib import Path
 
 from .generator import generate_dataset
 from .tester import test_dataset
-from .results import analyze_results, rejudge_results, extract_results, dataset_comparison, convert_results_to_excel
+from .results import (
+    analyze_results,
+    rejudge_results,
+    extract_results,
+    dataset_comparison,
+    convert_results_to_excel,
+)
 from .list import (
     list_seeds,
     list_datasets,
@@ -73,9 +79,10 @@ def main():
         description=f"SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation - Version: {__version__}\n"
     )
     parser.add_argument(
-        "-q", "--quiet",
+        "-q",
+        "--quiet",
         action="store_true",
-        help="Suppress banner and informational messages"
+        help="Suppress banner and informational messages",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
@@ -300,10 +307,7 @@ def main():
         "analyze", help="Analyze the results JSONL file"
     )
     parser_analyze.add_argument(
-        "--result-file",
-        type=str,
-        action="append",
-        help="Path to a results JSONL file"
+        "--result-file", type=str, action="append", help="Path to a results JSONL file"
     )
     parser_analyze.add_argument(
         "--result-folder",
@@ -430,7 +434,8 @@ def main():
         help="Definition of success threshold: gt (greater than, default) or lt (less than)",
     )
     parser_dataset_comparison.add_argument(
-        "-n", "--number",
+        "-n",
+        "--number",
         type=int,
         default="-1",
         help="Number of top entries to include in the comparison (default: all entries)",
@@ -469,7 +474,7 @@ def main():
     args = convert_to_new_args(parser.parse_args())
 
     # Print banner and info unless quiet mode is enabled
-    if not getattr(args, 'quiet', False):
+    if not getattr(args, "quiet", False):
         print(banner)
         print("SPIKEE - Simple Prompt Injection Kit for Evaluation and Exploitation")
         print(f"Version: {__version__}\n")

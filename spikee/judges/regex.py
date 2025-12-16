@@ -16,13 +16,7 @@ class RegexJudge(Judge):
     def get_available_option_values(self):
         return None
 
-    def judge(
-        self,
-        llm_input,
-        llm_output,
-        judge_args,
-        judge_options=None
-    ) -> bool:
+    def judge(self, llm_input, llm_output, judge_args, judge_options=None) -> bool:
         """
         Args:
             llm_input (str): The original text/prompt sent to the model (optional for logic here).
@@ -47,15 +41,11 @@ class RegexJudge(Judge):
             return False
 
         else:
-            raise ValueError("judge_args must be a string or list of strings representing regex patterns.")
+            raise ValueError(
+                "judge_args must be a string or list of strings representing regex patterns."
+            )
 
 
 if __name__ == "__main__":
     judge = RegexJudge()
-    print(
-        judge.judge(
-            "",
-            "Wowzers is a great word",
-            "Wowzers"
-        )
-    )
+    print(judge.judge("", "Wowzers is a great word", "Wowzers"))

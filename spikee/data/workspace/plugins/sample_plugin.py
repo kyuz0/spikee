@@ -28,7 +28,9 @@ class SamplePlugin(Plugin):
     def get_available_option_values(self) -> List[str]:
         return None
 
-    def transform(self, text: str, exclude_patterns: List[str] = None) -> Union[str, List[str]]:
+    def transform(
+        self, text: str, exclude_patterns: List[str] = None
+    ) -> Union[str, List[str]]:
         """
         Transforms the input text to uppercase, preserving any substrings that match the given exclusion patterns.
 

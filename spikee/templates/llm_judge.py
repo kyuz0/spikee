@@ -10,7 +10,13 @@ class LLMJudge(Judge):
         Returns the list of supported judge_options; first option is default.
         """
         options = [self.DEFAULT_LLM_MODEL]  # Default first
-        options.extend([model for model in get_supported_llm_models() if model != self.DEFAULT_LLM_MODEL])
+        options.extend(
+            [
+                model
+                for model in get_supported_llm_models()
+                if model != self.DEFAULT_LLM_MODEL
+            ]
+        )
         return options
 
     def _get_llm(self, judge_options):
