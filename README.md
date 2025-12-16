@@ -32,7 +32,7 @@ _Version: 0.5.0_
 
 Developed by Reversec Labs, `spikee` is a toolkit for assessing the resilience of LLMs, guardrails, and applications against prompt injection and jailbreaking. Spikee's strength is its modular design, which allows for easy customization of every part of the testing process.
 
-> **0.5.0 MAJOR CHANGE WARNING:** Module interfaces for targets, plugins, attacks, and judges now use an OOP pattern. The legacy function-based hooks still run for now but will be deprecated in v1.0.0 the `CHANGELOG.md` entry for 0.5.0 and the sample implementations in the workspace/docs to understand the updated APIs.
+> **0.5.0 MAJOR CHANGE WARNING:** Module interfaces for targets, plugins, attacks, and judges now use an OOP pattern. The legacy function-based hooks still run for now but will be deprecated in v1.0.0 - review the `CHANGELOG.md` entry for 0.5.0 and the sample implementations in the workspace/docs to understand the updated APIs.
 
 
 ---
