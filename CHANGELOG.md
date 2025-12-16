@@ -1,6 +1,31 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.0] - 2025-12-16
+
+### Features
+
+- multi-option judge args, and llm utilities
+- Modified extract to allow multiple --custom-search flags and negative searches
+
+### Fixes
+
+- custom extract none bug
+- remove debug prints
+- custom extract none bug
+-  docstring warning
+- add missing toml python dependency
+
+### Changes
+
+- modify llm judge options to allow for more models and providers
+- add quiet switch (#38)
+
+### Datasets
+
+- add toxic-chat
+- fixed typo in sysmsg-extraction dataset, unneeded exclude_from_transformation_regex
+
 ## [0.4.6] - 2025-10-09
 
 ### Changed
