@@ -1,25 +1,23 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
 ## [0.5.0] - 2025-12-16
 
-### Features
+### Changes
 
-- multi-option judge args, and llm utilities
-- Modified extract to allow multiple --custom-search flags and negative searches
+- Introduced an OOP interface for targets, judges, attacks, and attacked objects; the legacy function-based APIs still work but are scheduled for deprecation in v1.0.0—check the docs and sample implementations for targets, plugins, attacks, and judges to see the new patterns.
+- Results parsing and analysis command accepts multiple results files.
+- `test` command can target multiple datasets in a single run.
+- modify llm judge options to allow for more models and providers
+- add quiet switch (#38)
 
 ### Fixes
 
 - custom extract none bug
 - remove debug prints
-- custom extract none bug
--  docstring warning
+- docstring warning
 - add missing toml python dependency
-
-### Changes
-
-- modify llm judge options to allow for more models and providers
-- add quiet switch (#38)
 
 ### Datasets
 
