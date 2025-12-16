@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.2] - 2025-12-16
+
+### Fixes
+
+- progress bar calculation to use items to process instead of full dataset. (#51)
+
 ## [0.5.1] - 2025-12-16
 
 ### Fixes
