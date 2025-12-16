@@ -283,7 +283,6 @@ def _find_resume_candidates(
     # Load results directory
     results_dir = Path(results_dir)
     if not results_dir.exists():
-        print("BRAVO")
         return []
 
     # Get resource name
