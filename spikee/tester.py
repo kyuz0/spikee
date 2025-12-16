@@ -797,7 +797,7 @@ def test_dataset(args):
             total_attempts,
             already_done,
             output_file,
-            len(dataset),
+            len(to_process),
             len(completed_ids),
             success_count,
         )
