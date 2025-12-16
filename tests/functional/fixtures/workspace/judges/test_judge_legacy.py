@@ -20,6 +20,11 @@ def _parse_mode(option: Optional[str]) -> str:
     return "fail"
 
 
-def judge(llm_input: str, llm_output: str, judge_args: str, judge_options: Optional[str] = None) -> bool:
+def judge(
+    llm_input: str,
+    llm_output: str,
+    judge_args: str,
+    judge_options: Optional[str] = None,
+) -> bool:
     mode = _parse_mode(judge_options)
     return mode == "success"

@@ -11,7 +11,8 @@ train = dataset["train"]
 
 print("Filtering human-vetted toxic/jailbreaking samples...")
 filtered = [
-    x for x in train
+    x
+    for x in train
     if x["human_annotation"] and (x["toxicity"] == 1 or x["jailbreaking"] == 1)
 ]
 
@@ -27,11 +28,11 @@ for i, item in enumerate(filtered):
         instruction_type = "lmsys-toxic-chat-other"
 
     entry = {
-        "id": f"toxicchat-{i+1:04d}",
+        "id": f"toxicchat-{i + 1:04d}",
         "text": item["user_input"],
         "judge_name": "llm_judge_harmful",
         "judge_args": "",
-        "instruction_type": instruction_type
+        "instruction_type": instruction_type,
     }
     jsonl_entries.append(entry)
 

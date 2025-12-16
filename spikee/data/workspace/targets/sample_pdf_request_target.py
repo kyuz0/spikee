@@ -18,11 +18,10 @@ from dotenv import load_dotenv
 import json
 from fpdf import FPDF
 import requests
-from typing import Optional, Dict, List
+from typing import Optional, List
 
 
 class SamplePDFRequestTarget(Target):
-
     def get_available_option_values(self) -> List[str]:
         return None
 
@@ -38,24 +37,24 @@ class SamplePDFRequestTarget(Target):
         pdf.add_page()
         pdf.set_font("Arial", size=12)
         pdf.multi_cell(0, 10, input_text)
-        pdf_bytes = pdf.output(dest='S').encode('latin1')
+        pdf_bytes = pdf.output(dest="S").encode("latin1")
 
         files = {
-            'file': ('document.pdf', pdf_bytes, 'application/pdf'),
+            "file": ("document.pdf", pdf_bytes, "application/pdf"),
         }
 
         payload = {
             "messages": [
-                {"role": "user", "content": "Please analyze the content of the uploaded PDF."}
+                {
+                    "role": "user",
+                    "content": "Please analyze the content of the uploaded PDF.",
+                }
             ]
         }
 
         try:
             response = requests.post(
-                url,
-                files=files,
-                data={'payload': json.dumps(payload)},
-                timeout=30
+                url, files=files, data={"payload": json.dumps(payload)}, timeout=30
             )
 
             response.raise_for_status()

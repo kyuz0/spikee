@@ -13,6 +13,7 @@ Exposed:
     get_available_option_values() -> list of supported deployment names (default marked)
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
+
 from spikee.templates.target import Target
 
 import os
@@ -22,7 +23,6 @@ from typing import List, Optional
 
 
 class AzureAPITarget(Target):
-
     # Supported Azure deployment names
     #
     # !!! EDIT TO MATCH YOUR DEPLOYMENTS !!!
@@ -39,7 +39,9 @@ class AzureAPITarget(Target):
     def get_available_option_values(self) -> List[str]:
         """Return supported deployment names; first option is default."""
         options = [self.DEFAULT_DEPLOYMENT]  # Default first
-        options.extend([d for d in self._SUPPORTED_DEPLOYMENTS if d != self.DEFAULT_DEPLOYMENT])
+        options.extend(
+            [d for d in self._SUPPORTED_DEPLOYMENTS if d != self.DEFAULT_DEPLOYMENT]
+        )
         return options
 
     def process_input(
@@ -55,7 +57,9 @@ class AzureAPITarget(Target):
             ValueError if target_options is provided but invalid.
         """
         # deployment name selection
-        deployment = target_options if target_options is not None else self.DEFAULT_DEPLOYMENT
+        deployment = (
+            target_options if target_options is not None else self.DEFAULT_DEPLOYMENT
+        )
         if deployment not in self._SUPPORTED_DEPLOYMENTS:
             valid = ", ".join(self._SUPPORTED_DEPLOYMENTS)
             raise ValueError(

@@ -1,20 +1,15 @@
 from typing import Dict, List
-import os
 
 SUPPORTED_LLM_MODELS = [
     "openai-gpt-4.1-mini",
     "openai-gpt-4o-mini",
-
     "ollama-phi4-mini",
     "ollama-gemma3",
     "ollama-llama3.2",
-
     "bedrock-us.anthropic.claude-3-7-sonnet-20250219-v1:0",
     "bedrock-us.meta.llama4-scout-17b-instruct-v1:0",
-
     "llamaccp-server",
     "llamaccp-server-[port]",
-
     "together-gemma2-8b",
     "together-gemma2-27b",
     "together-llama4-maverick-fp8",
@@ -26,15 +21,19 @@ SUPPORTED_LLM_MODELS = [
     "together-mixtral-8x7b",
     "together-mixtral-8x22b",
     "together-qwen3-235b-fp8",
-
-    "offline"
+    "offline",
 ]
 
-TESTING_LLM_MODELS = [
-    "mock"
-]
+TESTING_LLM_MODELS = ["mock"]
 
-SUPPORTED_PREFIXES = ["openai-", "ollama-", "bedrock-", "llamaccp-server-", "together-", "mock"]
+SUPPORTED_PREFIXES = [
+    "openai-",
+    "ollama-",
+    "bedrock-",
+    "llamaccp-server-",
+    "together-",
+    "mock",
+]
 
 
 def get_supported_llm_models() -> List[str]:
@@ -76,7 +75,9 @@ def validate_llm_option(option: str) -> bool:
     """
     Validate if the provided options correspond to a supported LLM model.
     """
-    return option in SUPPORTED_LLM_MODELS or any(option.startswith(prefix) for prefix in SUPPORTED_PREFIXES)
+    return option in SUPPORTED_LLM_MODELS or any(
+        option.startswith(prefix) for prefix in SUPPORTED_PREFIXES
+    )
 
 
 def get_llm(options=None, max_tokens=8):
@@ -87,7 +88,9 @@ def get_llm(options=None, max_tokens=8):
         options (str): The LLM model option string.
         max_tokens (int): Maximum tokens for the LLM response (Default: 8 for LLM Judging).
     """
-    if (options not in SUPPORTED_LLM_MODELS and not any(options.startswith(prefix) for prefix in SUPPORTED_PREFIXES)):
+    if options not in SUPPORTED_LLM_MODELS and not any(
+        options.startswith(prefix) for prefix in SUPPORTED_PREFIXES
+    ):
         raise ValueError(
             f"Unsupported LLM option: '{options}'. "
             f"Supported options: {SUPPORTED_LLM_MODELS}"
@@ -121,11 +124,7 @@ def get_llm(options=None, max_tokens=8):
         from langchain_aws import ChatBedrock
 
         model_name = options.replace("bedrock-", "")
-        return ChatBedrock(
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=0
-        )
+        return ChatBedrock(model=model_name, max_tokens=max_tokens, temperature=0)
 
     elif options.startswith("llamaccp-server"):
         from langchain_openai import ChatOpenAI
@@ -171,7 +170,9 @@ def get_llm(options=None, max_tokens=8):
         return MockLLM(max_tokens=max_tokens)
 
     elif options.startswith("mock"):
-        return MockLLM(options[5:], max_tokens=max_tokens)  # Pass model name after 'mock'
+        return MockLLM(
+            options[5:], max_tokens=max_tokens
+        )  # Pass model name after 'mock'
 
     else:
         raise ValueError(
@@ -200,10 +201,14 @@ class MockLLM:
             response = "This is a mock response from the LLM."
 
             if self.max_tokens is not None:
-                response = response[:self.max_tokens]
+                response = response[: self.max_tokens]
 
         print("[Mock LLM] Message:", messages)
-        print("[Mock LLM] Response:", response, (" ======== " + response.content) if hasattr(response, 'content') else "")
+        print(
+            "[Mock LLM] Response:",
+            response,
+            (" ======== " + response.content) if hasattr(response, "content") else "",
+        )
         print("--------------------------------")
 
         return response

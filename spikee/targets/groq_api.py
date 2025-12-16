@@ -20,6 +20,7 @@ Exposed:
     get_available_option_values() -> list of supported model IDs (default marked)
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
+
 from spikee.templates.target import Target
 
 from dotenv import load_dotenv
@@ -28,7 +29,6 @@ from typing import List, Optional
 
 
 class GroqApiTarget(Target):
-
     # Supported Groq model IDs
     _SUPPORTED_MODELS: List[str] = [
         "distil-whisper-large-v3-en",
@@ -46,7 +46,9 @@ class GroqApiTarget(Target):
     def get_available_option_values(self) -> List[str]:
         """Return supported model names; first option is default."""
         options = [self.DEFAULT_MODEL]  # Default first
-        options.extend([model for model in self._SUPPORTED_MODELS if model != self.DEFAULT_MODEL])
+        options.extend(
+            [model for model in self._SUPPORTED_MODELS if model != self.DEFAULT_MODEL]
+        )
         return options
 
     def process_input(

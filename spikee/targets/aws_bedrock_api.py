@@ -15,6 +15,7 @@ Exposed:
     get_available_option_values() -> list of supported keys (default marked)
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
+
 from spikee.templates.target import Target
 
 from dotenv import load_dotenv
@@ -23,7 +24,6 @@ from typing import List, Dict, Optional
 
 
 class AWSBedrockTarget(Target):
-
     # Map shorthand keys to AWS Bedrock model identifiers
     _OPTION_MAP: Dict[str, str] = {
         "claude35-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",

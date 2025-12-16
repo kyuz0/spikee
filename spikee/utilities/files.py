@@ -4,7 +4,6 @@ import os
 import re
 import time
 import toml
-from typing import List
 
 
 # ==== File I/O Operations for JSONL files ====
@@ -74,7 +73,9 @@ def list_jsonl_files(folder_path, startswith=None):
     return [
         os.path.join(folder_path, f)
         for f in os.listdir(folder_path)
-        if (startswith is None or any(f.startswith(prefix) for prefix in startswith)) and f.endswith(".jsonl") and os.path.isfile(os.path.join(folder_path, f))
+        if (startswith is None or any(f.startswith(prefix) for prefix in startswith))
+        and f.endswith(".jsonl")
+        and os.path.isfile(os.path.join(folder_path, f))
     ]
 
 
@@ -91,7 +92,7 @@ def extract_resource_name(file_name: str):
     file_name = re.sub(r"^\d+-", "", file_name)
     file_name = re.sub(r".jsonl$", "", file_name)
     if file_name.startswith("seeds-"):
-        file_name = file_name[len("seeds-"):]
+        file_name = file_name[len("seeds-") :]
     return file_name
 
 
@@ -141,7 +142,9 @@ def does_resource_name_match(path: Path, resource_name: str) -> bool:
 
     name = path.name
     if name.startswith(resource_name + "_") and name.endswith(".jsonl"):
-        remainder = name[len(resource_name) + 1: -len(".jsonl")]  # The remaining text should only be a timestamp
+        remainder = name[
+            len(resource_name) + 1 : -len(".jsonl")
+        ]  # The remaining text should only be a timestamp
         return remainder.isdigit()
     else:
         return False
@@ -152,7 +155,7 @@ def prepare_output_file(directory, file_type, name_full, dataset_path, tag):
         file_type,
         name_full,
         None if dataset_path is None else extract_resource_name(dataset_path),
-        tag
+        tag,
     )
 
     os.makedirs(directory, exist_ok=True)

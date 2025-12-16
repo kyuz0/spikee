@@ -21,7 +21,9 @@ def _judge_dataset_filename(judge_variant: str) -> str:
     )
 
 
-def _create_judge_results(run_spikee, workspace_dir: Path, target_name: str, judge_variant: str):
+def _create_judge_results(
+    run_spikee, workspace_dir: Path, target_name: str, judge_variant: str
+):
     dataset_path = workspace_dir / "datasets" / _judge_dataset_filename(judge_variant)
     assert dataset_path.exists()
 
@@ -43,7 +45,9 @@ def _create_judge_results(run_spikee, workspace_dir: Path, target_name: str, jud
 @pytest.mark.parametrize("target_name", ["always_success", "always_success_legacy"])
 @pytest.mark.parametrize("judge_variant", ["test_judge", "test_judge_legacy"])
 def test_spikee_results_analyze(run_spikee, workspace_dir, target_name, judge_variant):
-    results_file = _create_judge_results(run_spikee, workspace_dir, target_name, judge_variant)
+    results_file = _create_judge_results(
+        run_spikee, workspace_dir, target_name, judge_variant
+    )
 
     analyze = run_results_command(
         run_spikee,
@@ -64,7 +68,9 @@ def test_spikee_results_analyze(run_spikee, workspace_dir, target_name, judge_va
 def test_spikee_results_rejudge_with_options(
     run_spikee, workspace_dir, target_name, judge_variant
 ):
-    results_file = _create_judge_results(run_spikee, workspace_dir, target_name, judge_variant)
+    results_file = _create_judge_results(
+        run_spikee, workspace_dir, target_name, judge_variant
+    )
 
     rejudge = run_results_command(
         run_spikee,

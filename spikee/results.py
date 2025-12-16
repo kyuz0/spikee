@@ -5,12 +5,18 @@ from collections import defaultdict
 from tabulate import tabulate
 import html
 import traceback
-import time
 from tqdm import tqdm
-from InquirerPy import inquirer
 
 from .judge import annotate_judge_options, call_judge
-from .utilities.files import read_jsonl_file, write_jsonl_file, process_jsonl_input_files, extract_prefix_from_file_name, extract_directory_from_file_path, build_resource_name, prepare_output_file
+from .utilities.files import (
+    read_jsonl_file,
+    write_jsonl_file,
+    process_jsonl_input_files,
+    extract_prefix_from_file_name,
+    extract_directory_from_file_path,
+    build_resource_name,
+    prepare_output_file,
+)
 from .utilities.tags import validate_and_get_tag
 
 
@@ -50,7 +56,9 @@ def group_entries_with_attacks(results):
     # First pass - identify all entries
     for entry in results:
         entry_id = entry["id"]
-        source_file = entry.get("source_file", None)  # Used for combined result analysis
+        source_file = entry.get(
+            "source_file", None
+        )  # Used for combined result analysis
 
         # Check if this is an attack entry
         if isinstance(entry_id, str) and "-attack" in entry_id:
@@ -91,7 +99,11 @@ def escape_special_chars(text):
 
 # region analyze
 def analyze_results(args):
-    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type=["results", "rejudge", "extract"])
+    result_files = process_jsonl_input_files(
+        args.result_file,
+        args.result_folder,
+        file_type=["results", "rejudge", "extract"],
+    )
     output_format = args.output_format
 
     # False positive status and multi-file check
@@ -100,7 +112,9 @@ def analyze_results(args):
     )
 
     if len(result_files) > 1 and fp_check_file:
-        print(f"[Error] false positive checks cannot be used when analyzing multiple results. Currently selected {len(result_files)} results.")
+        print(
+            f"[Error] false positive checks cannot be used when analyzing multiple results. Currently selected {len(result_files)} results."
+        )
         exit(1)
 
     def process_results(args, results, result_file):
@@ -121,7 +135,9 @@ def analyze_results(args):
         total_attempts = 0
 
         # Track which attack types were successful
-        attack_types = defaultdict(lambda: {"total": 0, "successes": 0, "attempts": 0, "guardrail": 0})
+        attack_types = defaultdict(
+            lambda: {"total": 0, "successes": 0, "attempts": 0, "guardrail": 0}
+        )
 
         # Track which unique features (like jailbreak_type) are associated with each group
         group_features = {}
@@ -140,7 +156,9 @@ def analyze_results(args):
 
             # Check if any entry in this group is a dynamic attack
             attack_entries = [
-                e for e in entries if isinstance(e["id"], str) and "-attack" in str(e["id"])
+                e
+                for e in entries
+                if isinstance(e["id"], str) and "-attack" in str(e["id"])
             ]
             if attack_entries:
                 has_dynamic_attacks = True
@@ -175,9 +193,9 @@ def analyze_results(args):
                 attack_name = attack_entry.get("attack_name", "None")
                 if attack_name != "None":
                     # Clean up the attack name by removing 'spikee.' prefix
-                    clean_attack_name = attack_name.replace("spikee.attacks.", "").replace(
-                        "spikee.", ""
-                    )
+                    clean_attack_name = attack_name.replace(
+                        "spikee.attacks.", ""
+                    ).replace("spikee.", "")
                     attack_types[clean_attack_name]["total"] += 1
                     attack_types[clean_attack_name]["attempts"] += attack_entry.get(
                         "attempts", 1
@@ -233,7 +251,9 @@ def analyze_results(args):
             (initially_successful_groups / total_entries) * 100 if total_entries else 0
         )
         attack_improvement = (
-            (attack_only_successful_groups / total_entries) * 100 if total_entries else 0
+            (attack_only_successful_groups / total_entries) * 100
+            if total_entries
+            else 0
         )
 
         # --- 4. OUTPUT GENERAL OVERVIEW ---
@@ -242,15 +262,25 @@ def analyze_results(args):
         print(f"Total Unique Entries: {total_entries}")
 
         if has_dynamic_attacks:
-            print(f"Successful Attacks (Total): {successful_groups} [{(successful_groups / total_entries) * 100:.2f}%]")
-            print(f"  - Initially Successful: {initially_successful_groups} [{(initially_successful_groups / total_entries) * 100:.2f}%]")
+            print(
+                f"Successful Attacks (Total): {successful_groups} [{(successful_groups / total_entries) * 100:.2f}%]"
+            )
+            print(
+                f"  - Initially Successful: {initially_successful_groups} [{(initially_successful_groups / total_entries) * 100:.2f}%]"
+            )
             print(
                 f"  - Only Successful with Dynamic Attack: {attack_only_successful_groups} [{(attack_only_successful_groups / total_entries) * 100:.2f}%]"
             )
-            print(f"Failed Attacks: {failed_groups} [{(failed_groups / total_entries) * 100:.2f}%]")
-            print(f"Errors: {error_groups} [{(error_groups / total_entries) * 100:.2f}%]")
+            print(
+                f"Failed Attacks: {failed_groups} [{(failed_groups / total_entries) * 100:.2f}%]"
+            )
+            print(
+                f"Errors: {error_groups} [{(error_groups / total_entries) * 100:.2f}%]"
+            )
             if guardrail_groups > 0:
-                print(f"Guardrail Triggers: {guardrail_groups} [{(guardrail_groups / total_entries) * 100:.2f}%]")
+                print(
+                    f"Guardrail Triggers: {guardrail_groups} [{(guardrail_groups / total_entries) * 100:.2f}%]"
+                )
             print(f"Total Attempts: {total_attempts}")
             print(f"Attack Success Rate (Overall): {attack_success_rate:.2f}%")
             print(
@@ -260,11 +290,19 @@ def analyze_results(args):
                 f"Attack Success Rate (Improvement from Dynamic Attack): {attack_improvement:.2f}%\n"
             )
         else:
-            print(f"Successful Attacks: {successful_groups} [{(successful_groups / total_entries) * 100:.2f}%]")
-            print(f"Failed Attacks: {failed_groups} [{(failed_groups / total_entries) * 100:.2f}%]")
-            print(f"Errors: {error_groups} [{(error_groups / total_entries) * 100:.2f}%]")
+            print(
+                f"Successful Attacks: {successful_groups} [{(successful_groups / total_entries) * 100:.2f}%]"
+            )
+            print(
+                f"Failed Attacks: {failed_groups} [{(failed_groups / total_entries) * 100:.2f}%]"
+            )
+            print(
+                f"Errors: {error_groups} [{(error_groups / total_entries) * 100:.2f}%]"
+            )
             if guardrail_groups > 0:
-                print(f"Guardrail Triggers: {guardrail_groups} [{(guardrail_groups / total_entries) * 100:.2f}%]")
+                print(
+                    f"Guardrail Triggers: {guardrail_groups} [{(guardrail_groups / total_entries) * 100:.2f}%]"
+                )
             print(f"Total Attempts: {total_attempts}")
             print(f"Attack Success Rate: {attack_success_rate:.2f}%\n")
 
@@ -289,7 +327,14 @@ def analyze_results(args):
 
             # Sort by success rate
             table.sort(key=lambda x: float(x[5].strip("%")), reverse=True)
-            headers = ["Attack Type", "Total", "Successes", "Attempts", "Guardrail", "Success Rate"]
+            headers = [
+                "Attack Type",
+                "Total",
+                "Successes",
+                "Attempts",
+                "Guardrail",
+                "Success Rate",
+            ]
             print(tabulate(table, headers=headers))
             print()
 
@@ -299,12 +344,18 @@ def analyze_results(args):
             fp_data = None
             if fp_check_file:
                 if not os.path.exists(fp_check_file):
-                    print(f"\nWARNING: False positive check file '{fp_check_file}' not found or not accessible.")
+                    print(
+                        f"\nWARNING: False positive check file '{fp_check_file}' not found or not accessible."
+                    )
                 else:
-                    fp_data = calc_and_print_false_positives(fp_check_file, successful_groups, failed_groups)
+                    fp_data = calc_and_print_false_positives(
+                        fp_check_file, successful_groups, failed_groups
+                    )
 
             # --- 6. DETAILED BREAKDOWNS ---
-            breakdown_fields, breakdowns, combination_counts = calc_breakdowns(group_features, entry_groups)
+            breakdown_fields, breakdowns, combination_counts = calc_breakdowns(
+                group_features, entry_groups
+            )
 
             # Print breakdowns
             for field in breakdown_fields:
@@ -317,7 +368,9 @@ def analyze_results(args):
                 print("=== Guardrail Category Breakdown ===")
                 table = []
                 for category, count in guardrail_categories.items():
-                    table.append([category, count, f"{(count / total_entries) * 100:.2f}%"])
+                    table.append(
+                        [category, count, f"{(count / total_entries) * 100:.2f}%"]
+                    )
                 # Sort by count descending
                 table.sort(key=lambda x: x[1], reverse=True)
                 headers = ["Guardrail Category", "Trigger Count", "Trigger Rate"]
@@ -325,11 +378,17 @@ def analyze_results(args):
                 print()
 
             # --- 8. COMBINATION ANALYSIS ---
-            top_10, bottom_10, combination_stats_sorted = calc_combinations(combination_counts)
+            top_10, bottom_10, combination_stats_sorted = calc_combinations(
+                combination_counts
+            )
 
             # Print top 10 and bottom 10 combinations
-            print_combination_stats("Top 10 Most Successful Combinations", top_10, has_dynamic_attacks)
-            print_combination_stats("Top 10 Least Successful Combinations", bottom_10, has_dynamic_attacks)
+            print_combination_stats(
+                "Top 10 Most Successful Combinations", top_10, has_dynamic_attacks
+            )
+            print_combination_stats(
+                "Top 10 Least Successful Combinations", bottom_10, has_dynamic_attacks
+            )
         else:
             fp_data = None
             combination_stats_sorted = []
@@ -371,7 +430,7 @@ def analyze_results(args):
             results = read_jsonl_file(result_file)
 
             for result in results:
-                result['source_file'] = result_file  # Track source file for each entry
+                result["source_file"] = result_file  # Track source file for each entry
 
             combined_results.extend(results)
 
@@ -387,7 +446,6 @@ def analyze_results(args):
 
 
 def calc_and_print_false_positives(fp_check_file, successful_groups, failed_groups):
-    fp_data = None
     print("\n=== False Positive Analysis ===")
     print(f"False Positive Check File: {fp_check_file}")
 
@@ -412,14 +470,12 @@ def calc_and_print_false_positives(fp_check_file, successful_groups, failed_grou
                 fp_failure += 1
 
         # Calculate confusion matrix values
-        false_negatives = successful_groups  # Attacks that went through (should have been blocked)
+        false_negatives = (
+            successful_groups  # Attacks that went through (should have been blocked)
+        )
         true_positives = failed_groups  # Attacks that were blocked (correctly)
-        true_negatives = (
-            fp_success  # Benign prompts that went through (correctly)
-        )
-        false_positives = (
-            fp_failure  # Benign prompts that were blocked (incorrectly)
-        )
+        true_negatives = fp_success  # Benign prompts that went through (correctly)
+        false_positives = fp_failure  # Benign prompts that were blocked (incorrectly)
 
         # Calculate metrics
         precision = (
@@ -439,19 +495,8 @@ def calc_and_print_false_positives(fp_check_file, successful_groups, failed_grou
         )
         accuracy = (
             (true_positives + true_negatives)
-            / (
-                true_positives
-                + true_negatives
-                + false_positives
-                + false_negatives
-            )
-            if (
-                true_positives
-                + true_negatives
-                + false_positives
-                + false_negatives
-            )
-            > 0
+            / (true_positives + true_negatives + false_positives + false_negatives)
+            if (true_positives + true_negatives + false_positives + false_negatives) > 0
             else 0
         )
 
@@ -460,12 +505,18 @@ def calc_and_print_false_positives(fp_check_file, successful_groups, failed_grou
         print(f"True Positives (attacks correctly blocked): {true_positives}")
         print(f"False Negatives (attacks incorrectly allowed): {false_negatives}")
         print(f"True Negatives (benign prompts correctly allowed): {true_negatives}")
-        print(f"False Positives (benign prompts incorrectly blocked): {false_positives}")
+        print(
+            f"False Positives (benign prompts incorrectly blocked): {false_positives}"
+        )
 
         # Explicitly print the metrics to CLI
         print("\n=== Performance Metrics ===")
-        print(f"Precision: {precision:.4f} - Of all blocked prompts, what fraction were actual attacks")
-        print(f"Recall: {recall:.4f} - Of all actual attacks, what fraction were blocked")
+        print(
+            f"Precision: {precision:.4f} - Of all blocked prompts, what fraction were actual attacks"
+        )
+        print(
+            f"Recall: {recall:.4f} - Of all actual attacks, what fraction were blocked"
+        )
         print(f"F1 Score: {f1_score:.4f} - Harmonic mean of precision and recall")
         print(f"Accuracy: {accuracy:.4f} - Overall accuracy across all prompts\n")
 
@@ -594,7 +645,7 @@ def print_breakdown(field_name, data, has_dynamic_attacks):
 
             success_rate = (successes / total) * 100 if total else 0
             initial_success_rate = (initial_successes / total) * 100 if total else 0
-            attack_improvement = ((attack_only_successes / total) * 100 if total else 0)
+            attack_improvement = (attack_only_successes / total) * 100 if total else 0
 
             escaped_value = escape_special_chars(value)
             table.append(
@@ -798,11 +849,15 @@ def print_combination_stats(title, combo_list, has_dynamic_attacks):
         ]
 
     print(tabulate(table, headers=headers), "\n")
+
+
 # endregion
 
 
 def rejudge_results(args):
-    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type="results")
+    result_files = process_jsonl_input_files(
+        args.result_file, args.result_folder, file_type="results"
+    )
 
     print("[Overview] The following file(s) will be re-judged: ")
     print("\n - " + "\n - ".join(result_files))
@@ -863,7 +918,9 @@ def rejudge_results(args):
                 )
 
         if output_file is None:
-            output_file = prepare_output_file(file_dir, "rejudge", resource_name, None, None)
+            output_file = prepare_output_file(
+                file_dir, "rejudge", resource_name, None, None
+            )
             mode = "w"
 
         # Stream write, allows CTRL+C leaves a partial file
@@ -911,12 +968,23 @@ def rejudge_results(args):
 
 
 def extract_results(args):
-    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type="results")
+    result_files = process_jsonl_input_files(
+        args.result_file, args.result_folder, file_type="results"
+    )
 
     # Category validation
     category = args.category or "success"
-    if category not in ["success", "failure", "error", "guardrail", "no-guardrail", "custom"]:
-        print(f"[Error] Invalid category '{category}' specified for extraction. Must be one of: success, failure, error, guardrail, no-guardrail, custom.")
+    if category not in [
+        "success",
+        "failure",
+        "error",
+        "guardrail",
+        "no-guardrail",
+        "custom",
+    ]:
+        print(
+            f"[Error] Invalid category '{category}' specified for extraction. Must be one of: success, failure, error, guardrail, no-guardrail, custom."
+        )
         exit(1)
 
     # Custom Category
@@ -955,45 +1023,55 @@ def extract_results(args):
 
         for result in results:
             total_count += 1
-            result['source_file'] = result_file  # Track source file for each entry
+            result["source_file"] = result_file  # Track source file for each entry
             match category:
                 case "success":
                     if result.get("success", False):
                         id_count += 1
-                        result['id'] = id_count
-                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+                        result["id"] = id_count
+                        result["long_id"] = (
+                            f"{result['long_id']}_extracted_{result_name}"
+                        )
 
                         matching_results.append(result)
 
                 case "failure":
                     if not result.get("success", False):
                         id_count += 1
-                        result['id'] = id_count
-                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+                        result["id"] = id_count
+                        result["long_id"] = (
+                            f"{result['long_id']}_extracted_{result_name}"
+                        )
 
                         matching_results.append(result)
 
                 case "error":
                     if result.get("error", None) not in [None, "No response received"]:
                         id_count += 1
-                        result['id'] = id_count
-                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+                        result["id"] = id_count
+                        result["long_id"] = (
+                            f"{result['long_id']}_extracted_{result_name}"
+                        )
 
                         matching_results.append(result)
 
                 case "guardrail":
                     if result.get("guardrail_triggered", False):
                         id_count += 1
-                        result['id'] = id_count
-                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+                        result["id"] = id_count
+                        result["long_id"] = (
+                            f"{result['long_id']}_extracted_{result_name}"
+                        )
 
                         matching_results.append(result)
 
                 case "no-guardrail":
                     if not result.get("guardrail_triggered", False):
                         id_count += 1
-                        result['id'] = id_count
-                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+                        result["id"] = id_count
+                        result["long_id"] = (
+                            f"{result['long_id']}_extracted_{result_name}"
+                        )
 
                         matching_results.append(result)
 
@@ -1018,8 +1096,10 @@ def extract_results(args):
 
                     if query_match:
                         id_count += 1
-                        result['id'] = id_count
-                        result['long_id'] = f"{result['long_id']}_extracted_{result_name}"
+                        result["id"] = id_count
+                        result["long_id"] = (
+                            f"{result['long_id']}_extracted_{result_name}"
+                        )
 
                         matching_results.append(result)
 
@@ -1029,20 +1109,29 @@ def extract_results(args):
 
     # Output matching results
     write_jsonl_file(output_file, matching_results)
-    print(f"[Overview] Extracted {id_count} / {total_count} results to {output_file}. Extraction Rate: {round(id_count / total_count if total_count > 0 else 0, 2)}")
+    print(
+        f"[Overview] Extracted {id_count} / {total_count} results to {output_file}. Extraction Rate: {round(id_count / total_count if total_count > 0 else 0, 2)}"
+    )
 
 
 def dataset_comparison(args):
     # Get and sort result file data
-    dataset = sorted(read_jsonl_file(args.dataset), key=lambda r: r.get('long_id', ''))
+    dataset = sorted(read_jsonl_file(args.dataset), key=lambda r: r.get("long_id", ""))
 
-    result_files = process_jsonl_input_files(args.result_file, args.result_folder, file_type="results")
+    result_files = process_jsonl_input_files(
+        args.result_file, args.result_folder, file_type="results"
+    )
     results = {}
     for result_file in result_files:
-        file_results = {r.get('long_id', '').removesuffix("-ERROR"): r for r in read_jsonl_file(result_file)}
+        file_results = {
+            r.get("long_id", "").removesuffix("-ERROR"): r
+            for r in read_jsonl_file(result_file)
+        }
         results[result_file] = file_results
 
-    print("[Overview] Comparing dataset entries against results from the following file(s): ")
+    print(
+        "[Overview] Comparing dataset entries against results from the following file(s): "
+    )
     print(" - " + "\n - ".join(result_files))
 
     # Dataset validation
@@ -1051,7 +1140,7 @@ def dataset_comparison(args):
     else:
         errors = {}
         for entry in dataset:
-            entry_long_id = entry['long_id']
+            entry_long_id = entry["long_id"]
 
             for result_file, file_results in results.items():
                 if entry_long_id not in file_results:
@@ -1060,7 +1149,9 @@ def dataset_comparison(args):
                     errors[result_file] += 1
 
         if len(errors) > 0:
-            print("[Error] Dataset validation failed. The following discrepancies were found:")
+            print(
+                "[Error] Dataset validation failed. The following discrepancies were found:"
+            )
             for result_file, error_count in errors.items():
                 print(f" - {result_file}: {error_count} missing entries")
 
@@ -1068,12 +1159,14 @@ def dataset_comparison(args):
     success_rates = {}
     successful_entries = []
     for entry in dataset:
-        entry_long_id = entry['long_id']
+        entry_long_id = entry["long_id"]
         success_rates[entry_long_id] = 0
 
         # Obtain successes across result files
         for result_file, file_results in results.items():
-            if entry_long_id in file_results and file_results[entry_long_id].get('success', False):
+            if entry_long_id in file_results and file_results[entry_long_id].get(
+                "success", False
+            ):
                 success_rates[entry_long_id] += 1
 
         # Calculate success rate
@@ -1083,24 +1176,30 @@ def dataset_comparison(args):
         match args.success_definition:
             case "gt":
                 if success_rates[entry_long_id] > args.success_threshold:
-                    entry['success_rate'] = success_rates[entry_long_id]
+                    entry["success_rate"] = success_rates[entry_long_id]
                     successful_entries.append(entry)
 
             case "lt":
                 if success_rates[entry_long_id] < args.success_threshold:
-                    entry['success_rate'] = success_rates[entry_long_id]
+                    entry["success_rate"] = success_rates[entry_long_id]
                     successful_entries.append(entry)
 
-    print(f"[Overview] Dataset comparison completed. {len(successful_entries)} entries matched the success criteria.")
+    print(
+        f"[Overview] Dataset comparison completed. {len(successful_entries)} entries matched the success criteria."
+    )
     if len(successful_entries) == 0:
-        print("[Overview] No entries matched the success criteria. No output file will be generated.")
+        print(
+            "[Overview] No entries matched the success criteria. No output file will be generated."
+        )
         return
 
     # Sort entries by success rate descending
-    successful_entries.sort(key=lambda e: e['success_rate'], reverse=True)
+    successful_entries.sort(key=lambda e: e["success_rate"], reverse=True)
 
     if args.number > 0:
-        print(f"[Overview] Limiting output to top {args.number} entries based on success rate.")
+        print(
+            f"[Overview] Limiting output to top {args.number} entries based on success rate."
+        )
         successful_entries = successful_entries[: args.number]
 
     tag = validate_and_get_tag(args.tag)

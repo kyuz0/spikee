@@ -16,6 +16,7 @@ Exposed:
     get_available_option_values() -> list of supported keys (default marked)
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
+
 from spikee.templates.target import Target
 
 from typing import List, Dict, Optional
@@ -26,7 +27,6 @@ import requests  # needed to progromatically list available Ollama models
 
 
 class OllamaTarget(Target):
-
     # Map shorthand keys to Ollama model identifiers
     _OPTION_MAP: Dict[str, str] = {
         "phi4-mini": "phi4-mini",
@@ -37,7 +37,9 @@ class OllamaTarget(Target):
     # Default key
     _DEFAULT_KEY = "phi4-mini"
 
-    def get_available_ollama_models(self, baseurl="http://localhost:11434") -> List[str]:
+    def get_available_ollama_models(
+        self, baseurl="http://localhost:11434"
+    ) -> List[str]:
         """Progromatically gather the list of local models see: ollama list"""
         try:
             response = requests.get(f"{baseurl}/api/tags")
@@ -45,7 +47,9 @@ class OllamaTarget(Target):
             return [model["model"] for model in data["models"]]
         except Exception as e:
             # Something went wrong, we should fallback to the priority list already defined
-            print(f"Error fetching Ollama models: {e}")  # More informative error message
+            print(
+                f"Error fetching Ollama models: {e}"
+            )  # More informative error message
             return []
 
     def get_available_option_values(self) -> List[str]:
@@ -56,7 +60,9 @@ class OllamaTarget(Target):
             options = local_models
         else:
             options = [self._DEFAULT_KEY]  # Default first
-            options.extend([key for key in self._OPTION_MAP if key != self._DEFAULT_KEY])
+            options.extend(
+                [key for key in self._OPTION_MAP if key != self._DEFAULT_KEY]
+            )
         return options
 
     def process_input(

@@ -54,7 +54,9 @@ def load_module_from_path(name, module_type):
             mod = importlib.import_module(f"spikee.{module_type}.{name}")
 
         except ModuleNotFoundError:
-            raise ValueError(f"Module '{name}' not found locally or in spikee.{module_type}")
+            raise ValueError(
+                f"Module '{name}' not found locally or in spikee.{module_type}"
+            )
 
     instance = _instantiate_impl(mod, module_type)
     if instance is not None:

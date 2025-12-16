@@ -12,15 +12,14 @@ Exposed:
         - For models supporting logprobs: returns (content, logprobs)
         - Otherwise: returns content only
 """
+
 from spikee.templates.target import Target
 
 from typing import Optional, List, Dict, Tuple, Union
-from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
 
 class OpenAITarget(Target):
-
     # shorthand to model identifier map
     _OPTION_MAP: Dict[str, str] = {
         "gpt-4o": "gpt-4o",

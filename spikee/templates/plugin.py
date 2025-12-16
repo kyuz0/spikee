@@ -3,7 +3,6 @@ from typing import List, Union
 
 
 class Plugin(ABC):
-
     @abstractmethod
     def get_available_option_values(self) -> List[str]:
         """Return supported plugin options; first option is default."""
@@ -11,8 +10,6 @@ class Plugin(ABC):
 
     @abstractmethod
     def transform(
-        self,
-        text: str,
-        exclude_patterns: List[str] = None
+        self, text: str, exclude_patterns: List[str] = None
     ) -> Union[str, List[str]]:
         pass

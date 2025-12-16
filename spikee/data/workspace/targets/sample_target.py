@@ -27,7 +27,6 @@ from typing import Optional, Dict, List
 
 
 class SampleRequestTarget(Target):
-
     _OPTIONS_MAP: Dict[str, str] = {
         "example1": "https://reversec.com/api/example1",
         "example2": "https://reversec.com/api/example2",
@@ -46,7 +45,6 @@ class SampleRequestTarget(Target):
         system_message: Optional[str] = None,
         target_options: Optional[str] = None,
     ) -> str:
-
         # Option Validation
         key = target_options if target_options is not None else self._DEFAULT_KEY
 
@@ -67,21 +65,17 @@ class SampleRequestTarget(Target):
             "messages": [
                 {
                     "role": "system",
-                    "content": system_message if system_message else "You are a helpful assistant."
+                    "content": system_message
+                    if system_message
+                    else "You are a helpful assistant.",
                 },
-                {
-                    "role": "user",
-                    "content": input_text
-                }
+                {"role": "user", "content": input_text},
             ]
         }
 
         try:
             response = requests.post(
-                url,
-                headers=headers,
-                data=json.dumps(payload),
-                timeout=30
+                url, headers=headers, data=json.dumps(payload), timeout=30
             )
 
             response.raise_for_status()

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-import pytest
 
-from .utils import read_jsonl, run_generate_command, run_test_command
+from .utils import run_generate_command
 
 
 def _run_list(run_spikee, workspace: Path, entity: str):
@@ -14,7 +12,9 @@ def _run_list(run_spikee, workspace: Path, entity: str):
 
 
 def _assert_contains(lines: list[str], expected_items: set[str]):
-    missing = {item for item in expected_items if all(item not in line for line in lines)}
+    missing = {
+        item for item in expected_items if all(item not in line for line in lines)
+    }
     assert not missing, f"Missing expected entries: {sorted(missing)}"
 
 
@@ -57,5 +57,10 @@ def test_spikee_list_targets(run_spikee, workspace_dir):
 def test_spikee_list_attacks(run_spikee, workspace_dir):
     output_lines = _run_list(run_spikee, workspace_dir, "attacks")
     expected_local = {"mock_attack", "mock_attack_legacy"}
-    expected_builtin = {"anti_spotlighting", "best_of_n", "prompt_decomposition", "random_suffix_search"}
+    expected_builtin = {
+        "anti_spotlighting",
+        "best_of_n",
+        "prompt_decomposition",
+        "random_suffix_search",
+    }
     _assert_contains(output_lines, expected_local | expected_builtin)

@@ -1,7 +1,4 @@
-import os
-import importlib
 import inspect
-from pathlib import Path
 
 from .utilities.modules import load_module_from_path, get_default_option
 
@@ -13,7 +10,7 @@ def annotate_judge_options(entries, judge_opts):
     for entry in entries:
         if judge_opts is None:
             # Get default option for this specific judge
-            judge = entry['judge_name']
+            judge = entry["judge_name"]
 
             if judge in default_map:
                 effective_options = default_map[judge]

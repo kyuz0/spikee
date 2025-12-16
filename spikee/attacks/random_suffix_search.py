@@ -71,7 +71,7 @@ class RandomSuffixattack(Attack):
                     document[: idx + len(payload)]
                     + " "
                     + adv_string
-                    + document[idx + len(payload):]
+                    + document[idx + len(payload) :]
                 )
         return document + "\n" + adv_string
 
@@ -105,7 +105,9 @@ class RandomSuffixattack(Attack):
         for i in range(1, max_iterations + 1):
             # Randomly choose a starting index for substitution.
             if self.n_tokens_adv >= self.n_tokens_change:
-                substitute_pos_start = random.randint(0, self.n_tokens_adv - self.n_tokens_change)
+                substitute_pos_start = random.randint(
+                    0, self.n_tokens_adv - self.n_tokens_change
+                )
             else:
                 substitute_pos_start = 0
 
@@ -114,14 +116,16 @@ class RandomSuffixattack(Attack):
                 0, max_token_value, self.n_tokens_change
             ).tolist()
             # Replace the selected tokens in adv_tokens.
-            adv_tokens[substitute_pos_start: substitute_pos_start + self.n_tokens_change] = (
-                substitution_tokens
-            )
+            adv_tokens[
+                substitute_pos_start : substitute_pos_start + self.n_tokens_change
+            ] = substitution_tokens
 
             # Decode the modified token sequence into text.
             adv = tokenizer.decode(adv_tokens).replace("<s>", "")
             # Insert the adversarial suffix into the document.
-            candidate = self.insert_adv_string(original_text, adv, payload=payload_field)
+            candidate = self.insert_adv_string(
+                original_text, adv, payload=payload_field
+            )
 
             try:
                 # Call process_input. The wrapper guarantees a tuple is returned.
