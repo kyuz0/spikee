@@ -14,14 +14,9 @@ def annotate_judge_options(entries, judge_opts):
 
             if judge in default_map:
                 effective_options = default_map[judge]
-
-                print("DEFAULT-MAP", default_map)
-
             else:
                 judge_module = load_module_from_path(judge, "judges")
                 effective_options = get_default_option(judge_module)
-
-                print("DEFAULTED", judge, effective_options)
         else:
             # Use provided judge options for all entries
             effective_options = judge_opts
