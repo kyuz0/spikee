@@ -44,7 +44,7 @@ def test_progress_bar_resume_total_correctness(run_spikee, workspace_dir):
         [
             "--dataset", str(dataset_rel),
             "--target", "always_success",
-            "--resume-file", str(resume_file)
+            "--resume-file", str(resume_rel)
         ]
     )
     
