@@ -741,13 +741,14 @@ def test_dataset(args):
         )
 
         # Determine resume action / file
+        current_resume_file = args.resume_file
         picked = _determine_resume_file(args, dataset, tty)
         if picked:
-            args.resume_file = picked
+            current_resume_file = picked
 
         # Load resume data if any has been selected
         completed_ids, results, already_done = _load_results_file(
-            args.resume_file, attack_module, args.attack_iterations
+            current_resume_file, attack_module, args.attack_iterations
         )
 
         # Identify unprocessed entries
@@ -797,7 +798,7 @@ def test_dataset(args):
             total_attempts,
             already_done,
             output_file,
-            len(to_process),
+            len(dataset_json),
             len(completed_ids),
             success_count,
         )
