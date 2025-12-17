@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.3] - 2025-12-17
+
+### Fixes
+
+- Correctly handle resume file selection for multiple datasets and progress bar totals.
+
 ## [0.5.2] - 2025-12-16
 
 ### Fixes
