@@ -77,12 +77,11 @@ def test_multiple_datasets_independent_resume(run_spikee, workspace_dir):
     # Check A processed roughly (total - 2) entries
     # The output usually says "[Info] Testing X new entries"
     # A has e.g. 5 entries, processed 2. Should test 3.
-    count_a = len(entries_a)
-    to_process_a = count_a - 2
+    # A has e.g. 5 entries, processed 2. Should test 3.
     
     # Check if B started fresh
     # B should process ALL entries
-    count_b = len(entries_b)
+    # B should process ALL entries
     
     # We need to parse the stdout to distinguish A and B blocks?
     # Or just check for errors.
