@@ -62,23 +62,7 @@ def list_datasets(args):
 # --- Helpers ---
 
 
-def _has_options(path: Path) -> bool:
-    try:
-        tree = ast.parse(path.read_text())
-        return any(
-            (isinstance(n, ast.FunctionDef) and n.name == "get_available_option_values")
-            or (
-                isinstance(n, ast.ClassDef)
-                and any(
-                    isinstance(body_item, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and body_item.name == "get_available_option_values"
-                    for body_item in n.body
-                )
-            )
-            for n in tree.body
-        )
-    except Exception:
-        return False
+
 
 
 def _load_module(name, path: Path):
@@ -97,12 +81,11 @@ def _collect_local(module_type: str):
                 continue
             name = p.stem
             opts = None
-            if _has_options(p):
-                try:
-                    mod = _load_module(f"{module_type}.{name}", p)
-                    opts = get_options_from_module(mod, module_type)
-                except Exception:
-                    opts = ["<error>"]
+            try:
+                mod = _load_module(f"{module_type}.{name}", p)
+                opts = get_options_from_module(mod, module_type)
+            except Exception:
+                opts = ["<error>"]
             entries.append((name, opts))
     return entries
 
@@ -116,10 +99,8 @@ def _collect_builtin(pkg: str, module_type: str):
                 continue
             opts = None
             try:
-                spec = importlib.util.find_spec(f"{pkg}.{name}")
-                if spec and spec.origin and _has_options(Path(spec.origin)):
-                    mod = importlib.import_module(f"{pkg}.{name}")
-                    opts = get_options_from_module(mod, module_type)
+                mod = importlib.import_module(f"{pkg}.{name}")
+                opts = get_options_from_module(mod, module_type)
             except Exception:
                 opts = ["<error>"]
             entries.append((name, opts))
