@@ -76,10 +76,10 @@ class OllamaTarget(Target):
         # Initialize the Ollama client
         llm = ChatOllama(
             model=model_name,
-            num_predict=None, #maximum number of tokens to predict
-            client_kwargs={"timeout":30} #timeout in seconds (None = not configured)
+            num_predict=None,  # maximum number of tokens to predict
+            client_kwargs={"timeout": 30},  # timeout in seconds (None = not configured)
         ).with_retry(
-            stop_after_attempt=3,          # total attempts (1 initial + 2 retries)
+            stop_after_attempt=3,  # total attempts (1 initial + 2 retries)
             wait_exponential_jitter=True,  # backoff with jitter
         )
 

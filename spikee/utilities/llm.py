@@ -114,11 +114,11 @@ def get_llm(options=None, max_tokens=8):
         model_name = options.replace("ollama-", "")
         return ChatOllama(
             model=model_name,
-            num_predict=max_tokens, #maximum number of tokens to predict
+            num_predict=max_tokens,  # maximum number of tokens to predict
             temperature=0,
-            client_kwargs={"timeout":30} #timeout in seconds (None = not configured)
+            client_kwargs={"timeout": 30},  # timeout in seconds (None = not configured)
         ).with_retry(
-            stop_after_attempt=2,          # total attempts (1 initial + 1 retry)
+            stop_after_attempt=2,  # total attempts (1 initial + 1 retry)
             wait_exponential_jitter=True,  # backoff with jitter
         )
 
