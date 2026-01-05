@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.4] - 2026-01-05
+
+### Fixes
+
+- use correct ChatOllama parameters (#56)
+- ollama model selection for ollama targets (#55)
+- display options for judges in `spikee list judges`
+
 ## [0.5.3] - 2025-12-17
 
 ### Fixes
