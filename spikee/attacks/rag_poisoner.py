@@ -34,7 +34,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 from spikee.templates.attack import Attack
-from spikee.utilities.llm import get_llm, get_supported_llm_models
+from spikee.utilities.llm import get_llm, get_supported_llm_models, get_example_llm_models, get_supported_prefixes
 
 # RAG Poisoner prompt template
 SPIKEE_RAG_POISONER_PROMPT = """
@@ -112,11 +112,23 @@ class RAGPoisoner(Attack):
 
     def get_available_option_values(self) -> List[str]:
         """Return supported attack options."""
-        models = list(get_supported_llm_models())
-        if self.DEFAULT_MODEL in models:
-            models.remove(self.DEFAULT_MODEL)
-        models.insert(0, self.DEFAULT_MODEL)
-        return [f"model={model}" for model in models]
+        return [f"model={model}" for model in get_example_llm_models()] + [
+            f"model={model}" for model in get_supported_llm_models()
+        ]
+
+    def get_available_prefixes(self) -> Tuple[bool, List[str]]:
+        """Return supported prefixes."""
+        return False, get_supported_prefixes()
+
+    def _parse_attack_option(self, option: Optional[str]) -> Dict[str, str]:
+        opts: Dict[str, str] = {}
+        if not option:
+            return opts
+        for p in (x.strip() for x in option.split(",") if x.strip()):
+            if "=" in p:
+                k, v = p.split("=", 1)
+                opts[k.strip()] = v.strip()
+        return opts
 
     def _extract_json_or_fail(self, text: str) -> Dict[str, Any]:
         """
@@ -200,9 +212,8 @@ class RAGPoisoner(Attack):
         supporting the objective, then checks if the attack was successful.
         """
         # Parse attack option for model selection
-        model_name = self.DEFAULT_MODEL
-        if attack_option and attack_option.startswith("model="):
-            model_name = attack_option.replace("model=", "")
+        opts = self._parse_attack_option(attack_option)
+        model_name = opts.get("model", self.DEFAULT_MODEL)
 
         # Get the objective from the entry
         objective = entry.get("text", "")
