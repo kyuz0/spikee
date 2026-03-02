@@ -672,7 +672,7 @@ Select alternative words that capture similar meaning but are not in the exclude
         answered = results.get("answered", None)
         explanation = results.get("explanation", None)
 
-        return answered, explanation
+        return not answered, explanation
 
     def get_next_question(self, llm, conversation: StandardisedConversation, last_message_id: int, objective: str, remaining_turns: int) -> str:
         """Generate the next attacker question using the LLM."""
@@ -782,8 +782,8 @@ Select alternative words that capture similar meaning but are not in the exclude
 
         # Parse attack options
         opts = parse_options(attack_option)
-        self.max_turns = int(opts.get("max_turns", 8))
-        self.stage_attempts = int(opts.get("stage_attempts", 3))
+        self.max_turns = int(opts.get("max-turns", 8))
+        self.stage_attempts = int(opts.get("stage-attempts", 3))
 
         try:
             llm = get_llm(opts.get("model", None), max_tokens=None, temperature=0.7)
