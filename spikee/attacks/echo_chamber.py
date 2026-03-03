@@ -783,7 +783,7 @@ Select alternative words that capture similar meaning but are not in the exclude
     def evaluate_seed_alignment(self, llm, objective: str, keywords: List[str], seed_sentences: List[str]) -> bool:
         messages = [
             SystemMessage(content=ECHO_CHAMBER_SEED_ALIGNMENT_EVAL_PROMPT),
-            HumanMessage(content=json.dumps({"sentence": objective, "keywords": keywords, "seed_sentences": seed_sentences})),
+            HumanMessage(content=json.dumps({"objective": objective, "keywords": keywords, "seed_sentences": seed_sentences})),
         ]
 
         results = self._query_attacker_llm(llm, messages, ["answered", "explanation"])
