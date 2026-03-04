@@ -3,6 +3,7 @@ import inspect
 import json
 import time
 from collections import defaultdict
+from typing import Union, List
 from tabulate import tabulate
 from pathlib import Path
 from tqdm import tqdm
@@ -325,13 +326,45 @@ def load_plugins(plugin_names):
     plugins = []
 
     for name in plugin_names:
-        try:
-            plugins.append((name, load_module_from_path(name, "plugins")))
-        except (ImportError, ValueError) as e:
-            print(
-                f"Warning: Plugin '{name}' not found locally or in built-in plugins.: {e}"
-            )
+        name = parse_plugin_piping(name)  # Handle plugin piping syntax
+
+        if isinstance(name, str):
+            try:
+                plugins.append((name, load_module_from_path(name, "plugins")))
+            except (ImportError, ValueError) as e:
+                print(
+                    f"Warning: Plugin '{name}' not found locally or in built-in plugins.: {e}"
+                )
+
+        else:  # If it's a plugin pipe, load each sub-plugin and store as a list
+            plugin_pipe = []
+            for sub_name in name:
+                try:
+                    plugin_pipe.append((sub_name, load_module_from_path(sub_name, "plugins")))
+                except (ImportError, ValueError) as e:
+                    print(
+                        f"Warning: Plugin '{sub_name}' in '{'|'.join(name)}' not found locally or in built-in plugins.: {e}"
+                    )
+
+            plugins.append(('~'.join(name), plugin_pipe))
+
     return plugins
+
+
+def parse_plugin_piping(plugin: str) -> Union[str, List[str], None]:
+    """
+    Parses a plugin piping string like "plugin1|plugin2|plugin3" into a list of plugin modules.
+    Each plugin is loaded using the load_plugins function.
+    """
+    if not plugin:
+        return None
+
+    if "|" in plugin:
+        plugin_names = [name.strip() for name in plugin.split("|")]
+        return plugin_names
+
+    else:
+        return plugin.strip()
 
 
 def parse_plugin_options(plugin_options_str):
@@ -364,27 +397,48 @@ def get_plugin_variants(plugin_module, plugin_option):
 
 
 def apply_plugin(
-    plugin_name, plugin_module, text, exclude_patterns=None, plugin_option=None
+    plugin_name, plugin_module, text, exclude_patterns=None, plugin_option_map=None
 ):
     """
     Applies a plugin module's transform function to the given text if available.
     """
 
-    if hasattr(plugin_module, "transform"):
-        # Check if the plugin's transform function accepts plugin_option parameter
+    plugins = []
 
-        sig = inspect.signature(plugin_module.transform)
-        params = sig.parameters
+    if "~" in plugin_name:  # Handle plugin piping syntax
+        plugins.extend(plugin_module)
+    else:
+        plugins.append((plugin_name, plugin_module))
 
-        if "plugin_option" in params:
-            return plugin_module.transform(text, exclude_patterns, plugin_option)
+    text = [text]
+
+    for name, module in plugins:
+        new_text = []
+        if hasattr(module, "transform"):
+            # Check if the plugin's transform function accepts plugin_option parameter
+
+            sig = inspect.signature(module.transform)
+            params = sig.parameters
+
+            for t in text:
+
+                if "plugin_option" in params:
+                    res = module.transform(t, exclude_patterns, plugin_option_map.get(name) if plugin_option_map else None)
+                else:
+                    # Older plugin without plugin_option support
+                    res = module.transform(t, exclude_patterns)
+
+                if isinstance(res, str):
+                    new_text.append(res)
+                elif isinstance(res, list):
+                    new_text.extend(res)
+
+            text = new_text
+
         else:
-            # Older plugin without plugin_option support
-            return plugin_module.transform(text, exclude_patterns)
+            print(f"Plugin '{plugin_name}' does not have a 'transform' function.")
 
-    print(f"Plugin '{plugin_name}' does not have a 'transform' function.")
     return text
-
 
 # endregion
 
@@ -406,21 +460,32 @@ def process_standalone_attacks(
     plugin_variants = {}
     if plugins:
         for plugin_name, plugin_module in plugins:
-            plugin_option = (
-                plugin_options_map.get(plugin_name)
-                if plugin_options_map
-                else None
-            )
-            plugin_variants[plugin_name] = get_plugin_variants(plugin_module, plugin_option)
+            if "~" in plugin_name:  # Handle plugin pipes
+                sub_plugins = plugin_name.split("~")
+                total_variants = 1
+                for sub_plugin in sub_plugins:
+                    sub_plugin_option = (
+                        plugin_options_map.get(sub_plugin)
+                        if plugin_options_map
+                        else None
+                    )
+                    variants = get_plugin_variants(plugin_module[1], sub_plugin_option)
+                    total_variants *= variants
+                plugin_variants[plugin_name] = total_variants
+
+            else:
+                plugin_option = (
+                    plugin_options_map.get(plugin_name)
+                    if plugin_options_map
+                    else None
+                )
+                plugin_variants[plugin_name] = get_plugin_variants(plugin_module, plugin_option)
 
     total_entries = len(standalone_attacks) * (sum(plugin_variants.values() or [1]) + (1 if not plugin_only else 0))
-
-    print(f"\nStandalone Entry Breakdown: {total_entries} = ({len(standalone_attacks)} attacks * {sum(plugin_variants.values() or [1]) + (1 if not plugin_only else 0)} plugin variations)\n")
-
     bar_standalone = tqdm(
         total=total_entries,
         desc="Standalone Attacks",
-        initial=0
+        initial=1
     )
 
     for attack in standalone_attacks:
@@ -468,13 +533,6 @@ def process_standalone_attacks(
         if plugins:
             for plugin_name, plugin_module in plugins:
                 try:
-                    # Get option for this specific plugin
-                    plugin_option = (
-                        plugin_options_map.get(plugin_name)
-                        if plugin_options_map
-                        else None
-                    )
-
                     # Convert exclude_patterns to a list if it's a string or None
                     exclude_list = []
                     if exclude_patterns:
@@ -489,7 +547,7 @@ def process_standalone_attacks(
                         plugin_module,
                         attack_text,
                         exclude_list,
-                        plugin_option,
+                        plugin_options_map,
                     )
 
                     # Ensure the result is a list of variations
@@ -537,6 +595,8 @@ def process_standalone_attacks(
                     print(
                         f"Warning: Plugin '{plugin_name}' failed for standalone attack '{attack['id']}': {e}"
                     )
+                    import traceback
+                    traceback.print_exc()
                     continue
 
     bar_standalone.close()
@@ -571,12 +631,26 @@ def generate_variations(
     plugin_variants = {}
     if plugins:
         for plugin_name, plugin_module in plugins:
-            plugin_option = (
-                plugin_options_map.get(plugin_name)
-                if plugin_options_map
-                else None
-            )
-            plugin_variants[plugin_name] = get_plugin_variants(plugin_module, plugin_option)
+            if "~" in plugin_name:  # Handle plugin pipes
+                sub_plugins = plugin_name.split("~")
+                total_variants = 1
+                for sub_plugin in sub_plugins:
+                    sub_plugin_option = (
+                        plugin_options_map.get(sub_plugin)
+                        if plugin_options_map
+                        else None
+                    )
+                    variants = get_plugin_variants(plugin_module[1], sub_plugin_option)
+                    total_variants *= variants
+                plugin_variants[plugin_name] = total_variants
+
+            else:
+                plugin_option = (
+                    plugin_options_map.get(plugin_name)
+                    if plugin_options_map
+                    else None
+                )
+                plugin_variants[plugin_name] = get_plugin_variants(plugin_module, plugin_option)
 
     total_entries = (
         len(base_docs)
@@ -586,18 +660,8 @@ def generate_variations(
         * len(injection_delimiters)
         * len(spotlighting_data_markers_list)
         * len(suffixes)
-        * (sum(plugin_variants.values() or [1]) + (1 if not plugin_only else 0))
+        * sum(plugin_variants.values() or [1]) + 1 if not plugin_only else 0
     )
-
-    # Print estimated total entries to be generated based on the lengths of the input lists and plugin variants
-    print(
-        f"Entry Breakdown: {total_entries} = {len(base_docs)} base docs * {len(jailbreaks)} jailbreaks " +
-        f"* {len(instructions)} instructions * {len(positions)} positions * {len(positions)} positions" +
-        f"* {len(injection_delimiters)} injection delimiters * {len(spotlighting_data_markers_list)} " +
-        f"spotlighting data markers * {len(suffixes)} suffixes * " +
-        f"{sum(plugin_variants.values() or [1]) + (1 if not plugin_only else 0)} plugin variations\n"
-    )
-
     bar_variations = tqdm(
         total=total_entries, desc="Variations", initial=0
     )
@@ -801,11 +865,6 @@ def generate_variations(
                                     bar_variations.update(len(spotlighting_data_markers_list))
                     # 2) Plugin entries
                     for plugin_name, plugin_module in plugins:
-                        plugin_option = (
-                            plugin_options_map.get(plugin_name)
-                            if plugin_options_map
-                            else None
-                        )
 
                         for suffix in suffixes:
                             # Get the transformed text(s) from the plugin.
@@ -814,7 +873,7 @@ def generate_variations(
                                 plugin_module,
                                 combined_text,
                                 local_exclude,
-                                plugin_option,
+                                plugin_options_map,
                             )
 
                             # Ensure the plugin result is a list of variations.
@@ -1194,3 +1253,38 @@ def generate_dataset(args):
     print_stats("Task Type", stats["by_task_type"])
     print_stats("Suffix ID", stats["by_suffix_id"])
     print_stats("Plugin ID", stats["by_plugin_id"])
+
+
+def generate_plugin(args):
+    text = args.input_string
+    exclude_patterns = args.exclude_patterns
+    iterations = int(args.iterations)
+
+    plugin_options_map = parse_plugin_options(args.plugin_options)
+    plugins = load_plugins(args.plugins)
+
+    if len(plugins) == 0:
+        print("No valid plugins found. Please check the plugin names and ensure they are in the correct directory.")
+        return
+
+    else:
+        print(f"Applying plugins: {[name for name, _ in plugins]} to input string: '{text}' with exclude patterns: {exclude_patterns}")
+
+    counter = 0
+    print("----------------------------------------------")
+    for plugin_name, module in plugins:
+
+        for _ in range(iterations):
+            output = apply_plugin(plugin_name, module, text, exclude_patterns, plugin_options_map)
+
+            if len(output) == 1:
+                print(f"{plugin_name}|{counter}: {output[0]}")
+
+            else:
+                print(f"{plugin_name}|{counter}:")
+                for variant in output:
+                    print(f"  - {variant}")
+
+            counter += 1
+
+            print("----------------------------------------------")
