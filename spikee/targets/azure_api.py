@@ -66,26 +66,23 @@ class AzureAPITarget(Target):
                 f"Unknown Azure deployment '{deployment}'. Valid options: {valid}"
             )
 
-        # Initialize the Azure Chat client
-        llm = AzureChatOpenAI(
-            azure_deployment=deployment,
-            api_version=os.getenv("API_VERSION", "2024-05-01-preview"),
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-        )
-
         # Build messages
         messages = []
         if system_message:
-            messages.append(("system", system_message))
-        messages.append(("user", input_text))
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": input_text})
 
         # Invoke model
         try:
-            ai_msg = llm.invoke(messages)
-            return ai_msg.content
+            import litellm
+            response = litellm.completion(
+                model=f"azure/{deployment}",
+                api_version=os.getenv("API_VERSION", "2024-05-01-preview"),
+                messages=messages,
+                temperature=0,
+                num_retries=2,
+            )
+            return response.choices[0].message.content
         except Exception as e:
             print(f"Error during Azure completion ({deployment}): {e}")
             raise

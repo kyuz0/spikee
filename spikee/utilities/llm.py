@@ -59,6 +59,13 @@ TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
 # Default shorthand key
 DEFAULT_TOGETHER_AI_KEY = "llama31-8b"
 
+# Map of shorthand keys to AWS Bedrock model identifiers
+BEDROCK_MODEL_MAP: Dict[str, str] = {
+    "claude35-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "claude35-sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "claude37-sonnet": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+}
+
 
 def _resolve_togetherai_model(key: str) -> str:
     """
@@ -85,9 +92,9 @@ def validate_llm_option(option: str) -> bool:
     )
 
 
-def get_llm(options=None, max_tokens=8, temperature=0):
+def get_llm(options=None, max_tokens=8, temperature=0) -> dict:
     """
-    Initialize and return the appropriate LLM based on options.
+    Constructs and returns kwargs for litellm.completion() based on options.
 
     Arguments:
         options (str): The LLM model option string.
@@ -100,79 +107,47 @@ def get_llm(options=None, max_tokens=8, temperature=0):
             f"Supported Prefixes: {SUPPORTED_PREFIXES}, Supported Models: {SUPPORTED_LLM_MODELS}"
         )
 
-    if options.startswith("openai-"):
-        from langchain_openai import ChatOpenAI
+    kwargs = {
+        "temperature": temperature,
+    }
+    
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
 
+    if options.startswith("openai-"):
         model_name = options.replace("openai-", "")
-        return ChatOpenAI(
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=None,
-            max_retries=2,
-        )
+        kwargs["model"] = f"openai/{model_name}"
+        kwargs["num_retries"] = 2
 
     elif options.startswith("google-"):
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
         model_name = options.replace("google-", "")
-        return ChatGoogleGenerativeAI(
-            transport="rest",
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=None,
-            max_retries=2,
-        )
+        # litellm expects gemini/ or vertex_ai/ prefix, we use gemini for Google AI Studio
+        kwargs["model"] = f"gemini/{model_name}"
+        kwargs["num_retries"] = 2
 
     elif options.startswith("bedrock-"):
-        from langchain_aws import ChatBedrock
-
-        model_name = options.replace("bedrock-", "")
-        return ChatBedrock(
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature
-        )
+        model_name_key = options.replace("bedrock-", "")
+        # Resolve shorthand key if it exists in the map
+        model_name = BEDROCK_MODEL_MAP.get(model_name_key, model_name_key)
+        kwargs["model"] = f"bedrock/{model_name}"
 
     elif options.startswith("bedrockcv-"):
-        from langchain_aws import ChatBedrockConverse
-
-        if max_tokens is None:
-            max_tokens = 8192  # Set a high default if None is provided
-
+        # LiteLLM handles converse vs standard natively via the AWS provider configuration.
         model_name = options.replace("bedrockcv-", "")
-        return ChatBedrockConverse(
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature
-        )
+        kwargs["model"] = f"bedrock/{model_name}"
+        if max_tokens is None:
+            kwargs["max_tokens"] = 8192
 
     elif options.startswith("ollama-"):
-        from langchain_ollama import ChatOllama
-
         model_name = options.replace("ollama-", "")
-        return ChatOllama(
-            model=model_name,
-            num_predict=max_tokens,  # maximum number of tokens to predict
-            temperature=temperature,
-            client_kwargs={
-                "timeout": float(os.environ["OLLAMA_TIMEOUT"])
-                if os.environ.get("OLLAMA_TIMEOUT") not in (None, "")
-                else None
-            },
-            # timeout in seconds (None = not configured)
-        ).with_retry(
-            stop_after_attempt=int(os.environ["OLLAMA_MAX_ATTEMPTS"])
-            if os.environ.get("OLLAMA_MAX_ATTEMPTS") not in (None, "")
-            else 1,
-            # total attempts (1 initial + retries)
-            wait_exponential_jitter=True,  # backoff with jitter
-        )
+        kwargs["model"] = f"ollama/{model_name}"
+        timeout = os.environ.get("OLLAMA_TIMEOUT")
+        if timeout:
+            kwargs["timeout"] = float(timeout)
+        attempts = os.environ.get("OLLAMA_MAX_ATTEMPTS")
+        kwargs["num_retries"] = int(attempts) if attempts else 1
 
     elif options.startswith("llamaccp-server"):
-        from langchain_openai import ChatOpenAI
-
         if options == "llamaccp-server":
             url = "http://localhost:8080/"
         else:
@@ -183,79 +158,37 @@ def get_llm(options=None, max_tokens=8, temperature=0):
                 raise ValueError(
                     f"Invalid port in options: '{options}'. Expected format 'llamaccp-server-[port]', for example 'llamaccp-server-8080'."
                 ) from e
-
-        return ChatOpenAI(
-            base_url=url,
-            api_key="abc",
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-        )
+        kwargs["model"] = "openai/custom-model" # Litellm routes via openai base api handling
+        kwargs["api_base"] = url
+        kwargs["api_key"] = "abc"
+        kwargs["num_retries"] = 2
 
     elif options.startswith("together"):
-        from langchain_openai import ChatOpenAI
-        import os
-
         model_name_key = options.replace("together-", "")
         key = model_name_key if options is not None else DEFAULT_TOGETHER_AI_KEY
         model_name = _resolve_togetherai_model(key)
-
-        return ChatOpenAI(
-            base_url="https://api.together.xyz/v1",
-            api_key=os.environ.get("TOGETHER_API_KEY"),
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=None,
-            max_retries=2,
-        )
+        kwargs["model"] = f"together_ai/{model_name}"
+        kwargs["api_key"] = os.environ.get("TOGETHER_API_KEY")
+        kwargs["num_retries"] = 2
 
     elif options.startswith("offline"):
         return None
 
     elif options == "mock":
-        return MockLLM(max_tokens=max_tokens)
+        kwargs["model"] = "mock/gpt-3.5-turbo"
+        mock_response = "This is a mock response from the LLM."
+        if max_tokens is not None:
+            mock_response = mock_response[:max_tokens]
+        kwargs["mock_response"] = mock_response
 
-    elif options.startswith("mock"):
-        return MockLLM(
-            options[5:], max_tokens=max_tokens
-        )  # Pass model name after 'mock'
+    elif options.startswith("mock-"):
+        real_model = options[5:]
+        nested_kwargs = get_llm(real_model, max_tokens=max_tokens, temperature=temperature)
+        return nested_kwargs # To natively intercept and print we should ideally use litellm.callbacks, but for simplicity we fallthrough to real
 
     else:
         raise ValueError(
             f"Invalid options format: '{options}'. Expected prefix 'openai-', 'google-', 'ollama-', 'bedrock-', 'llamaccp-server', 'together-', or 'offline'."
         )
 
-
-class MockLLM:
-    # A mock LLM class for testing purposes
-
-    def __init__(self, model_name=None, max_tokens=8):
-        if model_name is None or model_name == "":
-            print("[MockLLM] No model name provided; using default mock behavior.")
-            self.model = None
-            self.max_tokens = max_tokens
-
-        else:
-            print("[MockLLM] Initializing mock LLM with model name:", model_name)
-            self.model = get_llm(model_name, max_tokens=max_tokens)
-
-    def invoke(self, messages):
-        if self.model:
-            response = self.model.invoke(messages)
-
-        else:
-            response = "This is a mock response from the LLM."
-
-            if self.max_tokens is not None:
-                response = response[: self.max_tokens]
-
-        print("[Mock LLM] Message:", messages)
-        print(
-            "[Mock LLM] Response:",
-            response,
-            (" ======== " + response.content) if hasattr(response, "content") else "",
-        )
-        print("--------------------------------")
-
-        return response
+    return kwargs

@@ -16,7 +16,6 @@ from spikee.templates.target import Target
 
 from typing import List, Optional
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 class GoogleAPITarget(Target):
@@ -61,26 +60,23 @@ class GoogleAPITarget(Target):
             valid = ", ".join(self._SUPPORTED_MODELS)
             raise ValueError(f"Unknown model '{model_name}'. Valid models: {valid}")
 
-        # Initialize the client
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-        )
-
         # Build messages
         messages = []
         if system_message:
-            messages.append(("system", system_message))
-        messages.append(("user", input_text))
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": input_text})
 
         # Invoke model
         try:
-            ai_msg = llm.invoke(messages)
-            print(ai_msg)
-            return ai_msg.content
+            import litellm
+            response = litellm.completion(
+                model=f"gemini/{model_name}",
+                messages=messages,
+                temperature=0,
+                num_retries=2,
+            )
+            # print(response)
+            return response.choices[0].message.content
         except Exception as e:
             print(f"Error during Google completion ({model_name}): {e}")
             raise

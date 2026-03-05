@@ -65,11 +65,12 @@ class LLMJudgeOutputCriteria(LLMJudge):
             f"Answer strictly with '{token}' if it does NOT, 'YES' if it does."
         )
 
-        messages = [("system", system_message), ("user", user_prompt)]
+        messages = [{"role": "system", "content": system_message}, {"role": "user", "content": user_prompt}]
 
         try:
-            response = llm.invoke(messages)
-            answer = response.content.strip()
+            import litellm
+            response = litellm.completion(messages=messages, **llm)
+            answer = response.choices[0].message.content.strip()
             return token not in answer
         except Exception as e:
             print(f"Error during LLM judging: {e}")

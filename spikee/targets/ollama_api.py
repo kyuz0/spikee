@@ -74,34 +74,28 @@ class OllamaTarget(Target):
 
         model_name = key
 
-        # Initialize the Ollama client
-        llm = ChatOllama(
-            model=model_name,
-            num_predict=None,  # maximum number of tokens to predict
-            # timeout in seconds (None = not configured)
-            client_kwargs={
-                "timeout": float(os.environ["OLLAMA_TIMEOUT"])
-                if os.environ.get("OLLAMA_TIMEOUT") not in (None, "")
-                else None
-            },
-        ).with_retry(
-            # total attempts (1 initial + retries)
-            stop_after_attempt=int(os.environ["OLLAMA_MAX_ATTEMPTS"])
-            if os.environ.get("OLLAMA_MAX_ATTEMPTS") not in (None, "")
-            else 1,
-            wait_exponential_jitter=True,  # backoff with jitter
-        )
-
         # Build messages (no separate system role)
         prompt = input_text
         if system_message:
             prompt = f"{system_message}\n{input_text}"
-        messages = [("user", prompt)]
+        messages = [{"role": "user", "content": prompt}]
 
         # Invoke model
         try:
-            ai_msg = llm.invoke(messages)
-            return ai_msg.content
+            import litellm
+            kwargs = {
+                "model": f"ollama/{model_name}",
+                "messages": messages,
+            }
+            timeout = os.environ.get("OLLAMA_TIMEOUT")
+            if timeout not in (None, ""):
+                kwargs["timeout"] = float(timeout)
+            
+            attempts = os.environ.get("OLLAMA_MAX_ATTEMPTS")
+            kwargs["num_retries"] = int(attempts) if attempts not in (None, "") else 1
+
+            response = litellm.completion(**kwargs)
+            return response.choices[0].message.content
         except Exception as e:
             print(f"Error during Ollama completion ({model_name}): {e}")
             raise

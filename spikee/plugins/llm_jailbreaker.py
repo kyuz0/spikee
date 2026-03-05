@@ -60,9 +60,10 @@ class LLMJailbreaker(Plugin):
             else "No previous attempts yet.",
         )
 
-        # Call the model via .invoke and get content
-        response = llm.invoke(prompt)
-        res_text = response.content.strip()
+        import litellm
+        messages = [{"role": "user", "content": prompt}]
+        response = litellm.completion(messages=messages, **llm)
+        res_text = response.choices[0].message.content.strip()
 
         obj = extract_json_or_fail(res_text)
         attack_prompt = obj.get("attack_prompt", "")

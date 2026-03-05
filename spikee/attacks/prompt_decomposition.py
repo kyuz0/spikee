@@ -151,13 +151,14 @@ class PromptDecompositionAttack(Attack):
     """
 
         messages = [
-            ("system", system_message),
-            ("user", user_prompt),
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_prompt},
         ]
 
         try:
-            response = llm.invoke(messages)
-            raw_output = response.content.strip()
+            import litellm
+            response = litellm.completion(messages=messages, **llm)
+            raw_output = response.choices[0].message.content.strip()
 
             lines = raw_output.splitlines()
             variations = []
@@ -186,11 +187,11 @@ class PromptDecompositionAttack(Attack):
 
                 try:
                     additional_messages = [
-                        ("system", system_message),
-                        ("user", additional_prompt),
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": additional_prompt},
                     ]
-                    additional_response = llm.invoke(additional_messages)
-                    additional_output = additional_response.content.strip()
+                    additional_response = litellm.completion(messages=additional_messages, **llm)
+                    additional_output = additional_response.choices[0].message.content.strip()
 
                     for line in additional_output.splitlines():
                         try:

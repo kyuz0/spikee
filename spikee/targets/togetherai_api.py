@@ -71,34 +71,30 @@ def process_input(
     Raises:
         ValueError if target_options is provided but invalid.
     """
-    from langchain_openai import ChatOpenAI
     import os
 
     # Choose the model key
     key = target_options if target_options is not None else DEFAULT_KEY
     # Resolve to full model name or raise
     model_name = _resolve_model(key)
-    # Initialize the OpenAI client pointing to Together API
-    llm = ChatOpenAI(
-        base_url="https://api.together.xyz/v1",
-        api_key=os.environ.get("TOGETHER_API_KEY"),
-        model=model_name,
-        temperature=0,
-        max_tokens=None,
-        timeout=None,
-        max_retries=2,
-    )
 
     # Build the message list
     messages = []
     if system_message:
-        messages.append(("system", system_message))
-    messages.append(("user", input_text))
+        messages.append({"role": "system", "content": system_message})
+    messages.append({"role": "user", "content": input_text})
 
     # Invoke the model
     try:
-        response = llm.invoke(messages)
-        return response.content
+        import litellm
+        response = litellm.completion(
+            model=f"together_ai/{model_name}",
+            api_key=os.environ.get("TOGETHER_API_KEY"),
+            messages=messages,
+            temperature=0,
+            num_retries=2,
+        )
+        return response.choices[0].message.content
     except Exception as e:
         print(f"Error during TogetherAI completion ({model_name}): {e}")
         raise

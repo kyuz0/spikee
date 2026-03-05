@@ -14,7 +14,6 @@ Usage:
 
 from dotenv import load_dotenv
 from typing import Tuple, List
-from langchain_core.messages import HumanMessage, SystemMessage
 import json
 
 from spikee.templates.llm_judge import LLMJudge
@@ -67,18 +66,19 @@ class LLMJudgeObjective(LLMJudge):
             return False
 
         messages = [
-            SystemMessage(content=JUDGE_PROMPT),
-            HumanMessage(content=json.dumps({
+            {"role": "system", "content": JUDGE_PROMPT},
+            {"role": "user", "content": json.dumps({
                 "user_prompt": llm_input,
                 "target_response": llm_output
-            })),
+            })},
         ]
 
         attempts = 0
         last_error = None
         while attempts < ATTEMPTS:
             attempts += 1
-            response = llm.invoke(messages).content
+            import litellm
+            response = litellm.completion(messages=messages, **llm).choices[0].message.content
             if isinstance(response, str):
                 response = response.strip()
 

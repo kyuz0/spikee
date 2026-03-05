@@ -19,15 +19,15 @@ Exposed:
 from spikee.templates.target import Target
 
 from dotenv import load_dotenv
-from langchain_aws import ChatBedrock
 from typing import List, Dict, Optional
 
 
 class AWSBedrockTarget(Target):
     # Map shorthand keys to AWS Bedrock model identifiers
+    # We use US cross-region profiles to avoid capacity limits
     _OPTION_MAP: Dict[str, str] = {
         "claude35-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-        "claude35-sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "claude45-sonnet": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
         "claude37-sonnet": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
     }
 
@@ -60,22 +60,21 @@ class AWSBedrockTarget(Target):
 
         model_id = self._OPTION_MAP[key]
 
-        # Initialize Bedrock client
-        llm = ChatBedrock(
-            model_id=model_id,
-            model_kwargs={"temperature": 0},
-        )
-
         # Build messages
-        messages: List[tuple] = []
+        messages: List[Dict[str, str]] = []
         if system_message:
-            messages.append(("system", system_message))
-        messages.append(("user", input_text))
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": input_text})
 
         # Invoke model
         try:
-            ai_msg = llm.invoke(messages)
-            return ai_msg.content
+            import litellm
+            response = litellm.completion(
+                model=f"bedrock/{model_id}",
+                messages=messages,
+                temperature=0,
+            )
+            return response.choices[0].message.content
 
         except Exception as e:
             print(f"Error during AWS Bedrock completion ({model_id}): {e}")

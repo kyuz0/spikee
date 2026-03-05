@@ -19,7 +19,6 @@ from spikee.templates.target import Target
 
 import os
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 from typing import List, Dict, Optional
 
 
@@ -60,27 +59,24 @@ class DeepseekTarget(Target):
         # Resolve to actual model identifier
         model_name = self._OPTION_MAP[key]
 
-        # Initialize Deepseek client
-        llm = ChatOpenAI(
-            model=model_name,
-            openai_api_key=os.getenv("DEEPSEEK_API_KEY"),
-            openai_api_base="https://api.deepseek.com",
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-        )
-
         # Build messages
         messages = []
         if system_message:
-            messages.append(("system", system_message))
-        messages.append(("user", input_text))
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": input_text})
 
         # Invoke model
         try:
-            ai_msg = llm.invoke(messages)
-            return ai_msg.content
+            import litellm
+            response = litellm.completion(
+                model=f"deepseek/{model_name}",
+                api_key=os.getenv("DEEPSEEK_API_KEY"),
+                api_base="https://api.deepseek.com",
+                messages=messages,
+                temperature=0,
+                num_retries=2,
+            )
+            return response.choices[0].message.content
         except Exception as e:
             print(f"Error during Deepseek completion ({model_name}): {e}")
             raise

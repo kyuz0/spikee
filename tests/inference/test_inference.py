@@ -1,0 +1,145 @@
+import os
+import json
+import pytest
+from pathlib import Path
+
+# Require RUN_INFERENCE_TESTS environment variable to run these tests
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("RUN_INFERENCE_TESTS"),
+    reason="Run manually with RUN_INFERENCE_TESTS=1",
+)
+
+TARGET_MODEL_COMBINATIONS = [
+    # (Target Module, Model Option)
+    ("openai_api", "gpt-4o-mini"),
+    ("openai_api", "gpt-4o"),
+    ("google_api", "gemini-2.5-flash"),
+    ("groq_api", "llama-3.1-8b-instant"),
+    ("deepseek_api", "deepseek-v3"),
+    ("togetherai_api", "llama31-8b"),
+    ("aws_bedrock_api", "claude45-sonnet"),
+    # Add localized or other targets if needed (like ollama_api / llamacpp)
+]
+
+def write_single_entry(workspace_dir):
+    """Helper to write the single test entry to the workspace datasets folder."""
+    dataset_dir = workspace_dir / "datasets"
+    dataset_dir.mkdir(exist_ok=True)
+    dataset_file = dataset_dir / "single_entry_inf.jsonl"
+    entry = {
+         "id": 1,
+         "long_id": "inf-test-01",
+         "text": "What is the capital of France? Just tell me the city name, nothing else.",
+         "context": "",
+         "system_message": "",
+         "judge_name": "canary",
+         "judge_args": "test",
+         "tags": ["inference-test"]
+    }
+    with dataset_file.open("w", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    return dataset_file
+
+@pytest.mark.parametrize("target_name, model_name", TARGET_MODEL_COMBINATIONS)
+def test_inference_targets(run_spikee, workspace_dir, target_name, model_name):
+    """
+    Test live inference against built-in targets using the single-entry dataset.
+    """
+    dataset_file = write_single_entry(workspace_dir)
+    args = [
+        "test",
+        "--dataset",
+        str(dataset_file.relative_to(workspace_dir)),
+        "--target",
+        target_name,
+        "--target-options",
+        model_name,
+    ]
+    
+    import re
+    result = run_spikee(args, cwd=workspace_dir)
+
+    assert result.returncode == 0, f"spikee test failed for {target_name} ({model_name}). Stderr: {result.stderr}"
+    
+    # Verify the results file to ensure inference actually worked
+    match = re.search(r"saved to results/(results_[^\s]+\.jsonl)", result.stdout)
+    assert match is not None, "Results file not found in stdout. Execution may have failed."
+    
+    result_file = workspace_dir / "results" / match.group(1)
+    assert result_file.exists(), f"Result file missing: {result_file}"
+    
+    with result_file.open("r", encoding="utf-8") as f:
+        data = json.loads(f.readline().strip())
+    
+    # If the LLM call errored out (e.g., missing API key), the response will typically be missing or flag an error
+    response = data.get("response", "")
+    assert response, f"Empty or missing response from {target_name}. LLM call likely failed. Result data: {data}"
+
+
+ATTACK_MODEL_COMBINATIONS = [
+    # (Attack Module, Attack Option (Model))
+    ("llm_jailbreaker", "model=openai-gpt-4o-mini"),
+    ("llm_poetry_jailbreaker", "model=google-gemini-2.5-flash"),
+    ("llm_multi_language_jailbreaker", "model=groq-llama-3.1-8b-instant"),
+    ("rag_poisoner", "model=openai-gpt-4o-mini"),
+    ("crescendo", "model=openai-gpt-4o-mini"),
+    ("echo_chamber", "model=openai-gpt-4o-mini"),
+    ("echo_chamber", "model=bedrock-claude35-haiku"),
+    ("prompt_decomposition", "modes=openai-gpt-4o-mini;variants=2"), # prompt_decomposition uses 'modes' instead of 'model'
+]
+
+
+@pytest.mark.parametrize("attack_name, attack_options", ATTACK_MODEL_COMBINATIONS)
+def test_inference_attacks(run_spikee, workspace_dir, attack_name, attack_options):
+    """
+    Test live inference for LLM-powered attacks using a simple mock target ('always_refuse' loaded from functional workspaces).
+    This verifies that the attacks can successfully format and send litellm completion requests.
+    """
+    dataset_file = write_single_entry(workspace_dir)
+    target = "mock_multiturn" if attack_name in ("crescendo", "echo_chamber") else "always_refuse"
+    
+    args = [
+        "test",
+        "--dataset",
+        str(dataset_file.relative_to(workspace_dir)),
+        "--target",
+        target,
+        "--attack",
+        attack_name,
+        "--attack-options",
+        attack_options,
+        "--attack-iterations",
+        "2", # Just run 2 iterations to test connectivity
+    ]
+    
+    import re
+    result = run_spikee(args, cwd=workspace_dir)
+
+    assert result.returncode == 0, f"spikee test failed for attack {attack_name} ({attack_options}). Stderr: {result.stderr}"
+    
+    # Verify the results file to ensure attack LLM inference actually worked
+    match = re.search(r"saved to results/(results_[^\s]+\.jsonl)", result.stdout)
+    assert match is not None, "Results file not found in stdout. Execution may have failed."
+    
+    result_file = workspace_dir / "results" / match.group(1)
+    assert result_file.exists(), f"Result file missing: {result_file}"
+    
+    with result_file.open("r", encoding="utf-8") as f:
+        lines = f.readlines()
+        
+    assert len(lines) >= 2, f"Expected at least standard and attack entries, got {len(lines)} lines."
+    
+    # The last entry should represent the attack attempt if it reached that stage and errored, 
+    # or the final iteration. We verify the attack successfully produced an event. 
+    attack_data = json.loads(lines[-1].strip())
+    
+    # If the attack LLM generation fails (e.g missing API keys), the 'error' field will be populated
+    # with the caught litellm exception instead of None.
+    error_val = attack_data.get("error")
+    
+    # We consider the test passed if it succeeded (Error is None) OR if the LLM successfully connected
+    # but refused to generate the attack prompt (resulting in a JSON parse error from the refusal string).
+    is_success = error_val is None
+    is_refusal = error_val and "valid JSON object" in str(error_val)
+    
+    assert is_success or is_refusal, f"Attack LLM call failed. Error: {error_val}. Result data: {attack_data}"

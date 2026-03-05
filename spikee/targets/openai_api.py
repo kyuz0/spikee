@@ -16,7 +16,6 @@ Exposed:
 from spikee.templates.target import Target
 
 from typing import Optional, List, Dict, Tuple, Union
-from langchain_openai import ChatOpenAI
 
 
 class OpenAITarget(Target):
@@ -69,34 +68,34 @@ class OpenAITarget(Target):
             - (content, logprobs) if model supports logprobs
             - content otherwise
         """
+        import litellm
         model_id = self._resolve_model(target_options)
-        llm = ChatOpenAI(
-            model=model_id,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-        )
-        # attach logprobs when supported
-        if model_id in self._LOGPROBS_MODELS:
-            llm = llm.bind(logprobs=logprobs)
 
         # build messages
         if model_id in self._NO_SYSTEM_MODELS:
             prompt = input_text
             if system_message:
                 prompt = f"{system_message}\n{input_text}"
-            messages = [("user", prompt)]
+            messages = [{"role": "user", "content": prompt}]
         else:
             messages = []
             if system_message:
-                messages.append(("system", system_message))
-            messages.append(("user", input_text))
+                messages.append({"role": "system", "content": system_message})
+            messages.append({"role": "user", "content": input_text})
 
         try:
-            ai_msg = llm.invoke(messages)
-            if model_id in self._LOGPROBS_MODELS:
-                return ai_msg.content, ai_msg.response_metadata.get("logprobs")
-            return ai_msg.content
+            kwargs = {
+                "model": f"openai/{model_id}",
+                "num_retries": 2
+            }
+            if model_id in self._LOGPROBS_MODELS and logprobs:
+                kwargs["logprobs"] = True
+                kwargs["top_logprobs"] = 5
+
+            response = litellm.completion(messages=messages, **kwargs)
+            if model_id in self._LOGPROBS_MODELS and logprobs:
+                return response.choices[0].message.content, response.choices[0].logprobs
+            return response.choices[0].message.content
         except Exception as e:
             print(f"Error during OpenAI completion ({model_id}): {e}")
             raise

@@ -39,22 +39,21 @@ class LlamacppAPITarget(Target):
         """
         base_url = self.DEFAULT_BASE_URL if target_options is None else target_options
 
-        llm = ChatOpenAI(
-            base_url=base_url,
-            api_key="abc",
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-        )
-
         messages = []
         if system_message:
-            messages.append(("system", system_message))
-        messages.append(("user", input_text))
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": input_text})
 
         try:
-            ai_msg = llm.invoke(messages)
-            return ai_msg.content
+            import litellm
+            response = litellm.completion(
+                model="openai/custom-model",
+                api_base=base_url,
+                api_key="abc",
+                messages=messages,
+                num_retries=2,
+            )
+            return response.choices[0].message.content
         except Exception as e:
             print(f"Error during OpenAI completion: {e}")
             raise
