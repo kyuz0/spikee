@@ -22,6 +22,10 @@ SUPPORTED_PREFIXES = [
     "ollama-",
     "llamaccp-server-",
     "together-",
+    "groq-",
+    "deepseek-",
+    "openrouter-",
+    "azure-",
     "mock-",
 ]
 
@@ -163,12 +167,33 @@ def get_llm(options=None, max_tokens=8, temperature=0) -> dict:
         kwargs["api_key"] = "abc"
         kwargs["num_retries"] = 2
 
-    elif options.startswith("together"):
+    elif options.startswith("together-"):
         model_name_key = options.replace("together-", "")
         key = model_name_key if options is not None else DEFAULT_TOGETHER_AI_KEY
         model_name = _resolve_togetherai_model(key)
         kwargs["model"] = f"together_ai/{model_name}"
         kwargs["api_key"] = os.environ.get("TOGETHER_API_KEY")
+        kwargs["num_retries"] = 2
+
+    elif options.startswith("groq-"):
+        model_name = options.replace("groq-", "")
+        kwargs["model"] = f"groq/{model_name}"
+        kwargs["num_retries"] = 2
+
+    elif options.startswith("deepseek-"):
+        model_name = options.replace("deepseek-", "")
+        kwargs["model"] = f"deepseek/{model_name}"
+        kwargs["num_retries"] = 2
+
+    elif options.startswith("openrouter-"):
+        model_name = options.replace("openrouter-", "")
+        kwargs["model"] = f"openrouter/{model_name}"
+        kwargs["num_retries"] = 2
+
+    elif options.startswith("azure-"):
+        model_name = options.replace("azure-", "")
+        kwargs["model"] = f"azure/{model_name}"
+        kwargs["api_version"] = os.environ.get("API_VERSION", "2024-05-01-preview")
         kwargs["num_retries"] = 2
 
     elif options.startswith("offline"):

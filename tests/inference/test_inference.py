@@ -10,10 +10,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 TARGET_MODEL_COMBINATIONS = [
-    # (Target Module, Model Option)
+    # (Target Name, Target Option (Model Name))
     ("openai_api", "gpt-4o-mini"),
     ("openai_api", "gpt-4o"),
+    ("azure_api", "gpt-4o-mini"),
     ("google_api", "gemini-2.5-flash"),
+    ("openrouter_api", "meta-llama/llama-3.1-8b-instruct"),
     ("groq_api", "llama-3.1-8b-instant"),
     ("deepseek_api", "deepseek-v3"),
     ("togetherai_api", "llama31-8b"),
@@ -79,13 +81,26 @@ def test_inference_targets(run_spikee, workspace_dir, target_name, model_name):
 ATTACK_MODEL_COMBINATIONS = [
     # (Attack Module, Attack Option (Model))
     ("llm_jailbreaker", "model=openai-gpt-4o-mini"),
+    ("llm_jailbreaker", "model=azure-gpt-4o-mini"),
+
     ("llm_poetry_jailbreaker", "model=google-gemini-2.5-flash"),
+    ("llm_poetry_jailbreaker", "model=deepseek-deepseek-v3"),
+
     ("llm_multi_language_jailbreaker", "model=groq-llama-3.1-8b-instant"),
-    ("rag_poisoner", "model=openai-gpt-4o-mini"),
-    ("crescendo", "model=openai-gpt-4o-mini"),
-    ("echo_chamber", "model=openai-gpt-4o-mini"),
+    ("llm_multi_language_jailbreaker", "model=bedrock-claude35-haiku"),
+
+    ("rag_poisoner", "model=deepseek-deepseek-v3"),
+    ("rag_poisoner", "model=together-llama31-8b"),
+
+    ("crescendo", "model=together-llama31-8b"),
+    ("crescendo", "model=openrouter-meta-llama/llama-3.1-8b-instruct"),
+
+    ("echo_chamber", "model=openrouter-meta-llama/llama-3.1-8b-instruct"),
     ("echo_chamber", "model=bedrock-claude35-haiku"),
-    ("prompt_decomposition", "modes=openai-gpt-4o-mini;variants=2"), # prompt_decomposition uses 'modes' instead of 'model'
+    ("echo_chamber", "model=openai-gpt-4o-mini"),
+
+    ("prompt_decomposition", "modes=azure-gpt-4o-mini;variants=2"),
+    ("prompt_decomposition", "modes=google-gemini-2.5-flash;variants=2"),
 ]
 
 
@@ -138,8 +153,13 @@ def test_inference_attacks(run_spikee, workspace_dir, attack_name, attack_option
     error_val = attack_data.get("error")
     
     # We consider the test passed if it succeeded (Error is None) OR if the LLM successfully connected
-    # but refused to generate the attack prompt (resulting in a JSON parse error from the refusal string).
+    # but refused to generate the attack prompt. We check for a few common refusal formats.
     is_success = error_val is None
-    is_refusal = error_val and "valid JSON object" in str(error_val)
+    
+    # Common refusal indicators:
+    # 1. 'valid JSON object' - The model responded in plain text instead of requested JSON due to a guardrail/refusal.
+    # 2. 'refused to answer' - Some APIs (like OpenRouter) explicitly wrapper LLM refusals with this message.
+    error_str = str(error_val).lower() if error_val else ""
+    is_refusal = "valid json object" in error_str or "refused to answer" in error_str
     
     assert is_success or is_refusal, f"Attack LLM call failed. Error: {error_val}. Result data: {attack_data}"

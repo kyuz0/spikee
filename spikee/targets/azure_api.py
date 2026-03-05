@@ -18,7 +18,6 @@ from spikee.templates.target import Target
 
 import os
 from dotenv import load_dotenv
-from langchain_openai import AzureChatOpenAI
 from typing import List, Optional
 
 
