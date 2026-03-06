@@ -20,6 +20,7 @@ TARGET_MODEL_COMBINATIONS = [
     ("deepseek_api", "deepseek-v3"),
     ("togetherai_api", "llama31-8b"),
     ("aws_bedrock_api", "claude45-sonnet"),
+    ("openai_api", "invalid-model-name-123"),
     # Add localized or other targets if needed (like ollama_api / llamacpp)
 ]
 
@@ -29,6 +30,7 @@ JUDGE_MODEL_COMBINATIONS = [
     ("llm_judge_objective", "The capital is France.", "groq-llama-3.1-8b-instant"),
     ("llm_judge_output_criteria", '{"schema": {"type": "string", "maxLength": 10}}', "openrouter-meta-llama/llama-3.1-8b-instruct"),
     ("llm_judge_objective", "The capital is France.", "aws_bedrock-claude35-haiku"),
+    ("llm_judge_objective", "The capital is France.", "openai-invalid-model-name-123"),
 ]
 
 def write_single_entry(workspace_dir):
@@ -63,7 +65,6 @@ def write_judge_entry(workspace_dir, judge_name, judge_args, judge_options):
          "system_message": "",
          "judge_name": judge_name,
          "judge_args": judge_args,
-         "judge_options": judge_options,
          "tags": ["inference-test"]
     }
     with dataset_file.open("w", encoding="utf-8") as f:
@@ -101,6 +102,14 @@ def test_inference_targets(run_spikee, workspace_dir, target_name, model_name):
     with result_file.open("r", encoding="utf-8") as f:
         data = json.loads(f.readline().strip())
     
+    error_val = data.get("error")
+    
+    if "invalid-model-name-123" in model_name:
+        error_str = str(error_val) if error_val else str(data.get("response", ""))
+        is_invalid = "does not exist" in error_str or "NotFoundError" in error_str or "Unknown" in error_str
+        assert is_invalid, f"Expected a 'Not Found' or 'Unknown' error for invalid model {model_name}, but got: {error_str}. Result data: {data}"
+        return
+
     # If the LLM call errored out (e.g., missing API key), the response will typically be missing or flag an error
     response = data.get("response", "")
     assert response, f"Empty or missing response from {target_name}. LLM call likely failed. Result data: {data}"
@@ -129,6 +138,8 @@ ATTACK_MODEL_COMBINATIONS = [
 
     ("prompt_decomposition", "modes=azure-gpt-4o-mini;variants=2"),
     ("prompt_decomposition", "modes=google-gemini-2.5-flash;variants=2"),
+    
+    ("crescendo", "model=openai-invalid-model-name-123"),
 ]
 
 
@@ -180,6 +191,12 @@ def test_inference_attacks(run_spikee, workspace_dir, attack_name, attack_option
     # with the caught litellm exception instead of None.
     error_val = attack_data.get("error")
     
+    if "invalid-model-name-123" in attack_options:
+        error_str = str(error_val) if error_val else str(attack_data.get("response", ""))
+        is_invalid = "does not exist" in error_str or "NotFoundError" in error_str or "Unknown" in error_str
+        assert is_invalid, f"Expected a 'Not Found' or 'Unknown' error for invalid model {attack_options}, but got: {error_str}. Result data: {attack_data}"
+        return
+    
     # We consider the test passed if it succeeded (Error is None) OR if the LLM successfully connected
     # but refused to generate the attack prompt. We check for a few common refusal formats.
     is_success = error_val is None
@@ -205,7 +222,9 @@ def test_inference_llm_judges(run_spikee, workspace_dir, judge_name, judge_args,
         "--dataset",
         str(dataset_file.relative_to(workspace_dir)),
         "--target",
-        "always_refuse"
+        "always_refuse",
+        "--judge-options",
+        judge_options
     ]
     
     import re
@@ -222,6 +241,13 @@ def test_inference_llm_judges(run_spikee, workspace_dir, judge_name, judge_args,
         result_data = json.loads(f.readline().strip())
         
     error_val = result_data.get("error")
+    
+    if "invalid-model-name-123" in judge_options:
+        error_str = str(error_val) if error_val else str(result_data.get("response", ""))
+        is_invalid = "does not exist" in error_str or "NotFoundError" in error_str or "Unknown" in error_str
+        assert is_invalid, f"Expected a 'Not Found' or 'Unknown' error for invalid model {judge_options}, but got: {error_str}. Result data: {result_data}"
+        return
+        
     # For a judge inference test, we just want to ensure the LLM successfully connected 
     # and evaluated without crashing or returning an error string in the results.
     assert error_val is None, f"LLM Judge call failed. Error: {error_val}. Result data: {result_data}"
