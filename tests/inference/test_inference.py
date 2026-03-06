@@ -23,6 +23,14 @@ TARGET_MODEL_COMBINATIONS = [
     # Add localized or other targets if needed (like ollama_api / llamacpp)
 ]
 
+JUDGE_MODEL_COMBINATIONS = [
+    # (Judge Name, Judge Args, Judge Options (LLM Model))
+    ("llm_judge_harmful", "", "openai-gpt-4o-mini"),
+    ("llm_judge_objective", "The capital is France.", "groq-llama-3.1-8b-instant"),
+    ("llm_judge_output_criteria", '{"schema": {"type": "string", "maxLength": 10}}', "openrouter-meta-llama/llama-3.1-8b-instruct"),
+    ("llm_judge_objective", "The capital is France.", "aws_bedrock-claude35-haiku"),
+]
+
 def write_single_entry(workspace_dir):
     """Helper to write the single test entry to the workspace datasets folder."""
     dataset_dir = workspace_dir / "datasets"
@@ -36,6 +44,26 @@ def write_single_entry(workspace_dir):
          "system_message": "",
          "judge_name": "canary",
          "judge_args": "test",
+         "tags": ["inference-test"]
+    }
+    with dataset_file.open("w", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    return dataset_file
+
+def write_judge_entry(workspace_dir, judge_name, judge_args, judge_options):
+    """Helper to write a test entry for a specific LLM judge."""
+    dataset_dir = workspace_dir / "datasets"
+    dataset_dir.mkdir(exist_ok=True)
+    dataset_file = dataset_dir / "judge_entry_inf.jsonl"
+    entry = {
+         "id": 1,
+         "long_id": "inf-judge-test-01",
+         "text": "What is the capital of France?",
+         "context": "",
+         "system_message": "",
+         "judge_name": judge_name,
+         "judge_args": judge_args,
+         "judge_options": judge_options,
          "tags": ["inference-test"]
     }
     with dataset_file.open("w", encoding="utf-8") as f:
@@ -163,3 +191,38 @@ def test_inference_attacks(run_spikee, workspace_dir, attack_name, attack_option
     is_refusal = "valid json object" in error_str or "refused to answer" in error_str
     
     assert is_success or is_refusal, f"Attack LLM call failed. Error: {error_val}. Result data: {attack_data}"
+
+@pytest.mark.parametrize("judge_name, judge_args, judge_options", JUDGE_MODEL_COMBINATIONS)
+def test_inference_llm_judges(run_spikee, workspace_dir, judge_name, judge_args, judge_options):
+    """
+    Test live inference for LLM-based judges.
+    """
+    dataset_file = write_judge_entry(workspace_dir, judge_name, judge_args, judge_options)
+    
+    # "always_refuse" provides clean predictable text back to the judge
+    args = [
+        "test",
+        "--dataset",
+        str(dataset_file.relative_to(workspace_dir)),
+        "--target",
+        "always_refuse"
+    ]
+    
+    import re
+    result = run_spikee(args, cwd=workspace_dir)
+    
+    assert result.returncode == 0, f"spikee test failed for judge {judge_name} ({judge_options}). Stderr: {result.stderr}"
+    
+    match = re.search(r"saved to results/(results_[^\s]+\.jsonl)", result.stdout)
+    assert match is not None, "Results file not found in stdout. Execution may have failed."
+    
+    result_file = workspace_dir / "results" / match.group(1)
+    
+    with result_file.open("r", encoding="utf-8") as f:
+        result_data = json.loads(f.readline().strip())
+        
+    error_val = result_data.get("error")
+    # For a judge inference test, we just want to ensure the LLM successfully connected 
+    # and evaluated without crashing or returning an error string in the results.
+    assert error_val is None, f"LLM Judge call failed. Error: {error_val}. Result data: {result_data}"
+
