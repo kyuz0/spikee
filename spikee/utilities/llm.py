@@ -85,7 +85,7 @@ def validate_llm_option(option: str) -> bool:
     )
 
 
-def get_llm(options=None, max_tokens=8, temperature=0):
+def get_llm(options: str = "", max_tokens: int = 8, temperature: float = 0):
     """
     Initialize and return the appropriate LLM based on options.
 
@@ -117,7 +117,6 @@ def get_llm(options=None, max_tokens=8, temperature=0):
 
         model_name = options.replace("google-", "")
         return ChatGoogleGenerativeAI(
-            transport="rest",
             model=model_name,
             max_tokens=max_tokens,
             temperature=temperature,

@@ -207,6 +207,18 @@ def extract_results(args):
         args.result_file, args.result_folder, file_type="results"
     )
 
+    # Dataset-based extraction check
+    dataset_flag = args.dataset is not None
+    dataset_entries = {}
+    if dataset_flag:
+        if len(result_files) > 1:
+            print(
+                f"[Error] Dataset-based extraction cannot be used when analyzing multiple results. Currently selected {len(result_files)} results."
+            )
+            exit(1)
+
+        dataset_entries = {entry["id"]: entry for entry in read_jsonl_file(args.dataset)}
+
     # Category validation
     category = args.category or "success"
     if category not in [
@@ -252,16 +264,30 @@ def extract_results(args):
 
             if extract_entries(entry, category, custom_query):
                 id_count += 1
+                entry["original_id"] = entry["id"]
                 entry["id"] = id_count
                 entry["long_id"] = f"{entry['long_id']}_extracted_{source}"
                 matching_entries.append(entry)
 
     # Output File
     tag = validate_and_get_tag(args.tag)
-    output_file = prepare_output_file("results", "extract", category, None, tag)
 
     # Output matching results
-    write_jsonl_file(output_file, matching_entries)
+    if dataset_flag:
+        output_file = prepare_output_file("dataset", "extract", category, None, tag)
+
+        matching_dataset_entries = []
+
+        for entry in matching_entries:
+            entry_id = entry["original_id"]
+
+            if entry_id in dataset_entries:
+                matching_dataset_entries.append(dataset_entries[entry_id])
+
+        write_jsonl_file(output_file, matching_dataset_entries)
+    else:
+        output_file = prepare_output_file("results", "extract", category, None, tag)
+        write_jsonl_file(output_file, matching_entries)
     print(
         f"[Overview] Extracted {id_count} / {total_count} results to {output_file}. Extraction Rate: {round(id_count / total_count if total_count > 0 else 0, 2)}"
     )
