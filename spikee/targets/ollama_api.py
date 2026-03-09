@@ -13,7 +13,7 @@ Exposed:
 """
 
 from spikee.templates.target import Target
-from spikee.utilities.llm import get_llm
+from spikee.utilities.llm import get_llm, HumanMessage
 
 from typing import List, Optional
 from dotenv import load_dotenv
@@ -77,11 +77,11 @@ class OllamaTarget(Target):
         # Initialize the Ollama client
         llm = get_llm(f"ollama-{model_name}", max_tokens=None, temperature=0)
 
-        # Build messages (no separate system role)
+        # Build messages
         prompt = input_text
         if system_message:
             prompt = f"{system_message}\n{input_text}"
-        messages = [("user", prompt)]
+        messages = [HumanMessage(prompt)]
 
         # Invoke model
         try:

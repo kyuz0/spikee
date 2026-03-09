@@ -16,7 +16,7 @@ Exposed:
 
 
 from spikee.templates.target import Target
-from spikee.utilities.llm import get_llm
+from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage
 
 from typing import Optional, List, Dict, Tuple, Union
 
@@ -83,12 +83,12 @@ class OpenAITarget(Target):
             prompt = input_text
             if system_message:
                 prompt = f"{system_message}\n{input_text}"
-            messages = [("user", prompt)]
+            messages = [HumanMessage(prompt)]
         else:
             messages = []
             if system_message:
-                messages.append(("system", system_message))
-            messages.append(("user", input_text))
+                messages.append(SystemMessage(system_message))
+            messages.append(HumanMessage(input_text))
 
         try:
             ai_msg = llm.invoke(messages)

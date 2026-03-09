@@ -12,7 +12,7 @@ Exposed:
     process_input(input_text, system_message=None, target_options=None) -> response
 """
 
-from spikee.utilities.llm import get_llm
+from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage
 
 from typing import List, Dict
 from dotenv import load_dotenv
@@ -84,8 +84,8 @@ def process_input(
     # Build the message list
     messages = []
     if system_message:
-        messages.append(("system", system_message))
-    messages.append(("user", input_text))
+        messages.append(SystemMessage(system_message))
+    messages.append(HumanMessage(input_text))
 
     # Invoke the model
     try:

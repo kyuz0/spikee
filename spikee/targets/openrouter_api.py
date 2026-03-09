@@ -12,7 +12,7 @@ Exposed:
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
 from spikee.templates.target import Target
-from spikee.utilities.llm import get_llm
+from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage
 
 import os
 from dotenv import load_dotenv
@@ -58,8 +58,8 @@ class OpenRouterTarget(Target):
         # Build messages
         messages = []
         if system_message:
-            messages.append({"role": "system", "content": system_message})
-        messages.append({"role": "user", "content": input_text})
+            messages.append(SystemMessage(system_message))
+        messages.append(HumanMessage(input_text))
 
         # Invoke model
         return llm.invoke(messages, content_only=True).strip()

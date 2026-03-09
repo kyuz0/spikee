@@ -21,6 +21,8 @@ from spikee.utilities.enums import ModuleTag
 from spikee.utilities.llm import (
     get_llm,
     validate_llm_option,
+    HumanMessage,
+    SystemMessage
 )
 
 
@@ -151,8 +153,8 @@ class PromptDecompositionAttack(Attack):
     """
 
         messages = [
-            ("system", system_message),
-            ("user", user_prompt),
+            (SystemMessage(system_message)),
+            (HumanMessage(user_prompt)),
         ]
 
         try:
@@ -185,8 +187,8 @@ class PromptDecompositionAttack(Attack):
 
                 try:
                     additional_messages = [
-                        ("system", system_message),
-                        ("user", additional_prompt),
+                        SystemMessage(system_message),
+                        HumanMessage(additional_prompt),
                     ]
                     additional_response = llm.invoke(additional_messages, content_only=True).strip()
 

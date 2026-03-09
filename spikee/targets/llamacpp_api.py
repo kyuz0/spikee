@@ -15,7 +15,7 @@ Exposed:
 
 
 from spikee.templates.target import Target
-from spikee.utilities.llm import get_llm
+from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage
 
 from dotenv import load_dotenv
 from typing import Optional, List
@@ -44,8 +44,8 @@ class LlamacppAPITarget(Target):
 
         messages = []
         if system_message:
-            messages.append(("system", system_message))
-        messages.append(("user", input_text))
+            messages.append(SystemMessage(system_message))
+        messages.append(HumanMessage(input_text))
 
         try:
             return llm.invoke(messages, content_only=True)

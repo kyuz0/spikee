@@ -21,6 +21,8 @@ from spikee.utilities.enums import ModuleTag
 from spikee.utilities.llm import (
     get_llm,
     validate_llm_option,
+    SystemMessage, 
+    HumanMessage
 )
 
 
@@ -153,8 +155,8 @@ class PromptDecompositionPlugin(Plugin):
     """
 
         messages = [
-            ("system", system_message),
-            ("user", user_prompt),
+            SystemMessage(system_message),
+            HumanMessage(user_prompt),
         ]
 
         try:

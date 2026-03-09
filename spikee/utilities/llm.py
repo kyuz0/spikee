@@ -82,14 +82,56 @@ class LLMWrapper():
     def __init__(self, model_name, llm_lite_kwargs):
         self.model_name = model_name
         self.llm_lite_kwargs = llm_lite_kwargs
-        
+                
     def invoke(self, messages, content_only: bool = False):
-        response = litellm.completion(messages=messages, **self.llm_lite_kwargs)
+        
+        corrected_messages = []
+        for msg in messages:
+            if isinstance(msg, dict):
+                if ("role" in msg and "content" in msg):
+                    corrected_messages.append(msg)
+                else:
+                    raise ValueError(f"Invalid message format: {msg}. Each message dict must contain 'role' and 'content' keys.")
+
+            elif isinstance(msg, tuple) and len(msg) == 2:
+                role, content = msg
+                corrected_messages.append({"role": role, "content": content})
+            
+            elif isinstance(msg, Message) or isinstance(msg, SystemMessage) or isinstance(msg, HumanMessage) or isinstance(msg, AIMessage):
+                corrected_messages.append(msg.to_dict())
+            
+            else:
+                raise ValueError(f"Unsupported message format type: {type(msg)}.")
+        
+        response = litellm.completion( 
+            messages=corrected_messages,
+            **self.llm_lite_kwargs
+        )
         
         if content_only:
             return response.choices[0].message.content
         else:
             return response
+        
+class Message:
+    def __init__(self, role: str, content: str):
+        self.role = role
+        self.content = content
+        
+    def to_dict(self) -> Dict[str, str]:
+        return {"role": self.role, "content": self.content}
+        
+class SystemMessage(Message):
+    def __init__(self, content: str):
+        super().__init__("system", content)
+
+class HumanMessage(Message):
+    def __init__(self, content: str):
+        super().__init__("user", content)
+
+class AIMessage(Message):
+    def __init__(self, content: str):
+        super().__init__("assistant", content)
 
 class MockWrapper():
     def __init__(self, model_name: str, max_tokens: Union[int, None], temperature: float):
@@ -115,22 +157,15 @@ class MockWrapper():
         
         return response
 
-
 def validate_llm_option(option: str) -> bool:
     """
     Validate if the provided options correspond to a supported LLM model.
     """
-    if option is None:
-        raise ValueError(
-            "LLM option cannot be None, ensure than modules leveraging LLM utilities specify an LLM option."
-        )
-
     return option in SUPPORTED_LLM_MODELS or any(
         option.startswith(prefix) for prefix in SUPPORTED_PREFIXES
     )
 
-
-def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: float = 0, additional_kwargs = None) -> LLMWrapper:
+def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: float = 0, additional_kwargs = None) -> Union[LLMWrapper, MockWrapper]:
     """
     Returns an LLMWrapper.
 
@@ -210,7 +245,7 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
 
     elif options.startswith("together-"):
         model_name_key = options.replace("together-", "")
-        model_name = _resolve_model_map(key, TOGETHER_AI_MODEL_MAP)
+        model_name = _resolve_model_map(model_name_key, TOGETHER_AI_MODEL_MAP)
 
         kwargs["model"] = f"together_ai/{model_name}"
         kwargs["api_key"] = os.environ.get("TOGETHER_API_KEY")
@@ -238,7 +273,7 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
         kwargs["num_retries"] = 2
 
     elif options.startswith("offline"):
-        return LLMWrapper(model_name="offline", llm_instance=None)
+        return LLMWrapper(model_name="offline", llm_lite_kwargs=None)
 
     elif options == "mock":
         return MockWrapper(model_name="mock", max_tokens=max_tokens, temperature=temperature)
@@ -251,4 +286,5 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
             f"Invalid options format: '{options}' - review documentation for valid prefixes (e.g., 'bedrock-', 'google-', 'openai-')."
         )
 
-    return LLMWrapper(model_name=options, llm_lite_kwargs=kwargs)
+    model_name = kwargs.get("model")
+    return LLMWrapper(model_name=model_name, llm_lite_kwargs=kwargs)
