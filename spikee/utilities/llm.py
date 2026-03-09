@@ -82,6 +82,10 @@ class LLMWrapper():
     def __init__(self, model_name, llm_lite_kwargs):
         self.model_name = model_name
         self.llm_lite_kwargs = llm_lite_kwargs
+        
+        
+        if self.llm_lite_kwargs is None:
+            raise ValueError("LLMWrapper requires llm_lite_kwargs cannot be None.")
                 
     def invoke(self, messages, content_only: bool = False):
         
@@ -273,7 +277,7 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
         kwargs["num_retries"] = 2
 
     elif options.startswith("offline"):
-        return LLMWrapper(model_name="offline", llm_lite_kwargs=None)
+        return None
 
     elif options == "mock":
         return MockWrapper(model_name="mock", max_tokens=max_tokens, temperature=temperature)
