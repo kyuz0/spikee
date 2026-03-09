@@ -12,6 +12,8 @@ Exposed:
     process_input(input_text, system_message=None, target_options=None) -> response
 """
 
+from spikee.utilities.llm import get_llm
+
 from typing import List, Dict
 from dotenv import load_dotenv
 
@@ -71,30 +73,24 @@ def process_input(
     Raises:
         ValueError if target_options is provided but invalid.
     """
-    import os
 
     # Choose the model key
     key = target_options if target_options is not None else DEFAULT_KEY
     # Resolve to full model name or raise
     model_name = _resolve_model(key)
+    # Initialize the OpenAI client pointing to Together API
+    llm = get_llm(f"together-{model_name}", max_tokens=None, temperature=0)
 
     # Build the message list
     messages = []
     if system_message:
-        messages.append({"role": "system", "content": system_message})
-    messages.append({"role": "user", "content": input_text})
+        messages.append(("system", system_message))
+    messages.append(("user", input_text))
 
     # Invoke the model
     try:
-        import litellm
-        response = litellm.completion(
-            model=f"together_ai/{model_name}",
-            api_key=os.environ.get("TOGETHER_API_KEY"),
-            messages=messages,
-            temperature=0,
-            num_retries=2,
-        )
-        return response.choices[0].message.content
+        response = llm.invoke(messages)
+        return response.content
     except Exception as e:
         print(f"Error during TogetherAI completion ({model_name}): {e}")
         raise

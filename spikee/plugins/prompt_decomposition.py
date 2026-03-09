@@ -153,16 +153,14 @@ class PromptDecompositionPlugin(Plugin):
     """
 
         messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_prompt},
+            ("system", system_message),
+            ("user", user_prompt),
         ]
 
         try:
-            import litellm
-            response = litellm.completion(messages=messages, **llm)
-            raw_output = response.choices[0].message.content.strip()
+            response = llm.invoke(messages, content_only=True).strip()
 
-            lines = raw_output.splitlines()
+            lines = response.splitlines()
             variations = []
 
             for line in lines:

@@ -1,7 +1,7 @@
-import boto3
-import json
-import os
+
 from dotenv import load_dotenv
+import os
+import boto3
 
 load_dotenv()
 
@@ -12,9 +12,7 @@ guardrail_id = os.getenv("AWS_GUARDRAIL_ID")
 
 
 def detect_prompt_injection_result(data):
-    # Example of Input Prompt being Analyzed
     content = [{"text": {"text": data}}]
-    # Call the ApplyGuardrail API
     try:
         response = bedrock_runtime.apply_guardrail(
             guardrailIdentifier=guardrail_id,
@@ -22,7 +20,6 @@ def detect_prompt_injection_result(data):
             source="INPUT",
             content=content,
         )
-
         # Check the action taken by the guardrail
         if response["action"] == "GUARDRAIL_INTERVENED":
             # Inspect assessments for the specific filter
@@ -36,32 +33,9 @@ def detect_prompt_injection_result(data):
                         and filter_entry.get("action") == "BLOCKED"
                     ):
                         return True  # Return True only if criteria are met
+            return True  # If action is intervened but not specifically blocked, still return True
     except Exception as e:
         print(f"An error occurred: {str(e)}")
-
-    return False  # Default to False if no valid result
-    # Example of Input Prompt being Analyzed
-    content = [{"text": {"text": data}}]
-    # Call the ApplyGuardrail API
-    try:
-        response = bedrock_runtime.apply_guardrail(
-            guardrailIdentifier=guardrail_id,
-            guardrailVersion="DRAFT",
-            source="INPUT",
-            content=content,
-        )
-
-        # Process the response
-        print("API Response:")
-        print(json.dumps(response, indent=2))
-
-        # Check the action taken by the guardrail
-        if response["action"] == "GUARDRAIL_INTERVENED":
-            return True
-
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-
     return False  # Default to False if no valid result
 
 

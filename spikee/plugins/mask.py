@@ -19,6 +19,7 @@ Options:
 """
 
 from typing import List, Tuple, Union
+from langchain.messages import SystemMessage, HumanMessage
 import json
 
 from spikee.templates.plugin import Plugin
@@ -82,18 +83,16 @@ class Shortener(Plugin):
         # Detect high-risk words
         payload = {"prompt": text}
 
-        import litellm
-        messages = [
-            {"role": "system", "content": MASK_PROMPT},
-            {"role": "user", "content": json.dumps(payload)}
-        ]
-        response = litellm.completion(messages=messages, **llm)
+        response = llm.invoke([
+            SystemMessage(content=MASK_PROMPT),
+            HumanMessage(content=json.dumps(payload))
+        ], content_only=True)
 
         risk_words = {}
         suffix = ""
 
         try:
-            response = extract_json_or_fail(response.choices[0].message.content)
+            response = extract_json_or_fail(response)
 
             for word in response.get("risk_words", []):
                 if word in text:

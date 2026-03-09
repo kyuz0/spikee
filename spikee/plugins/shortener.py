@@ -1,4 +1,5 @@
 from typing import List, Tuple, Union
+from langchain.messages import SystemMessage, HumanMessage
 import json
 
 from spikee.templates.plugin import Plugin
@@ -73,12 +74,10 @@ class Shortener(Plugin):
                 "excess_characters": "What the hell! Why are there " + str(max(0, length - max_length)) + " excess characters?"  # The text is critical to getting the LLM to listen, and avoid loops
             }
 
-            import litellm
-            messages = [
-                {"role": "system", "content": SHORTENER_PROMPT},
-                {"role": "user", "content": json.dumps(payload)}
-            ]
-            response = litellm.completion(messages=messages, **llm).choices[0].message.content
+            response = llm.invoke([
+                SystemMessage(content=SHORTENER_PROMPT),
+                HumanMessage(content=json.dumps(payload))
+            ], content_only=True)
 
             try:
                 response = extract_json_or_fail(response)

@@ -22,6 +22,7 @@ Exposed:
 """
 
 from spikee.templates.target import Target
+from spikee.utilities.llm import get_llm
 
 from dotenv import load_dotenv
 from typing import List, Optional
@@ -68,22 +69,19 @@ class GroqApiTarget(Target):
             valid = ", ".join(self._SUPPORTED_MODELS)
             raise ValueError(f"Unknown Groq model '{model_id}'. Valid models: {valid}")
 
+        # Initialize the ChatGroq client
+        llm = get_llm(f"groq-{model_id}", max_tokens=None, temperature=0)
+
         # Build messages
         messages = []
         if system_message:
-            messages.append({"role": "system", "content": system_message})
-        messages.append({"role": "user", "content": input_text})
+            messages.append(("system", system_message))
+        messages.append(("user", input_text))
 
         # Invoke model
         try:
-            import litellm
-            response = litellm.completion(
-                model=f"groq/{model_id}",
-                messages=messages,
-                temperature=0,
-                num_retries=2,
-            )
-            return response.choices[0].message.content
+            return llm.invoke(messages, content_only=True)
+        
         except Exception as e:
             print(f"Error during Groq completion ({model_id}): {e}")
             raise

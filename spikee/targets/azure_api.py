@@ -15,8 +15,8 @@ Exposed:
 """
 
 from spikee.templates.target import Target
+from spikee.utilities.llm import get_llm
 
-import os
 from dotenv import load_dotenv
 from typing import List, Optional
 
@@ -65,23 +65,19 @@ class AzureAPITarget(Target):
                 f"Unknown Azure deployment '{deployment}'. Valid options: {valid}"
             )
 
+        # Initialize the Azure Chat client
+        llm = get_llm(deployment, max_tokens=None, temperature=0)
+
         # Build messages
         messages = []
         if system_message:
-            messages.append({"role": "system", "content": system_message})
-        messages.append({"role": "user", "content": input_text})
+            messages.append(("system", system_message))
+        messages.append(("user", input_text))
 
         # Invoke model
         try:
-            import litellm
-            response = litellm.completion(
-                model=f"azure/{deployment}",
-                api_version=os.getenv("API_VERSION", "2024-05-01-preview"),
-                messages=messages,
-                temperature=0,
-                num_retries=2,
-            )
-            return response.choices[0].message.content
+            return llm.invoke(messages, content_only=True)
+        
         except Exception as e:
             print(f"Error during Azure completion ({deployment}): {e}")
             raise

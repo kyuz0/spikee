@@ -6,9 +6,9 @@ This attack implements the Echo Chamber attack, based on https://arxiv.org/pdf/2
 """
 
 import json
-import uuid
 from typing import Tuple, List, Union
-import logging
+import uuid
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from spikee.utilities.enums import ModuleTag, Turn
 from spikee.templates.attack import Attack
@@ -655,14 +655,13 @@ class EchoChamber(Attack):
         return ["max-turns=20", "stage-attempts=3"], True
 
 # region Echo Chamber Prompts
-    def _query_attacker_llm(self, llm, messages: List[dict], keys: List[str], refusal_query: bool = False) -> str:
+    def _query_attacker_llm(self, llm, messages: List[object], keys: List[str], refusal_query: bool = False) -> str:
         attempts = 0
         last_error = ""
         last_response = ""
-        import litellm
         while attempts < self.stage_attempts:
             attempts += 1
-            response = litellm.completion(messages=messages, **llm).choices[0].message.content
+            response = llm.invoke(messages, content_only=True)
             if isinstance(response, str):
                 response = response.strip()
 
@@ -690,8 +689,8 @@ class EchoChamber(Attack):
     def get_targeted_objective(self, llm, objective: str) -> str:
         """Obtain a covert targeted objective from the LLM based on the original objective."""
         messages = [
-            {"role": "system", "content": ECHO_CHAMBER_TARGETED_OBJECTIVE_PROMPT},
-            {"role": "user", "content": json.dumps({"question": objective.strip()})},
+            SystemMessage(content=ECHO_CHAMBER_TARGETED_OBJECTIVE_PROMPT),
+            HumanMessage(content=json.dumps({"question": objective.strip()})),
         ]
 
         targeted_objective = self._query_attacker_llm(llm, messages, ["objective"]).get("objective", None)
@@ -710,8 +709,8 @@ Select alternative words that capture similar meaning but are not in the exclude
 """
 
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": json.dumps({"text": objective.strip()})},
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=json.dumps({"text": objective.strip()})),
         ]
 
         keywords = self._query_attacker_llm(llm, messages, ["keywords"]).get("keywords", None)
@@ -724,8 +723,8 @@ Select alternative words that capture similar meaning but are not in the exclude
     def choose_seed_sentence(self, llm, objective: str, seed_sentences: str) -> str:
         """Choose the best seed sentence from the list using the LLM."""
         messages = [
-            {"role": "system", "content": ECHO_CHAMBER_PICK_SEED_PROMPT},
-            {"role": "user", "content": json.dumps({"objective": objective, "seed_sentences": seed_sentences})},
+            SystemMessage(content=ECHO_CHAMBER_PICK_SEED_PROMPT),
+            HumanMessage(content=json.dumps({"objective": objective, "seed_sentences": seed_sentences})),
         ]
 
         response = self._query_attacker_llm(llm, messages, ["order", "explanation"])
@@ -738,8 +737,8 @@ Select alternative words that capture similar meaning but are not in the exclude
     def evaluate_success(self, llm, objective: str, response: str) -> bool:
         """Evaluate if the LLM's response meets the objective."""
         messages = [
-            {"role": "system", "content": ECHO_CHAMBER_OBJECTIVE_EVAL_PROMPT},
-            {"role": "user", "content": json.dumps({"objective": objective, "response": response})},
+            SystemMessage(content=ECHO_CHAMBER_OBJECTIVE_EVAL_PROMPT),
+            HumanMessage(content=json.dumps({"objective": objective, "response": response})),
         ]
 
         results = self._query_attacker_llm(llm, messages, ["objective_reached", "confidence_level", "reasoning"])
@@ -757,21 +756,22 @@ Select alternative words that capture similar meaning but are not in the exclude
             system_prompt = None
             query = None
 
-            for msg in question:
-                if msg.get("role") == "system":
-                    system_prompt = msg.get("content")
-                elif msg.get("role") == "user":
-                    query = msg.get("content")
+            for query in question:
+                if isinstance(query, SystemMessage):
+                    system_prompt = query.content
+
+                elif isinstance(query, HumanMessage):
+                    query = query.content
 
             messages = [
-                {"role": "system", "content": ECHO_CHAMBER_REFUSAL_SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps({"system_prompt": system_prompt, "query": query, "response": response})},
+                SystemMessage(content=ECHO_CHAMBER_REFUSAL_SYSTEM_PROMPT),
+                HumanMessage(content=json.dumps({"system_prompt": system_prompt, "query": query, "response": response})),
             ]
 
         else:
             messages = [
-                {"role": "system", "content": ECHO_CHAMBER_REFUSAL_EVAL_PROMPT},
-                {"role": "user", "content": json.dumps({"question": question, "response": response})},
+                SystemMessage(content=ECHO_CHAMBER_REFUSAL_EVAL_PROMPT),
+                HumanMessage(content=json.dumps({"question": question, "response": response})),
             ]
 
         results = self._query_attacker_llm(llm, messages, ["answered", "explanation"], refusal_query=True)
@@ -783,8 +783,8 @@ Select alternative words that capture similar meaning but are not in the exclude
 
     def evaluate_seed_alignment(self, llm, objective: str, keywords: List[str], seed_sentences: List[str]) -> bool:
         messages = [
-            {"role": "system", "content": ECHO_CHAMBER_SEED_ALIGNMENT_EVAL_PROMPT},
-            {"role": "user", "content": json.dumps({"objective": objective, "keywords": keywords, "seed_sentences": seed_sentences})},
+            SystemMessage(content=ECHO_CHAMBER_SEED_ALIGNMENT_EVAL_PROMPT),
+            HumanMessage(content=json.dumps({"objective": objective, "keywords": keywords, "seed_sentences": seed_sentences})),
         ]
 
         results = self._query_attacker_llm(llm, messages, ["answered", "explanation"])
@@ -818,8 +818,8 @@ Select alternative words that capture similar meaning but are not in the exclude
 
         # Generate Question
         messages = [
-            {"role": "system", "content": ECHO_CHAMBER_SYSTEM_PROMPT},
-            {"role": "user", "content": ECHO_CHAMBER_INPUT_TEMPLATE.format(objective=objective, turns=turns, remaining_turns=remaining_turns)},
+            SystemMessage(content=ECHO_CHAMBER_SYSTEM_PROMPT),
+            HumanMessage(content=ECHO_CHAMBER_INPUT_TEMPLATE.format(objective=objective, turns=turns, remaining_turns=remaining_turns)),
         ]
 
         question = self._query_attacker_llm(llm, messages, ["next_attacker"]).get("next_attacker", None)

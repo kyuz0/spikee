@@ -151,16 +151,14 @@ class PromptDecompositionAttack(Attack):
     """
 
         messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_prompt},
+            ("system", system_message),
+            ("user", user_prompt),
         ]
 
         try:
-            import litellm
-            response = litellm.completion(messages=messages, **llm)
-            raw_output = response.choices[0].message.content.strip()
+            response = llm.invoke(messages, content_only=True).strip()
 
-            lines = raw_output.splitlines()
+            lines = response.splitlines()
             variations = []
 
             for line in lines:
@@ -187,13 +185,12 @@ class PromptDecompositionAttack(Attack):
 
                 try:
                     additional_messages = [
-                        {"role": "system", "content": system_message},
-                        {"role": "user", "content": additional_prompt},
+                        ("system", system_message),
+                        ("user", additional_prompt),
                     ]
-                    additional_response = litellm.completion(messages=additional_messages, **llm)
-                    additional_output = additional_response.choices[0].message.content.strip()
+                    additional_response = llm.invoke(additional_messages, content_only=True).strip()
 
-                    for line in additional_output.splitlines():
+                    for line in additional_response.splitlines():
                         try:
                             data = json.loads(line)
                             if "variation" in data:

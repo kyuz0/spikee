@@ -102,12 +102,10 @@ class LLMMultiLanguageJailbreaker(Plugin):
             "{{attempted_langs}}", ", ".join(attempted_langs) if attempted_langs else "None"
         )
 
-        import litellm
-        messages = [{"role": "user", "content": prompt}]
-        response = litellm.completion(messages=messages, **llm)
-        res_text = response.choices[0].message.content.strip()
+        # call the model via .invoke
+        response = llm.invoke(prompt, content_only=True).strip()
 
-        obj = extract_json_or_fail(res_text)
+        obj = extract_json_or_fail(response)
         attack_prompt = obj.get("attack_prompt", "")
         if not attack_prompt:
             raise RuntimeError("LLM failed to produce an attack prompt")

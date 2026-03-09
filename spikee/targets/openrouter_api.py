@@ -11,9 +11,10 @@ Exposed:
     get_available_option_values() -> list of supported model IDs (default marked)
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
+from spikee.templates.target import Target
+from spikee.utilities.llm import get_llm
 
 import os
-from spikee.templates.target import Target
 from dotenv import load_dotenv
 from typing import List, Optional
 
@@ -51,6 +52,8 @@ class OpenRouterTarget(Target):
         model_name = (
             target_options if target_options is not None else self.DEFAULT_MODEL
         )
+        
+        llm = get_llm(f"openrouter-{model_name}", max_tokens=None, temperature=0)
 
         # Build messages
         messages = []
@@ -59,20 +62,7 @@ class OpenRouterTarget(Target):
         messages.append({"role": "user", "content": input_text})
 
         # Invoke model
-        try:
-            import litellm
-
-            response = litellm.completion(
-                model=f"openrouter/{model_name}",
-                api_key=os.environ.get("OPENROUTER_API_KEY"),
-                messages=messages,
-                temperature=0,
-                num_retries=2,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"Error during OpenRouter completion ({model_name}): {e}")
-            raise
+        return llm.invoke(messages, content_only=True).strip()
 
 if __name__ == "__main__":
     target = OpenRouterTarget()

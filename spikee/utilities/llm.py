@@ -1,13 +1,9 @@
-from typing import Dict, List
-
+from typing import Dict, List, Any, Union
 import os
+import json
+import litellm
 
-EXAMPLE_LLM_MODELS = [
-    "openai-gpt-4.1-mini",
-    "openai-gpt-4o",
-    "offline",
-]
-
+# region LLM Models/Prefixes
 SUPPORTED_LLM_MODELS = [
     "llamaccp-server",
     "offline",
@@ -30,11 +26,6 @@ SUPPORTED_PREFIXES = [
 ]
 
 
-def get_example_llm_models() -> List[str]:
-    """Return the list of example LLM models."""
-    return EXAMPLE_LLM_MODELS
-
-
 def get_supported_llm_models() -> List[str]:
     """Return the list of supported LLM models."""
     return SUPPORTED_LLM_MODELS
@@ -44,7 +35,10 @@ def get_supported_prefixes() -> List[str]:
     """Return the list of supported LLM model prefixes."""
     return SUPPORTED_PREFIXES
 
+# endregion
 
+
+# region LLM Model Maps
 # Map of shorthand keys to TogetherAI model identifiers
 TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
     "gemma2-8b": "google/gemma-2-9b-it",
@@ -60,26 +54,66 @@ TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
     "qwen3-235b-fp8": "Qwen/Qwen3-235B-A22B-fp8-tput",
 }
 
-# Default shorthand key
-DEFAULT_TOGETHER_AI_KEY = "llama31-8b"
-
 # Map of shorthand keys to AWS Bedrock model identifiers
 BEDROCK_MODEL_MAP: Dict[str, str] = {
     "claude35-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "claude45-haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     "claude35-sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
     "claude37-sonnet": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
 }
 
 
-def _resolve_togetherai_model(key: str) -> str:
+def _resolve_model_map(key: str, model_map: Dict[str, str]) -> str:
     """
     Convert a shorthand key to the full model identifier.
-    Raises ValueError for unknown keys.
     """
-    if key not in TOGETHER_AI_MODEL_MAP:
-        valid = ", ".join(TOGETHER_AI_MODEL_MAP.keys())
-        raise ValueError(f"Unknown model key '{key}'. Valid keys: {valid}")
-    return TOGETHER_AI_MODEL_MAP[key]
+    if key in model_map:
+        return model_map[key]
+
+    return key
+# endregion
+
+
+class LLMWrapper():
+    """
+    A wrapper class for LLM instances that provides a consistent interface and can be extended with additional functionality.
+    """
+
+    def __init__(self, model_name, llm_lite_kwargs):
+        self.model_name = model_name
+        self.llm_lite_kwargs = llm_lite_kwargs
+        
+    def invoke(self, messages, content_only: bool = False):
+        response = litellm.completion(messages=messages, **self.llm_lite_kwargs)
+        
+        if content_only:
+            return response.choices[0].message.content
+        else:
+            return response
+
+class MockWrapper():
+    def __init__(self, model_name: str, max_tokens: Union[int, None], temperature: float):
+        self.model_name = model_name
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        
+        if self.model_name != "mock":
+            self._llm = get_llm(model_name, max_tokens=max_tokens, temperature=temperature)
+        
+    def invoke(self, messages):
+        if self.model_name == "mock":
+            response = "This is a mock response from the LLM."
+            
+            if self.max_tokens is not None:
+                response = response[:self.max_tokens]
+        else:
+            response = self._llm.invoke(messages)
+            
+        print("[Mock LLM] Message:", messages)
+        print("[Mock LLM] Response:", response)
+        print("--------------------------------")
+        
+        return response
 
 
 def validate_llm_option(option: str) -> bool:
@@ -96,9 +130,9 @@ def validate_llm_option(option: str) -> bool:
     )
 
 
-def get_llm(options=None, max_tokens=8, temperature=0) -> dict:
+def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: float = 0, additional_kwargs = None) -> LLMWrapper:
     """
-    Constructs and returns kwargs for litellm.completion() based on options.
+    Returns an LLMWrapper.
 
     Arguments:
         options (str): The LLM model option string.
@@ -111,40 +145,46 @@ def get_llm(options=None, max_tokens=8, temperature=0) -> dict:
             f"Supported Prefixes: {SUPPORTED_PREFIXES}, Supported Models: {SUPPORTED_LLM_MODELS}"
         )
 
-    kwargs = {
+    # Configure default kwargs
+    kwargs: Dict[str, Any] = {
         "temperature": temperature,
     }
-    
+
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
+        
+    if additional_kwargs:
+        kwargs.update(additional_kwargs)
 
+    # Model specific kwargs
     if options.startswith("openai-"):
         model_name = options.replace("openai-", "")
         kwargs["model"] = f"openai/{model_name}"
         kwargs["num_retries"] = 2
 
     elif options.startswith("google-"):
-        model_name = options.replace("google-", "")
         # litellm expects gemini/ or vertex_ai/ prefix, we use gemini for Google AI Studio
+        model_name = options.replace("google-", "")
         kwargs["model"] = f"gemini/{model_name}"
         kwargs["num_retries"] = 2
 
     elif options.startswith("bedrock-"):
         model_name_key = options.replace("bedrock-", "")
-        # Resolve shorthand key if it exists in the map
-        model_name = BEDROCK_MODEL_MAP.get(model_name_key, model_name_key)
+        model_name = _resolve_model_map(model_name_key, BEDROCK_MODEL_MAP)
         kwargs["model"] = f"bedrock/{model_name}"
 
     elif options.startswith("bedrockcv-"):
         # LiteLLM handles converse vs standard natively via the AWS provider configuration.
         model_name = options.replace("bedrockcv-", "")
         kwargs["model"] = f"bedrock/{model_name}"
+
         if max_tokens is None:
             kwargs["max_tokens"] = 8192
 
     elif options.startswith("ollama-"):
         model_name = options.replace("ollama-", "")
         kwargs["model"] = f"ollama/{model_name}"
+
         timeout = os.environ.get("OLLAMA_TIMEOUT")
         if timeout:
             kwargs["timeout"] = float(timeout)
@@ -162,15 +202,16 @@ def get_llm(options=None, max_tokens=8, temperature=0) -> dict:
                 raise ValueError(
                     f"Invalid port in options: '{options}'. Expected format 'llamaccp-server-[port]', for example 'llamaccp-server-8080'."
                 ) from e
-        kwargs["model"] = "openai/custom-model" # Litellm routes via openai base api handling
+
+        kwargs["model"] = "openai/custom-model"  # Litellm routes via openai base api handling
         kwargs["api_base"] = url
         kwargs["api_key"] = "abc"
         kwargs["num_retries"] = 2
 
     elif options.startswith("together-"):
         model_name_key = options.replace("together-", "")
-        key = model_name_key if options is not None else DEFAULT_TOGETHER_AI_KEY
-        model_name = _resolve_togetherai_model(key)
+        model_name = _resolve_model_map(key, TOGETHER_AI_MODEL_MAP)
+
         kwargs["model"] = f"together_ai/{model_name}"
         kwargs["api_key"] = os.environ.get("TOGETHER_API_KEY")
         kwargs["num_retries"] = 2
@@ -197,23 +238,17 @@ def get_llm(options=None, max_tokens=8, temperature=0) -> dict:
         kwargs["num_retries"] = 2
 
     elif options.startswith("offline"):
-        return None
+        return LLMWrapper(model_name="offline", llm_instance=None)
 
     elif options == "mock":
-        kwargs["model"] = "mock/gpt-3.5-turbo"
-        mock_response = "This is a mock response from the LLM."
-        if max_tokens is not None:
-            mock_response = mock_response[:max_tokens]
-        kwargs["mock_response"] = mock_response
+        return MockWrapper(model_name="mock", max_tokens=max_tokens, temperature=temperature)
 
     elif options.startswith("mock-"):
-        real_model = options[5:]
-        nested_kwargs = get_llm(real_model, max_tokens=max_tokens, temperature=temperature)
-        return nested_kwargs # To natively intercept and print we should ideally use litellm.callbacks, but for simplicity we fallthrough to real
+        return MockWrapper(model_name=options, max_tokens=max_tokens, temperature=temperature)
 
     else:
         raise ValueError(
-            f"Invalid options format: '{options}'. Expected prefix 'openai-', 'google-', 'ollama-', 'bedrock-', 'llamaccp-server', 'together-', or 'offline'."
+            f"Invalid options format: '{options}' - review documentation for valid prefixes (e.g., 'bedrock-', 'google-', 'openai-')."
         )
 
-    return kwargs
+    return LLMWrapper(model_name=options, llm_lite_kwargs=kwargs)

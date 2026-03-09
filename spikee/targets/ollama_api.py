@@ -13,10 +13,10 @@ Exposed:
 """
 
 from spikee.templates.target import Target
+from spikee.utilities.llm import get_llm
 
 from typing import List, Optional
 from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
 
 import os
 import requests  # needed to progromatically list available Ollama models
@@ -74,40 +74,21 @@ class OllamaTarget(Target):
 
         model_name = key
 
+        # Initialize the Ollama client
+        llm = get_llm(f"ollama-{model_name}", max_tokens=None, temperature=0)
+
         # Build messages (no separate system role)
         prompt = input_text
         if system_message:
             prompt = f"{system_message}\n{input_text}"
-        messages = [{"role": "user", "content": prompt}]
+        messages = [("user", prompt)]
 
         # Invoke model
         try:
-            import litellm
-            kwargs = {
-                "model": f"ollama/{model_name}",
-                "messages": messages,
-            }
-            timeout = os.environ.get("OLLAMA_TIMEOUT")
-            if timeout not in (None, ""):
-                kwargs["timeout"] = float(timeout)
-            
-            attempts = os.environ.get("OLLAMA_MAX_ATTEMPTS")
-            kwargs["num_retries"] = int(attempts) if attempts not in (None, "") else 1
-
-            response = litellm.completion(**kwargs)
-            return response.choices[0].message.content
+            return llm.invoke(messages, content_only=True)
+        
         except Exception as e:
             print(f"Error during Ollama completion ({model_name}): {e}")
             raise
-
-
-if __name__ == "__main__":
+        
     load_dotenv()
-    target = OllamaTarget()
-    print("Supported Ollama keys:", target.get_available_option_values())
-    try:
-        # Test request, using the default model.
-        out = target.process_input("Hello!", target_options=None)
-        print(out)
-    except Exception as err:
-        print("Error:", err)

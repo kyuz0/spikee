@@ -16,8 +16,8 @@ Exposed:
 """
 
 from spikee.templates.target import Target
+from spikee.utilities.llm import get_llm
 
-import os
 from dotenv import load_dotenv
 from typing import List, Dict, Optional
 
@@ -59,24 +59,19 @@ class DeepseekTarget(Target):
         # Resolve to actual model identifier
         model_name = self._OPTION_MAP[key]
 
+        # Initialize Deepseek client
+        llm = get_llm(f"deepseek-{model_name}", max_tokens=None, temperature=0)
+
         # Build messages
         messages = []
         if system_message:
-            messages.append({"role": "system", "content": system_message})
-        messages.append({"role": "user", "content": input_text})
+            messages.append(("system", system_message))
+        messages.append(("user", input_text))
 
         # Invoke model
         try:
-            import litellm
-            response = litellm.completion(
-                model=f"deepseek/{model_name}",
-                api_key=os.getenv("DEEPSEEK_API_KEY"),
-                api_base="https://api.deepseek.com",
-                messages=messages,
-                temperature=0,
-                num_retries=2,
-            )
-            return response.choices[0].message.content
+            return llm.invoke(messages, content_only=True)
+        
         except Exception as e:
             print(f"Error during Deepseek completion ({model_name}): {e}")
             raise
