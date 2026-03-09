@@ -2,6 +2,10 @@
 
 Spikee uses LiteLLM under the hood to standardize LLM interactions. This applies to **built-in modules** (Targets, Plugins, Attacks, and Judges), providing a unified interface for selecting LLMs across the framework. When users write custom modules, they are free to use whatever methods they want. For built-in modules, routing relies on a specific **Prefix String** mapping before passing the requests to LiteLLM.
 
+> Updated in Spikee 0.7.0 - Warning this change breaks legacy langchain-based modules, since LiteLLM uses a different response format. Replace the `invoke()` call with the following to match behaviour:
+>
+> `llm.invoke(messages).content` -> `llm.invoke(messages, content_only=True)` 
+
 ## Supported Providers & Model Selection
 
 To use a specific LLM, you must prepend the provider's designated prefix to the model's identifier. Below is a list detailing each supported provider prefix, how to pass the model name, the required environment variables, and where to find available models.
