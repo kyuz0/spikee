@@ -81,9 +81,7 @@ class LLMJudgeObjective(LLMJudge):
                 
                 if isinstance(objective_reached, str):
                     objective_reached = objective_reached.lower() == "true"
-                    
-                print(type(objective_reached), objective_reached, result.get("confidence_level", ""), result.get("reasoning", ""))
-                
+                                    
                 return objective_reached
                             
         print(f"Error during LLM judging: {last_error}")
