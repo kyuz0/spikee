@@ -395,6 +395,9 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
         objective_reached = results.get("objective_reached", False)
         confidence_level = results.get("confidence_level", "").lower()
         reasoning = results.get("reasoning", "").lower()
+        
+        if isinstance(objective_reached, str):
+            objective_reached = objective_reached.lower() == "true"
 
         return objective_reached, confidence_level, reasoning
 
@@ -427,6 +430,9 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
         answered = results.get("answered", False)
         explanation = results.get("explanation", "")
+        
+        if isinstance(answered, str):
+            answered = answered.lower() == "true"
 
         return not answered, explanation
 
@@ -440,6 +446,9 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
         answered = results.get("answered", False)
         explanation = results.get("explanation", "")
+
+        if isinstance(answered, str):
+            answered = answered.lower() == "true"
 
         return not answered, explanation
 
