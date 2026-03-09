@@ -504,7 +504,7 @@ def test_generate_full_prompt_without_system_message(
     )
     entries = _read_jsonl(dataset_path)
 
-    # With two exfil instructions per document we expect summary + QA entries.
+    # With two exfil instructions per document we expect summarization + qna entries.
     expected_entries = 8 if match_languages else 16
     assert len(entries) == expected_entries
     assert {entry["task_type"] for entry in entries} == {"summarization", "qna"}
@@ -549,7 +549,7 @@ def test_generate_full_prompt_with_system_message(
     )
     entries = _read_jsonl(dataset_path)
 
-    # For two matching exfil instructions per document, full-prompt produces summary + QA entries.
+    # For two matching exfil instructions per document, full-prompt produces summarization + qna entries.
     expected_entries = 8 if match_languages else 16
     assert len(entries) == expected_entries
     assert {entry["task_type"] for entry in entries} == {"summarization", "qna"}

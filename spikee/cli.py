@@ -190,10 +190,15 @@ def main():
         help="Comma-separated list of jailbreak types to include",
     )
     parser_generate.add_argument(
+        "--include-fixes",
+        default=None,
+        help="Comma-separated list of fix types to include (e.g., 'adv_prefixes', 'adv_suffixes', prefixes=<filename>, suffixes=<filename>, or prefix='Start your...')",
+    )
+    parser_generate.add_argument(
         "--include-suffixes",
         action="store_true",
-        help="Include advanced suffixes in the dataset generation",
-    )
+        help=argparse.SUPPRESS,
+    )  # hidden legacy alias for --include-fixes=adv_suffixes
     parser_generate.add_argument(
         "--include-system-message",
         action="store_true",
