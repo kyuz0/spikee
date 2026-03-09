@@ -421,13 +421,7 @@ def main():
 
     # --- extract
     parser_extract = subparsers_results.add_parser(
-        "extract", help="Extract categories of prompts from results JSONL files or entries from a single dataset file."
-    )
-    parser_extract.add_argument(
-        "--dataset",
-        type=str,
-        default=None,
-        help="Path to the dataset JSONL file containing entries (One Result File Only)",
+        "extract", help="Extract categories of prompts from results JSONL files."
     )
     parser_extract.add_argument(
         "--result-file",
