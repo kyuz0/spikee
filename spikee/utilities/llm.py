@@ -2,6 +2,7 @@ from typing import Dict, List, Any, Union
 import os
 import json
 import litellm
+from litellm import NotFoundError
 from filelock import FileLock
 
 # region LLM Models/Prefixes
@@ -209,8 +210,12 @@ class LLMWrapper():
             try:
                 return litellm.completion(
                     messages=messages,
+                    drop_params=True,
                     **self.llm_lite_kwargs
                 )
+            except NotFoundError:
+                print(f"[ERROR] Model Not Found: '{self.model_name}'")
+                exit(1)
             except Exception as e:
                 if attempts >= self.RETRY_ATTEMPTS:
                     raise e
