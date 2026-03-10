@@ -66,7 +66,7 @@ class AzureAPITarget(Target):
             )
 
         # Initialize the Azure Chat client
-        llm = get_llm(deployment, max_tokens=None, temperature=0)
+        llm = get_llm(f"azure-{deployment}", max_tokens=None, temperature=0)
 
         # Build messages
         messages = []

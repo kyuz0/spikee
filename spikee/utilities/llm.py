@@ -261,7 +261,7 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
         kwargs["num_retries"] = 2
 
     elif options.startswith("deepseek-"):
-        model_name = options.replace("deepseek-", "")
+        model_name = options.replace("deepseek-", "", 1)
         kwargs["model"] = f"deepseek/{model_name}"
         kwargs["num_retries"] = 2
 

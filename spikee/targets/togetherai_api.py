@@ -89,8 +89,7 @@ def process_input(
 
     # Invoke the model
     try:
-        response = llm.invoke(messages)
-        return response.content
+        return llm.invoke(messages, content_only=True)
     except Exception as e:
         print(f"Error during TogetherAI completion ({model_name}): {e}")
         raise
