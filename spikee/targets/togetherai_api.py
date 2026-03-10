@@ -65,9 +65,8 @@ class TogetherAITarget(Target):
         messages.append(HumanMessage(input_text))
 
         # Invoke the model
-        try:
-            response = llm.invoke(messages)
-            return response.content
+        try:    
+            return llm.invoke(messages, content_only=True)
         except Exception as e:
             print(f"Error during TogetherAI completion ({model_id}): {e}")
             raise

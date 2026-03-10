@@ -19,7 +19,7 @@ TARGET_MODEL_COMBINATIONS = [
     ("groq_api", "llama-3.1-8b-instant"),
     ("deepseek_api", "deepseek-v3"),
     ("togetherai_api", "llama31-8b"),
-    ("aws_bedrock_api", "claude45-sonnet"),
+    ("aws_bedrock_api", "claude37-sonnet"),
     ("openai_api", "invalid-model-name-123"),
     # Add localized or other targets if needed (like ollama_api / llamacpp)
 ]
