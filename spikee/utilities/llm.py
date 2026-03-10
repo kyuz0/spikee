@@ -2,6 +2,7 @@ from typing import Dict, List, Any, Union
 import os
 import json
 import litellm
+from filelock import FileLock
 
 # region LLM Models/Prefixes
 SUPPORTED_LLM_MODELS = [
@@ -39,7 +40,67 @@ def get_supported_prefixes() -> List[str]:
 
 
 # region LLM Model Maps
-# Map of shorthand keys to TogetherAI model identifiers
+AZURE_MODEL_LIST: List[str] = [
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-4-turbo",
+]
+
+BEDROCK_MODEL_MAP: Dict[str, str] = {
+    "claude35-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "claude45-haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "claude35-sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "claude37-sonnet": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "claude45-opus": "global.anthropic.claude-opus-4-5-20251101-v1:0",
+    "deepseek-v3": "deepseek.v3-v1:0",
+    "qwen3-coder-30b-a3b-v1": "qwen.qwen3-coder-30b-a3b-v1:0",
+}
+
+GOOGLE_MODEL_LIST: List[str] = [
+    "gemini-3.0-pro",
+    "gemini-3.0-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro",
+    "gemini-exp-1206",
+]
+
+GROK_MODEL_LIST: List[str] = [
+        "distil-whisper-large-v3-en",
+        "gemma2-9b-it",
+        "llama-3.1-8b-instant",
+        "llama-3.3-70b-versatile",
+        "meta-llama/llama-guard-4-12b",
+        "whisper-large-v3",
+        "whisper-large-v3-turbo",
+]
+
+DEEPSEEK_MODEL_LIST: List[str] = [
+    "deepseek-chat", # deepseek-v3.2 non-thinking
+    "deepseek-reasoner", # deepseek-v3.2 thinking
+]
+
+OPENAI_MODEL_LIST: List[str] = [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "o1-mini",
+        "o1",
+        "o3-mini",
+        "o3",
+        "o4-mini",
+]
+
+OPENROUTER_MODEL_LIST: List[str] = [
+    "google/gemini-2.5-flash",
+    "anthropic/claude-3.5-haiku",
+    "meta-llama/llama-3.1-8b-instruct",
+    "openai/gpt-4o-mini",
+]
+
 TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
     "gemma2-8b": "google/gemma-2-9b-it",
     "gemma2-27b": "google/gemma-2-27b-it",
@@ -54,15 +115,6 @@ TOGETHER_AI_MODEL_MAP: Dict[str, str] = {
     "qwen3-235b-fp8": "Qwen/Qwen3-235B-A22B-fp8-tput",
 }
 
-# Map of shorthand keys to AWS Bedrock model identifiers
-BEDROCK_MODEL_MAP: Dict[str, str] = {
-    "claude35-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-    "claude45-haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "claude35-sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "claude37-sonnet": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-}
-
-
 def _resolve_model_map(key: str, model_map: Dict[str, str]) -> str:
     """
     Convert a shorthand key to the full model identifier.
@@ -73,22 +125,63 @@ def _resolve_model_map(key: str, model_map: Dict[str, str]) -> str:
     return key
 # endregion
 
+# region Wrappers
 
 class LLMWrapper():
     """
     A wrapper class for LLM instances that provides a consistent interface and can be extended with additional functionality.
     """
+    
+    RETRY_ATTEMPTS = 2
 
     def __init__(self, model_name, llm_lite_kwargs):
         self.model_name = model_name
         self.llm_lite_kwargs = llm_lite_kwargs
-        
-        
+    
         if self.llm_lite_kwargs is None:
             raise ValueError("LLMWrapper requires llm_lite_kwargs cannot be None.")
-                
-    def invoke(self, messages, content_only: bool = False):
         
+        litellm.success_callback = [self.__billing_callback]
+        litellm.suppress_debug_info = True # Prevent litellm from printing request/response info to console; we handle logging in the callback.
+        #litellm._turn_on_debug()
+        
+        self.__billing_path = os.path.join(os.getcwd(), "billing.json")
+        
+        if os.path.exists(self.__billing_path):
+            self.__billing = True
+        else:
+            self.__billing = None
+                
+    def __billing_callback(self, kwargs, completion_response, start_time, end_time):
+        if self.__billing is not None:
+            model = self.model_name
+            cost = float(kwargs["response_cost"])
+            input_tokens = completion_response.usage.get("prompt_tokens")
+            output_tokens = completion_response.usage.get("completion_tokens")
+            
+            lock = FileLock(self.__billing_path + ".lock")
+            with lock:
+                with open(self.__billing_path, "r+") as f:
+                    self.__billing = json.load(f)
+                    
+                    self.__billing['total_cost'] = cost + self.__billing.get('total_cost', 0.0)
+                    
+                    if model not in self.__billing['models']:
+                        self.__billing['models'][model] = {
+                            'cost': 0.0,
+                            'input_tokens': 0,
+                            'output_tokens': 0,
+                        }
+                        
+                    self.__billing['models'][model]['cost'] = cost + self.__billing['models'][model].get('cost', 0.0)
+                    self.__billing['models'][model]['input_tokens'] = input_tokens + self.__billing['models'][model].get('input_tokens', 0)
+                    self.__billing['models'][model]['output_tokens'] = output_tokens + self.__billing['models'][model].get('output_tokens', 0)
+                    
+                    f.seek(0)
+                    f.truncate()
+                    f.write(json.dumps(self.__billing, indent=2))
+                    
+    def __correct_messages(self, messages):
         corrected_messages = []
         for msg in messages:
             if isinstance(msg, dict):
@@ -107,16 +200,59 @@ class LLMWrapper():
             else:
                 raise ValueError(f"Unsupported message format type: {type(msg)}.")
         
-        response = litellm.completion( 
-            messages=corrected_messages,
-            **self.llm_lite_kwargs
-        )
-        
+        return corrected_messages
+    
+    def __standard_invoke(self, messages):
+        attempts = 0
+        while attempts < self.RETRY_ATTEMPTS:
+            attempts += 1
+            try:
+                return litellm.completion(
+                    messages=messages,
+                    **self.llm_lite_kwargs
+                )
+            except Exception as e:
+                if attempts >= self.RETRY_ATTEMPTS:
+                    raise e
+                
+    def invoke(self, messages, content_only: bool = False):
+        corrected_messages = self.__correct_messages(messages)
+                
+        response = self.__standard_invoke(corrected_messages)
+                
         if content_only:
             return response.choices[0].message.content
         else:
             return response
+
+class MockWrapper():
+    def __init__(self, model_name: str, max_tokens: Union[int, None], temperature: float):
+        self.model_name = model_name
+        self.max_tokens = max_tokens
+        self.temperature = temperature
         
+        if self.model_name != "mock":
+            self._llm = get_llm(model_name, max_tokens=max_tokens, temperature=temperature)
+        
+    def invoke(self, messages, content_only: bool = False):
+        if self.model_name == "mock":
+            response = "This is a mock response from the LLM."
+            
+            if self.max_tokens is not None:
+                response = response[:self.max_tokens]
+        else:
+            response = self._llm.invoke(messages, content_only=content_only)
+            
+        print("[Mock LLM] Message:", messages)
+        print("[Mock LLM] Response:", response)
+        print("--------------------------------")
+        
+        return response
+
+# endregion
+
+# region Messages
+
 class Message:
     def __init__(self, role: str, content: str):
         self.role = role
@@ -137,29 +273,8 @@ class AIMessage(Message):
     def __init__(self, content: str):
         super().__init__("assistant", content)
 
-class MockWrapper():
-    def __init__(self, model_name: str, max_tokens: Union[int, None], temperature: float):
-        self.model_name = model_name
-        self.max_tokens = max_tokens
-        self.temperature = temperature
-        
-        if self.model_name != "mock":
-            self._llm = get_llm(model_name, max_tokens=max_tokens, temperature=temperature)
-        
-    def invoke(self, messages):
-        if self.model_name == "mock":
-            response = "This is a mock response from the LLM."
-            
-            if self.max_tokens is not None:
-                response = response[:self.max_tokens]
-        else:
-            response = self._llm.invoke(messages)
-            
-        print("[Mock LLM] Message:", messages)
-        print("[Mock LLM] Response:", response)
-        print("--------------------------------")
-        
-        return response
+# endregion
+
 
 def validate_llm_option(option: str) -> bool:
     """
@@ -212,14 +327,6 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
         model_name = _resolve_model_map(model_name_key, BEDROCK_MODEL_MAP)
         kwargs["model"] = f"bedrock/{model_name}"
 
-    elif options.startswith("bedrockcv-"):
-        # LiteLLM handles converse vs standard natively via the AWS provider configuration.
-        model_name = options.replace("bedrockcv-", "")
-        kwargs["model"] = f"bedrock/{model_name}"
-
-        if max_tokens is None:
-            kwargs["max_tokens"] = 8192
-
     elif options.startswith("ollama-"):
         model_name = options.replace("ollama-", "")
         kwargs["model"] = f"ollama/{model_name}"
@@ -269,9 +376,13 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
         model_name = options.replace("openrouter-", "")
         kwargs["model"] = f"openrouter/{model_name}"
         kwargs["num_retries"] = 2
+        
+        if max_tokens is None:
+            kwargs["max_tokens"] = 2048  # OpenRouter models often require explicit max_tokens
 
     elif options.startswith("azure-"):
         model_name = options.replace("azure-", "")
+        
         kwargs["model"] = f"azure/{model_name}"
         kwargs["api_version"] = os.environ.get("API_VERSION", "2024-05-01-preview")
         kwargs["num_retries"] = 2

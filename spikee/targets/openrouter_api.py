@@ -12,31 +12,21 @@ Exposed:
     process_input(input_text, system_message=None, target_options=None) -> response content
 """
 from spikee.templates.target import Target
-from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage
+from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage, OPENROUTER_MODEL_LIST
 
 import os
 from dotenv import load_dotenv
 from typing import List, Optional
 
-load_dotenv()
-
 
 class OpenRouterTarget(Target):
-    # Some popular OpenRouter models for convenience
-    _SUPPORTED_MODELS: List[str] = [
-        "google/gemini-2.5-flash",
-        "anthropic/claude-3.5-haiku",
-        "meta-llama/llama-3.1-8b-instruct",
-        "openai/gpt-4o-mini",
-    ]
-
     # Default model ID
     DEFAULT_MODEL = "google/gemini-2.5-flash"
 
     def get_available_option_values(self) -> List[str]:
         """Return supported model IDs; first option is default."""
         options = [self.DEFAULT_MODEL]  # Default first
-        options.extend([m for m in self._SUPPORTED_MODELS if m != self.DEFAULT_MODEL])
+        options.extend([m for m in OPENROUTER_MODEL_LIST if m != self.DEFAULT_MODEL])
         return options
 
     def process_input(
@@ -49,11 +39,12 @@ class OpenRouterTarget(Target):
         Send messages to OpenRouter based on the designated model name.
         """
         # Model selection
-        model_name = (
-            target_options if target_options is not None else self.DEFAULT_MODEL
-        )
+        model_id = target_options if target_options is not None else self.DEFAULT_MODEL
         
-        llm = get_llm(f"openrouter-{model_name}", max_tokens=None, temperature=0)
+        if model_id.startswith("openrouter-"):
+            model_id = model_id.replace("openrouter-", "")
+        
+        llm = get_llm(f"openrouter-{model_id}", max_tokens=None, temperature=0)
 
         # Build messages
         messages = []
@@ -68,7 +59,6 @@ if __name__ == "__main__":
     target = OpenRouterTarget()
     print("Supported models:", target.get_available_option_values())
     try:
-        out = target.process_input("Hello!", target_options="google/gemini-2.5-flash")
-        print(out)
+        print(target.process_input("Hello!", target_options="google/gemini-2.5-flash"))
     except Exception as err:
         print("Error:", err)

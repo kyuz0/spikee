@@ -3,7 +3,7 @@ spikee/targets/aws_bedrock_api.py
 
 Unified AWS Bedrock target that invokes Anthropic Claude models based on a simple key.
 
-Keys:
+Example Keys:
   - "claude35-haiku" → "us.anthropic.claude-3-5-haiku-20241022-v1:0"
   - "claude35-sonnet" → "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
   - "claude37-sonnet" → "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
@@ -20,7 +20,7 @@ from spikee.templates.target import Target
 from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage, BEDROCK_MODEL_MAP
 
 from dotenv import load_dotenv
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 
 class AWSBedrockTarget(Target):
@@ -45,14 +45,11 @@ class AWSBedrockTarget(Target):
         Raises:
             ValueError if target_options is provided but invalid.
         """
-        # Determine key or default
-        key = target_options if target_options is not None else self._DEFAULT_KEY
-        if key not in BEDROCK_MODEL_MAP:
-            valid = ", ".join(self.get_available_option_values())
-            raise ValueError(f"Unknown AWS Bedrock key '{key}'. Valid keys: {valid}")
-
-        model_id = BEDROCK_MODEL_MAP[key]
-
+        model_id = target_options if target_options is not None else self._DEFAULT_KEY
+        
+        if model_id.startswith("bedrock-"):
+            model_id = model_id.replace("bedrock-", "")
+            
         # Initialize Bedrock client
         llm = get_llm(f"bedrock-{model_id}", max_tokens=None, temperature=0.7)
 
@@ -70,12 +67,12 @@ class AWSBedrockTarget(Target):
             print(f"Error during AWS Bedrock completion ({model_id}): {e}")
             raise
 
-
 if __name__ == "__main__":
+    load_dotenv()
     target = AWSBedrockTarget()
     print("Supported Bedrock keys:", target.get_available_option_values())
     try:
-        load_dotenv()
+
         print(target.process_input("Hello!", target_options="claude35-sonnet"))
     except Exception as err:
         print("Error:", err)

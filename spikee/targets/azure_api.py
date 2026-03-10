@@ -15,33 +15,16 @@ Exposed:
 """
 
 from spikee.templates.target import Target
-from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage
+from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage, AZURE_MODEL_LIST
 
 from dotenv import load_dotenv
 from typing import List, Optional
 
 
 class AzureAPITarget(Target):
-    # Supported Azure deployment names
-    #
-    # !!! EDIT TO MATCH YOUR DEPLOYMENTS !!!
-    #
-    _SUPPORTED_DEPLOYMENTS: List[str] = [
-        "gpt-4o-mini",
-        "gpt-4o",
-        "gpt-4-turbo",
-    ]
-
-    # Default deployment
-    DEFAULT_DEPLOYMENT = _SUPPORTED_DEPLOYMENTS[0]
-
     def get_available_option_values(self) -> List[str]:
         """Return supported deployment names; first option is default."""
-        options = [self.DEFAULT_DEPLOYMENT]  # Default first
-        options.extend(
-            [d for d in self._SUPPORTED_DEPLOYMENTS if d != self.DEFAULT_DEPLOYMENT]
-        )
-        return options
+        return AZURE_MODEL_LIST
 
     def process_input(
         self,
@@ -56,17 +39,10 @@ class AzureAPITarget(Target):
             ValueError if target_options is provided but invalid.
         """
         # deployment name selection
-        deployment = (
-            target_options if target_options is not None else self.DEFAULT_DEPLOYMENT
-        )
-        if deployment not in self._SUPPORTED_DEPLOYMENTS:
-            valid = ", ".join(self._SUPPORTED_DEPLOYMENTS)
-            raise ValueError(
-                f"Unknown Azure deployment '{deployment}'. Valid options: {valid}"
-            )
+        model_id = target_options
 
         # Initialize the Azure Chat client
-        llm = get_llm(deployment, max_tokens=None, temperature=0)
+        llm = get_llm(f"azure-{model_id}", max_tokens=None, temperature=0)
 
         # Build messages
         messages = []
@@ -79,7 +55,7 @@ class AzureAPITarget(Target):
             return llm.invoke(messages, content_only=True)
         
         except Exception as e:
-            print(f"Error during Azure completion ({deployment}): {e}")
+            print(f"Error during Azure completion ({model_id}): {e}")
             raise
 
 
@@ -88,7 +64,6 @@ if __name__ == "__main__":
     target = AzureAPITarget()
     print("Supported Azure deployments:", target.get_available_option_values())
     try:
-        out = target.process_input("Hello!", target_options="gpt-4o-mini")
-        print(out)
+        print(target.process_input("Hello!", target_options="gpt-4o-mini"))
     except Exception as err:
         print("Error:", err)

@@ -17,8 +17,6 @@ from spikee.utilities.llm import get_llm, HumanMessage
 
 from typing import List, Optional
 from dotenv import load_dotenv
-
-import os
 import requests  # needed to progromatically list available Ollama models
 
 
@@ -29,11 +27,12 @@ class OllamaTarget(Target):
     def get_available_ollama_models(
         self, baseurl="http://localhost:11434"
     ) -> List[str]:
-        """Progromatically gather the list of local models see: ollama list"""
+        """Programmatically gather the list of local models see: ollama list"""
         try:
             response = requests.get(f"{baseurl}/api/tags")
             data = response.json()
             return [model["model"] for model in data["models"]]
+        
         except Exception as e:
             # Something went wrong, we should fallback to the priority list already defined
             print(
@@ -91,4 +90,11 @@ class OllamaTarget(Target):
             print(f"Error during Ollama completion ({model_name}): {e}")
             raise
         
+if __name__ == "__main__":
     load_dotenv()
+    target = OllamaTarget()
+    print("Supported Ollama models:", target.get_available_option_values())
+    try:
+        print(target.process_input("Hello!", target_options=None))
+    except Exception as err:
+        print("Error:", err)
