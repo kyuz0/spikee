@@ -276,6 +276,7 @@ Output (JSON):
 Order should always be the index number for a sentence within the sentences list.
 """
 
+
 class RefusalError(Exception):
     pass
 
@@ -354,10 +355,10 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
         while (not isinstance(keywords, list) or len(keywords) < 3) and attempts < self.stage_attempts:
             keywords = self._query_attacker_llm(llm, messages, ["keywords"]).get("keywords", None)
             attempts += 1
-            
+
             if self.debug:
                 print("Keywords:", keywords)
-                
+
         if not isinstance(keywords, list) or len(keywords) < 3:
             raise RuntimeError(f"LLM failed to produce valid keywords: {keywords}.")
 
@@ -374,8 +375,8 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
         order = response.get("order", None)
         explanation = response.get("explanation", "")
-        
-        if order is not None: 
+
+        if order is not None:
             try:
                 order = int(order)
             except ValueError:
@@ -395,7 +396,7 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
         objective_reached = results.get("objective_reached", False)
         confidence_level = results.get("confidence_level", "").lower()
         reasoning = results.get("reasoning", "").lower()
-        
+
         if isinstance(objective_reached, str):
             objective_reached = objective_reached.lower() == "true"
 
@@ -410,10 +411,10 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
             for query in question:
                 if isinstance(query, SystemMessage):
-                    system_prompt = query.content # type: ignore
+                    system_prompt = query.content  # type: ignore
 
                 elif isinstance(query, HumanMessage):
-                    query = query.content # type: ignore
+                    query = query.content  # type: ignore
 
             messages = [
                 SystemMessage(content=ECHO_CHAMBER_REFUSAL_SYSTEM_PROMPT),
@@ -430,7 +431,7 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
         answered = results.get("answered", False)
         explanation = results.get("explanation", "")
-        
+
         if isinstance(answered, str):
             answered = answered.lower() == "true"
 
@@ -487,7 +488,6 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
 
 # region Target Prompts
-
 
     def get_seed_sentences(
         self,
@@ -712,7 +712,7 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
                     # 2.1) Choose Seed Sentence
                     try:
                         order, order_explanation = self.choose_seed_sentence(llm, targeted_objective, str(seed_sentences))
-                        
+
                         if order is None:
                             raise Exception("LLM failed to choose a seed sentence")
 
@@ -824,8 +824,12 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
                         continue
 
                 # Get success evaluation and add response to conversation
-                success, confidence, reasoning = self.evaluate_success(llm, objective, last_response)
-                refusal, explanation = self.evaluate_refusal(llm, prompt, last_response)
+                try:
+                    success, confidence, reasoning = self.evaluate_success(llm, objective, last_response)
+                    refusal, explanation = self.evaluate_refusal(llm, prompt, last_response)
+                except RefusalError:
+                    success, confidence, reasoning = False, "Low", "LLM refused to evaluate success."
+                    refusal, explanation = True, "Agent LLM refused to evaluate refusal."
 
                 if success and call_judge(entry, last_response):
                     last_message_id = conversation.add_message(
@@ -882,7 +886,6 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
                     if order is not None:
                         seed_sentences.pop(int(order) - 1)
-                        
 
                     order = None
 
@@ -913,7 +916,7 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
             print("=== BEGIN TRACEBACK ===")
             traceback.print_exc()
             print("=== END TRACEBACK ===")
-            
+
             return (
                 conversation.get_attempt_total(),
                 False,
