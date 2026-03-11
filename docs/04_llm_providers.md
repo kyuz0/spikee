@@ -15,7 +15,7 @@ To use a specific LLM, you must prepend the provider's designated prefix to the 
     *   Env: `OPENAI_API_KEY`
     *   [Models List](https://platform.openai.com/docs/models)
 
-*   **AWS Bedrock (`bedrock-` or `bedrockcv-`)**:
+*   **AWS Bedrock (`bedrock-`)**:
     *   Example: `bedrock-claude35-sonnet` (Spikee provides shorthands for Bedrock)
     *   Env: Standard AWS Credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`)
     *   [Models List](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
