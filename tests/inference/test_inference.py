@@ -17,9 +17,9 @@ TARGET_MODEL_COMBINATIONS = [
     ("google_api", "gemini-2.5-flash"),
     ("openrouter_api", "meta-llama/llama-3.1-8b-instruct"),
     ("groq_api", "llama-3.1-8b-instant"),
-    ("deepseek_api", "deepseek-v3"),
+    ("deepseek_api", "deepseek-chat"),
     ("togetherai_api", "llama31-8b"),
-    ("aws_bedrock_api", "claude37-sonnet"),
+    ("aws_bedrock_api", "claude45-opus"),
     ("openai_api", "invalid-model-name-123"),
     # Add localized or other targets if needed (like ollama_api / llamacpp)
 ]
@@ -121,12 +121,12 @@ ATTACK_MODEL_COMBINATIONS = [
     ("llm_jailbreaker", "model=azure-gpt-4o-mini"),
 
     ("llm_poetry_jailbreaker", "model=google-gemini-2.5-flash"),
-    ("llm_poetry_jailbreaker", "model=deepseek-deepseek-v3"),
+    ("llm_poetry_jailbreaker", "model=deepseek-deepseek-chat"),
 
     ("llm_multi_language_jailbreaker", "model=groq-llama-3.1-8b-instant"),
     ("llm_multi_language_jailbreaker", "model=bedrock-claude35-haiku"),
 
-    ("rag_poisoner", "model=deepseek-deepseek-v3"),
+    ("rag_poisoner", "model=deepseek-deepseek-chat"),
     ("rag_poisoner", "model=together-llama31-8b"),
 
     ("crescendo", "model=together-llama31-8b"),

@@ -213,9 +213,9 @@ class LLMWrapper():
                     drop_params=True,
                     **self.llm_lite_kwargs
                 )
-            except NotFoundError:
+            except NotFoundError as e:
                 print(f"[ERROR] Model Not Found: '{self.model_name}'")
-                exit(1)
+                raise e
             except Exception as e:
                 if attempts >= self.RETRY_ATTEMPTS:
                     raise e
