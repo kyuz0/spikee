@@ -10,48 +10,18 @@ Spikee uses LiteLLM under the hood to standardize LLM interactions. This applies
 
 To use a specific LLM, you must prepend the provider's designated prefix to the model's identifier. Below is a list detailing each supported provider prefix, how to pass the model name, the required environment variables, and where to find available models.
 
-*   **OpenAI (`openai-`)**:
-    *   Example: `openai-gpt-4o`
-    *   Env: `OPENAI_API_KEY`
-    *   [Models List](https://platform.openai.com/docs/models)
-
-*   **AWS Bedrock (`bedrock-`)**:
-    *   Example: `bedrock-claude35-sonnet` (Spikee provides shorthands for Bedrock)
-    *   Env: Standard AWS Credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`)
-    *   [Models List](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
-
-*   **Google Gemini (`google-`)**:
-    *   Example: `google-gemini-2.5-pro`
-    *   Env: `GEMINI_API_KEY`
-    *   [Models List](https://ai.google.dev/gemini-api/docs/models/gemini)
-
-*   **TogetherAI (`together-`)**:
-    *   Example: `together-llama31-70b` (Spikee provides shorthands) or a full model path
-    *   Env: `TOGETHER_API_KEY`
-    *   [Models List](https://docs.together.ai/docs/inference-models)
-
-*   **Groq (`groq-`)**:
-    *   Example: `groq-llama-3.1-8b-instant`
-    *   Env: `GROQ_API_KEY`
-    *   [Models List](https://console.groq.com/docs/models)
-
-*   **Deepseek (`deepseek-`)**:
-    *   Example: `deepseek-deepseek-v3`
-    *   Env: `DEEPSEEK_API_KEY`
-    *   [Models List](https://platform.deepseek.com/api-docs/)
-
-*   **OpenRouter (`openrouter-`)**:
-    *   Example: `openrouter-meta-llama/llama-3.1-8b-instruct`
-    *   Env: `OPENROUTER_API_KEY`
-    *   [Models List](https://openrouter.ai/models)
-
-*   **Azure OpenAI (`azure-`)**:
-    *   Example: `azure-gpt-4o-mini`
-    *   Env: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `API_VERSION`
-    *   [Models List](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models)
-
-*   **Local Models (`ollama-` and `llamaccp-server-`)**:
-    *   Examples: `ollama-llama3.1`, `llamaccp-server-8080`
+| Provider | Prefix(es) | Examples / Built-in Shorthands | Required Environment Variables | External Docs |
+| :--- | :--- | :--- | :--- | :--- |
+| **OpenAI** | `openai-` | `openai-gpt-4o`<br/>`openai-gpt-4o-mini`<br/>`openai-o3-mini` | `OPENAI_API_KEY` | [Models List](https://platform.openai.com/docs/models) |
+| **AWS Bedrock** | `bedrock-`<br/>`bedrockcv-` | `bedrock-claude37-sonnet`<br/>`bedrock-deepseek-v3`<br/>`bedrock-qwen3-coder-30b-a3b-v1` | `AWS_ACCESS_KEY_ID`<br/>`AWS_SECRET_ACCESS_KEY`<br/>`AWS_DEFAULT_REGION` | [Models List](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) |
+| **Google Gemini** | `google-` | `google-gemini-3.0-pro`<br/>`google-gemini-2.5-flash`<br/>`google-gemini-1.5-pro` | `GEMINI_API_KEY` | [Models List](https://ai.google.dev/gemini-api/docs/models/gemini) |
+| **TogetherAI** | `together-` | `together-llama33-70b`<br/>`together-mixtral-8x22b`<br/><small>*(Allows internal shorthands)*</small> | `TOGETHER_API_KEY` | [Models List](https://docs.together.ai/docs/inference-models) |
+| **Groq** | `groq-` | `groq-llama-3.1-8b-instant`<br/>`groq-llama-3.3-70b-versatile` | `GROQ_API_KEY` | [Models List](https://console.groq.com/docs/models) |
+| **Deepseek** | `deepseek-` | `deepseek-deepseek-chat`<br/>`deepseek-deepseek-reasoner` | `DEEPSEEK_API_KEY` | [Models List](https://platform.deepseek.com/api-docs/) |
+| **OpenRouter** | `openrouter-` | `openrouter-meta-llama/llama-3.1-8b-instruct`<br/>`openrouter-google/gemini-2.5-flash` | `OPENROUTER_API_KEY` | [Models List](https://openrouter.ai/models) |
+| **Azure OpenAI** | `azure-` | `azure-gpt-4o`<br/>`azure-gpt-4o-mini` | `AZURE_OPENAI_API_KEY`<br/>`AZURE_OPENAI_ENDPOINT`<br/>`API_VERSION` | [Models List](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) |
+| **Local** | `ollama-`<br/>`llamaccp-server-` | `ollama-llama3.1`<br/>`llamaccp-server-8080` (requires port info) | *None* | |
+| **Offline** | `offline` | `offline` | *None* | [See Judges section](08_judges.md#1-scan-using-offline-judge) |
 
 
 ## Configuring Models in Spikee Components
