@@ -108,6 +108,11 @@ def main():
         action="store_true",
         help="Include the built-in web viewer in the local workspace",
     )
+    parser_init.add_argument(
+        "--include-billing",
+        action="store_true",
+        help="Include billing tracker in the local workspace",
+    )
 
     # === [GENERATE] Sub-command ===============================================
     parser_generate = subparsers.add_parser("generate", help="Generate a dataset")
@@ -190,10 +195,15 @@ def main():
         help="Comma-separated list of jailbreak types to include",
     )
     parser_generate.add_argument(
+        "--include-fixes",
+        default=None,
+        help="Comma-separated list of fix types to include (e.g., 'adv_prefixes', 'adv_suffixes', prefixes=<filename>, suffixes=<filename>, or prefix='Start your...')",
+    )
+    parser_generate.add_argument(
         "--include-suffixes",
         action="store_true",
-        help="Include advanced suffixes in the dataset generation",
-    )
+        help=argparse.SUPPRESS,
+    )  # hidden legacy alias for --include-fixes=adv_suffixes
     parser_generate.add_argument(
         "--include-system-message",
         action="store_true",
@@ -582,6 +592,7 @@ def main():
             force=args.force,
             include_builtin=args.include_builtin,
             include_viewer=args.include_viewer,
+            include_billing=args.include_billing,
         )
 
     elif args.command == "generate":
@@ -626,7 +637,7 @@ def main():
         sys.exit(1)
 
 
-def init_workspace(force=False, include_builtin="none", include_viewer=False):
+def init_workspace(force=False, include_builtin="none", include_viewer=False, include_billing=False):
     """
     Copy the entire 'data/workspace' directory from the installed package
     into the user's current working directory. This sets up the local spikee workspace
@@ -646,6 +657,9 @@ def init_workspace(force=False, include_builtin="none", include_viewer=False):
         destination = workspace_dest / item.name
 
         if item.name == "viewer" and not include_viewer:
+            continue
+
+        if item.name == "billing.json" and not include_billing:
             continue
 
         if destination.exists() and not force:
