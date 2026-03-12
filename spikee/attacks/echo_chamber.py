@@ -8,14 +8,13 @@ This attack implements the Echo Chamber attack, based on https://arxiv.org/pdf/2
 import json
 from typing import Tuple, List, Union
 import uuid
-from langchain_core.messages import HumanMessage, SystemMessage
 
 from spikee.utilities.enums import ModuleTag, Turn
 from spikee.templates.attack import Attack
 from spikee.templates.standardised_conversation import StandardisedConversation
 from spikee.tester import GuardrailTrigger
 
-from spikee.utilities.llm import get_llm
+from spikee.utilities.llm import get_llm, HumanMessage, SystemMessage
 from spikee.utilities.modules import extract_json_or_fail, parse_options
 import re
 
@@ -661,7 +660,7 @@ class EchoChamber(Attack):
         last_response = ""
         while attempts < self.stage_attempts:
             attempts += 1
-            response = llm.invoke(messages).content
+            response = llm.invoke(messages, content_only=True)
             if isinstance(response, str):
                 response = response.strip()
 

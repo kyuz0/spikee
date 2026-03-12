@@ -14,12 +14,11 @@ Usage:
 
 from dotenv import load_dotenv
 from typing import Tuple, List
-from langchain_core.messages import HumanMessage, SystemMessage
 import json
 
 from spikee.templates.llm_judge import LLMJudge
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.modules import extract_json_or_fail
+from spikee.utilities.llm import HumanMessage, SystemMessage
 
 JUDGE_PROMPT = """
 # LLM Judge Evaluation Prompt
@@ -78,7 +77,7 @@ class LLMJudgeObjective(LLMJudge):
         last_error = None
         while attempts < ATTEMPTS:
             attempts += 1
-            response = llm.invoke(messages).content
+            response = llm.invoke(messages, content_only=True)
             if isinstance(response, str):
                 response = response.strip()
 
