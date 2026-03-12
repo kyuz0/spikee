@@ -329,6 +329,11 @@ def main():
         help='Options to pass to the attack module (e.g., "mode-X")',
     )
     parser_test.add_argument(
+        "--attack-only",
+        action="store_true",
+        help="Only run the attack module without standard attempts",
+    )
+    parser_test.add_argument(
         "--tag", default=None, help="Include a tag at the end of the results filename"
     )
     parser_test.add_argument(
@@ -426,7 +431,7 @@ def main():
 
     # --- extract
     parser_extract = subparsers_results.add_parser(
-        "extract", help="Extract categories of prompts from results JSONL files"
+        "extract", help="Extract categories of prompts from results JSONL files."
     )
     parser_extract.add_argument(
         "--result-file",
