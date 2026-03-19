@@ -23,6 +23,7 @@ SUPPORTED_PREFIXES = [
     "deepseek-",
     "openrouter-",
     "azure-",
+    "custom-",
     "mock-",
 ]
 
@@ -185,22 +186,35 @@ class LLMWrapper():
 
     def __correct_messages(self, messages):
         corrected_messages = []
-        for msg in messages:
-            if isinstance(msg, dict):
-                if ("role" in msg and "content" in msg):
-                    corrected_messages.append(msg)
+        if isinstance(messages, str):
+            # If a single string is provided, treat it as a user message
+            corrected_messages.append({"role": "user", "content": messages})
+
+        elif isinstance(messages, list):
+
+            for msg in messages:
+                if isinstance(msg, dict):
+                    if ("role" in msg and "content" in msg):
+                        corrected_messages.append(msg)
+                    else:
+                        raise ValueError(f"Invalid message format: {msg}. Each message dict must contain 'role' and 'content' keys.")
+
+                elif isinstance(msg, tuple) and len(msg) == 2:
+                    role, content = msg
+                    corrected_messages.append({"role": role, "content": content})
+
+                elif isinstance(msg, Message) or isinstance(msg, SystemMessage) or isinstance(msg, HumanMessage) or isinstance(msg, AIMessage):
+                    corrected_messages.append(msg.to_dict())
+
+                elif isinstance(msg, str):
+                    # Assume it's a user message if only a string is provided
+                    corrected_messages.append({"role": "user", "content": msg})
+
                 else:
-                    raise ValueError(f"Invalid message format: {msg}. Each message dict must contain 'role' and 'content' keys.")
+                    raise ValueError(f"Unsupported message format type: {type(msg)}.")
 
-            elif isinstance(msg, tuple) and len(msg) == 2:
-                role, content = msg
-                corrected_messages.append({"role": role, "content": content})
-
-            elif isinstance(msg, Message) or isinstance(msg, SystemMessage) or isinstance(msg, HumanMessage) or isinstance(msg, AIMessage):
-                corrected_messages.append(msg.to_dict())
-
-            else:
-                raise ValueError(f"Unsupported message format type: {type(msg)}.")
+        else:
+            raise ValueError(f"Unsupported messages format type: {type(messages)}.")
 
         return corrected_messages
 
@@ -296,7 +310,7 @@ def validate_llm_option(option: str) -> bool:
     )
 
 
-def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: float = 0, additional_kwargs=None) -> Union[LLMWrapper, MockWrapper]:
+def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: float = 0, additional_kwargs=None) -> Union[LLMWrapper, MockWrapper, None]:
     """
     Returns an LLMWrapper.
 
@@ -407,6 +421,20 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
 
     elif options.startswith("mock-"):
         return MockWrapper(model_name=options, max_tokens=max_tokens, temperature=temperature)
+
+    elif options.startswith("custom-"):
+        model_name = options.replace("custom-", "")
+
+        if not os.environ.get("CUSTOM_API_KEY") or not os.environ.get("CUSTOM_API_URL"):
+            raise ValueError(
+                "Custom LLM options require CUSTOM_API_KEY and CUSTOM_API_URL environment variables to be set."
+            )
+
+        kwargs["model"] = f"openai/{model_name}"
+        kwargs["api_base"] = os.environ.get("CUSTOM_API_URL")
+        kwargs["api_key"] = os.environ.get("CUSTOM_API_KEY")
+
+        return LLMWrapper(model_name=f"custom/{model_name}", llm_lite_kwargs=kwargs)
 
     else:
         raise ValueError(
