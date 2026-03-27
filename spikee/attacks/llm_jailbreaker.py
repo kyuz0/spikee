@@ -11,11 +11,12 @@ Returns:
   (iterations_used:int, success:bool, attack_prompt:str, last_response:str)
 """
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 from spikee.templates.attack import Attack
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm import get_llm, HumanMessage
+from spikee.utilities.llm import get_llm
+from spikee.utilities.llm_message import HumanMessage
 from spikee.utilities.modules import parse_options, extract_json_or_fail
 
 
@@ -99,7 +100,7 @@ class LLMJailbreaker(Attack):
         return [ModuleTag.LLM, ModuleTag.SINGLE], "Generates jailbreak attack prompts using an LLM."
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
-        """Return supported attack options."""
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
         return [], True
 
     def _generate_jailbreak_attack(
@@ -128,7 +129,7 @@ class LLMJailbreaker(Attack):
         ))
 
         # Call the model via .invoke and get content
-        response = llm.invoke([prompt], content_only=True).strip()
+        response = llm.invoke([prompt]).content.strip()
 
         obj = extract_json_or_fail(response)
         attack_prompt = obj.get("attack_prompt", "")
@@ -140,11 +141,11 @@ class LLMJailbreaker(Attack):
         self,
         entry: Dict[str, Any],
         target_module: Any,
-        call_judge: callable,
+        call_judge: Callable,
         max_iterations: int,
         attempts_bar=None,
         bar_lock=None,
-        attack_option: str = None,
+        attack_option: str = "",
     ) -> Tuple[int, bool, str, str]:
         """
         Executes a jailbreak attack sequence.

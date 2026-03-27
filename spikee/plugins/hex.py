@@ -17,7 +17,6 @@ Returns:
     str: The transformed text in hexadecimal encoding.
 """
 
-import re
 from typing import List, Tuple
 
 from spikee.templates.basic_plugin import BasicPlugin
@@ -29,10 +28,11 @@ class HexPlugin(BasicPlugin):
     def get_description(self) -> Tuple[List[ModuleTag], str]:
         return [], "Transforms text into hexadecimal encoding."
 
-    def get_available_option_values(self) -> List[str]:
-        return None
+    def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
+        return [], False
 
-    def plugin_transform(self, text: str, plugin_option: str = None) -> str:
+    def plugin_transform(self, text: str, plugin_option: str = "") -> str:
         """
         Transforms the input text into hexadecimal encoding while preserving any substring
         that exactly matches one of the exclusion regex patterns.

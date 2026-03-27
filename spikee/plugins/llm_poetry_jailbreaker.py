@@ -11,7 +11,8 @@ Usage:
 from spikee.templates.plugin import Plugin
 from typing import Dict, List, Tuple, Union
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm import get_llm, HumanMessage
+from spikee.utilities.llm import get_llm
+from spikee.utilities.llm_message import HumanMessage
 from spikee.attacks.llm_poetry_jailbreaker import SPIKEE_LLM_POETRY_JAILBREAKER_PROMPT
 from spikee.utilities.modules import parse_options, extract_json_or_fail
 
@@ -24,9 +25,10 @@ class LLMPoetryJailbreaker(Plugin):
         return [ModuleTag.LLM, ModuleTag.ATTACK_BASED], "Generates jailbreak attack prompts using an LLM and poetry techniques."
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
         return [], True
 
-    def get_variants(self, plugin_option: str = None) -> int:
+    def get_variants(self, plugin_option: str = "") -> int:
         """Get the number of variants to generate based on plugin options."""
         opts = parse_options(plugin_option)
         return int(opts.get("variants", self.VARIANTS))
@@ -57,7 +59,7 @@ class LLMPoetryJailbreaker(Plugin):
         ))
 
         # Call the model via .invoke and get content
-        response = llm.invoke([prompt], content_only=True).strip()
+        response = llm.invoke([prompt]).content.strip()
 
         obj = extract_json_or_fail(response)
         attack_prompt = obj.get("attack_prompt", "")
@@ -68,8 +70,8 @@ class LLMPoetryJailbreaker(Plugin):
     def transform(
         self,
         text: str,
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None
+        exclude_patterns: List[str] = [],
+        plugin_option: str = ""
     ) -> Union[str, List[str]]:
         opts = parse_options(plugin_option)
         llm_model = opts.get("model", self.DEFAULT_MODEL)

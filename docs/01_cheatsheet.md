@@ -23,10 +23,9 @@ spikee init
 | `--force`           | Overwrite existing directories                         |          |
 | `--include-builtin` | Copy built-in modules to local workspace               |          |
 | `--include-viewer`  | Include the built-in web viewer in the local workspace | [Link](./11_results.md#the-web-viewer-command) |
-| `--include-billing` | Include billing tracker in the local workspace         | [Link](./03_llm_providers.md#billing-tracking) |
 
 ## `spikee list`
-Lists all local and built-in modules available.
+Lists all local and built-in modules available. Use `--description` to include module descriptions.
 
 ```bash
 spikee list seeds
@@ -35,6 +34,7 @@ spikee list targets
 spikee list plugins
 spikee list attacks
 spikee list judges
+spikee list providers --description
 ```
 
 ## `spikee generate`
@@ -160,7 +160,7 @@ spikee results extract --results-file results.jsonl --category "success"
 | ------------------- | ------------------------------------------------------ |
 | `--results-file`    | Path to a results JSONL file |
 | `--results-folder`  | Path to a folder containing multiple results JSONL files |
-| `--category`        | Extracts prompts by category: success (default), fail, error, guardrail, no-guardrail, custom |
+| `--category`        | Extracts prompts by category: success (default), failure, error, guardrail, no-guardrail, custom |
 | `--custom-search`   | Custom search string to filter prompts when --category=custom. Formats: 'search_string', 'field:search_string' or '!search_string' to invert match |
 | `--tag`             | Include a tag at the end of the results filename          |
 

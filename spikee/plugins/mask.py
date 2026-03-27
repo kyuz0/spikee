@@ -23,7 +23,8 @@ import json
 
 from spikee.templates.plugin import Plugin
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm import get_llm, SystemMessage, HumanMessage
+from spikee.utilities.llm import get_llm
+from spikee.utilities.llm_message import HumanMessage, SystemMessage
 from spikee.utilities.modules import parse_options, extract_json_or_fail
 import random
 import string
@@ -53,6 +54,7 @@ class Shortener(Plugin):
         return [ModuleTag.LLM], "Masks high-risk words in prompts."
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
         return ["advanced=false", "advanced-split=6"], True
 
     def generate_mask(self) -> str:
@@ -61,8 +63,8 @@ class Shortener(Plugin):
     def transform(
         self,
         text: str,
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None
+        exclude_patterns: List[str] = [],
+        plugin_option: str = ""
     ) -> Union[str, List[str]]:
 
         opts = parse_options(plugin_option)
@@ -85,7 +87,7 @@ class Shortener(Plugin):
         response = llm.invoke([
             SystemMessage(content=MASK_PROMPT),
             HumanMessage(content=json.dumps(payload))
-        ], content_only=True)
+        ]).content
 
         risk_words = {}
         suffix = ""

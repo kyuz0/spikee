@@ -31,19 +31,19 @@ from spikee.utilities.enums import ModuleTag
 from typing import List, Union, Tuple
 
 class SamplePlugin(Plugin):
-    def get_description(self) -> Tuple[ModuleTag, str]:
+    def get_description(self) -> Tuple[List[ModuleTag], str]:
         """Returns the type and a short description of the plugin."""
         return [], "A brief description of what this plugin does."
 
-    def get_available_option_values(self) -> List[str]:
-        """Returns a list of supported option values, first is default. None if no options."""
-        return None
+    def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
+        return [], False
 
     def transform(
         self, 
         text: str, 
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None
+        exclude_patterns: List[str] = [],
+        plugin_option: str = ""
     ) -> Union[str, List[str]]:
         """Transforms the input text according to the user-defined logic, returning one or more variations.
 
@@ -57,18 +57,18 @@ class SamplePlugin(Plugin):
         # Your implementation here...
 
 class SampleBasicPlugin(BasicPlugin):
-    def get_description(self) -> Tuple[ModuleTag, str]:
+    def get_description(self) -> Tuple[List[ModuleTag], str]:
         """Returns the type and a short description of the plugin."""
         return [], "A brief description of what this plugin does."
 
-    def get_available_option_values(self) -> List[str]:
-        """Returns a list of supported option values, first is default. None if no options."""
-        return None
+    def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
+        return [], False
 
     def plugin_transform(
         self, 
         text: str, 
-        plugin_option: str = None,
+        plugin_option: str = "",
     ) -> str:
         """Transforms the input text according to the user-defined logic, returning a single variation.
 
@@ -103,18 +103,18 @@ This is the core function of every plugin. It receives a payload string and retu
 ### Signature with Options Support
 For more advanced plugins, you can accept a configuration string and advertise the available options.
 ```python
-from typing import List, Union
+from typing import List, Union, Tuple
 
-def get_available_option_values() -> List[str]:
-    """Returns a list of supported option strings for this plugin."""
-    return ["mode=strict", "mode=full"] # "mode=strict" is the default
+def get_available_option_values() -> Tuple[List[str], bool]:
+    """Return supported attack options; Tuple[options (default is first), llm_required]"""
+    return ["mode=strict", "mode=full"], False # "mode=strict" is the default
 
-def transform(text: str, exclude_patterns: List[str] = None, plugin_option: str = None) -> Union[str, List[str]]:
+def transform(text: str, exclude_patterns: List[str] = [], plugin_option: str = "") -> Union[str, List[str]]:
     """Transforms the payload based on the provided option."""
     # Your transformation logic here...
 ```
 
-## Supporting Target Options
+## Supporting Plugin Options
 For more advanced plugins, you can support `plugin_options` by implementing the `get_available_option_values` function. By default, it should return `None`, indicating no options are supported.
 
 ```python
@@ -122,15 +122,15 @@ from spikee.templates.plugin import Plugin
 from typing import List, Union
 
 class SamplePlugin(Plugin):
-    def get_available_option_values(self) -> List[str]:
-        """Returns a list of supported option values, first is default. None if no options."""
-        return ["mode=strict", "mode=full"] # "mode=strict" is the default
+    def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
+        return ["mode=strict", "mode=full"], False # "mode=strict" is the default
 
     def transform(
         self, 
         text: str, 
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None,
+        exclude_patterns: List[str] = [],
+        plugin_option: str = "",
     ) -> Union[str, List[str]]:
         # Your implementation here...
 ```
@@ -142,7 +142,7 @@ Correctly handling `exclude_patterns` is the most important part of writing a ro
 # Example transformation function converting all text to uppercase with exclude_patterns support
 import re
 
-def transform(self, text: str, exclude_patterns: List[str] = None) -> str:
+def transform(self, text: str, exclude_patterns: List[str] = []) -> str:
     if not exclude_patterns:
         # No exclusions, transform the whole text
         return apply_transformation(text)

@@ -19,7 +19,6 @@ Returns:
 """
 
 from typing import List, Tuple
-import re
 
 from spikee.templates.basic_plugin import BasicPlugin
 from spikee.utilities.enums import ModuleTag
@@ -87,10 +86,11 @@ class MorsePlugin(BasicPlugin):
         " ": "/",
     }
 
-    def get_available_option_values(self) -> List[str]:
-        return None
+    def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
+        return [], False
 
-    def plugin_transform(self, text: str, plugin_option: str = None) -> str:
+    def plugin_transform(self, text: str, plugin_option: str = "") -> str:
         """
         Transforms the input text into Morse code while preserving any substring that
         exactly matches one of the exclusion regex patterns.

@@ -120,7 +120,7 @@ cd workspace
 spikee init
 ```
 
-See [`spikee init` documentation](./docs/01_cheatsheet.md#spikee-init) for information on `--include` flags (e.g., Spikee UI, billing tracking). 
+See [`spikee init` documentation](./docs/01_cheatsheet.md#spikee-init) for information on `--include` flags (e.g., Spikee Viewer). 
 
 ## 3. Available Modules: `spikee list`
 
@@ -133,7 +133,10 @@ spikee list judges
 spikee list targets
 spikee list plugins
 spikee list attacks
+spikee list providers --description
 ```
+
+(NB, use `--description` to get a brief description of each module - not supported on seeds or datasets).
 
 
 ## 4. Generating a Dataset: `spikee generate`
@@ -212,8 +215,8 @@ This example, assess the OpenAI `gpt-4o-mini` model against the `cybersec-2026-0
 
 ```bash
 spikee test --dataset datasets/cybersec-2026-01-full-prompt-dataset-*.jsonl \
-            --target openai_api \
-            --target-options openai-gpt-4o-mini
+            --target llm_provider \
+            --target-options "openai/gpt-4o-mini"
 ```
 
 **Multiple Datasets**
@@ -224,8 +227,8 @@ spikee test --dataset datasets/cybersec-2026-01-full-prompt-dataset-*.jsonl \
 spikee test --dataset datasets/cybersec-2026-01.jsonl \
             --dataset datasets/simsonsun.jsonl \
             --dataset-folder datasets/cyber_datasets/ \
-            --target openai_api \
-            --target-options openai-gpt-4o-mini
+            --target llm_provider \
+            --target-options "openai/gpt-4o-mini"
 ```
 
 ### 5.2. Target Modules
@@ -250,8 +253,9 @@ See [Built-in Judges](./docs/02_builtin.md#built-in-judges) for a list of availa
 ```bash
 # simsonsum-high-quality-jailbreaks uses llm_judge_harmful, set the model with --judge-options
 spikee test --dataset datasets/simsonsum-high-quality-jailbreaks.jsonl \
-            --target openai_api \
-            --judge-options bedrock-qwen.qwen3-next-80b-a3b
+            --target llm_provider \
+            --target-options "openai/gpt-4o-mini" \
+            --judge-options "bedrock/claude45-haiku"
 ```
 
 ### 5.4. Dynamic Attacks
@@ -263,13 +267,15 @@ Spikee supports dynamic attack modules, which generate iterative transformations
 ```bash
 # Best of N Attack
 spikee test --dataset datasets/dataset-name.jsonl \
-            --target openai_api \
+            --target llm_provider \
+            --target-options "bedrock/claude45-sonnet" \
             --attack best_of_n --attack-iterations 25
 ```
 Some attacks, like `prompt decomposition` support options, such as which LLM to use to generate attack prompt variations:
 ```bash
 spikee test --dataset datasets/dataset-name.jsonl \
-            --target openai_api \
+            --target llm_provider \
+            --target-options "bedrock/claude45-sonnet" \
             --attack prompt_decomposition \
             --attack-iterations 50 \
             --attack-options 'prompt_decomposition:variants=15,model=bedrock-deepseek-v3'
@@ -290,7 +296,7 @@ Built-in multi-turn datasets and attacks can be found in the [Built-in Datasets]
 spikee test --dataset datasets/dataset-name.jsonl \
             --target demo_llm_application \
             --attack crescendo \
-            --attack-options 'max-turns=5,model=bedrockcv-deepseek.v3-v1:0' \
+            --attack-options 'max-turns=5,model=bedrock/deepseek-v3' \
             --attack-only
 ```
 
@@ -298,7 +304,7 @@ spikee test --dataset datasets/dataset-name.jsonl \
 spikee test --dataset datasets/dataset-name.jsonl \
             --target demo_llm_application \
             --attack goat \
-            --attack-options 'model=bedrockcv-deepseek.v3-v1:0' \
+            --attack-options 'model=bedrock/deepseek-v3' \
             --attack-only
 ```
 
@@ -313,7 +319,7 @@ spikee test --dataset datasets/dataset-name.jsonl \
 `spikee results` includes several tools to aid in the analysis of test results. 
 - `spikee results analyze` provides an overview of an attack's success and detailed breakdowns by for several categories (e.g., attacks, plugins, dataset-specific metadata)
   ```bash
-  spikee results analyze --result-file ./results/results_openai_api-gpt-4o-mini.jsonl
+  spikee results analyze --result-file ./results/results_llm_provider-openai_gpt-4o-mini.jsonl
 
   # --overview: only output the general statistics of an analysis.
   # --combine: combine multiple results files into a single analysis.
@@ -323,7 +329,7 @@ spikee test --dataset datasets/dataset-name.jsonl \
 - `spikee results extract` Extracts user-defined categories of results from results files for further analysis.
   ```bash
   # Extract all successful attacks to a new dataset file for further analysis
-  spikee results extract --result-file results/results_openai-api_cybersec-2026-01-*.jsonl \
+  spikee results extract --result-file results/results_llm_provider_cybersec-2026-01-*.jsonl \
                         --category success
   ```
 

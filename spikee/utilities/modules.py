@@ -5,24 +5,35 @@ import re
 import json
 from typing import Any, Dict, Optional
 
-from spikee.templates.target import Target
-from spikee.templates.judge import Judge
-from spikee.templates.llm_judge import LLMJudge
-from spikee.templates.plugin import Plugin
-from spikee.templates.attack import Attack
-
-
-BASE_CLASS_MAP = {
-    "targets": (Target,),
-    "judges": (Judge, LLMJudge),
-    "plugins": (Plugin,),
-    "attacks": (Attack,),
-}
-
 
 def _resolve_impl_class(module, module_type):
     """Return the first concrete implementation class for the given module."""
-    base_classes = BASE_CLASS_MAP.get(module_type)
+
+    match module_type:
+        case "targets":
+            from spikee.templates.target import Target
+            base_classes = (Target,)
+
+        case "judges":
+            from spikee.templates.judge import Judge
+            from spikee.templates.llm_judge import LLMJudge
+            base_classes = (Judge, LLMJudge)
+
+        case "plugins":
+            from spikee.templates.plugin import Plugin
+            base_classes = (Plugin,)
+
+        case "attacks":
+            from spikee.templates.attack import Attack
+            base_classes = (Attack,)
+
+        case "providers":
+            from spikee.templates.provider import Provider
+            base_classes = (Provider,)
+
+        case _:
+            raise ValueError(f"Unknown module type '{module_type}' for implementation resolution")
+
     if not base_classes or not inspect.ismodule(module):
         return None
 
@@ -44,22 +55,27 @@ def _instantiate_impl(module, module_type):
 # ==== Loading Modules ====
 def load_module_from_path(name, module_type):
     """Loads a module either from a local path or from the spikee package."""
-    local_path = os.path.join(os.getcwd(), module_type, f"{name}.py")
-    if os.path.isfile(local_path):
-        spec = importlib.util.spec_from_file_location(name, local_path)
-        if spec and spec.loader:
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+    try:
+
+        local_path = os.path.join(os.getcwd(), module_type, f"{name}.py")
+        if os.path.isfile(local_path):
+            spec = importlib.util.spec_from_file_location(name, local_path)
+            if spec and spec.loader:
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+            else:
+                raise ImportError(f"Could not load module {name} from {local_path}")
         else:
-            raise ImportError(f"Could not load module {name} from {local_path}")
-    else:
-        try:
             mod = importlib.import_module(f"spikee.{module_type}.{name}")
 
-        except ModuleNotFoundError:
-            raise ValueError(
-                f"Module '{name}' not found locally or in spikee.{module_type}"
-            )
+    except ModuleNotFoundError as e:
+        trimmed = str(e).split("No module named ")[-1].strip("'\"")
+
+        if trimmed == name or trimmed.endswith(f".{name}"):
+            raise ImportError(f"[Loading Module {name}] Module '{name}' not found locally or built-in - ensure it exists with 'spikee list <module_type>'")
+
+        else:
+            raise ImportError(f"[Loading Module {name}] Dependency '{trimmed}' not found - ensure it is installed and accessible.")
 
     instance = _instantiate_impl(mod, module_type)
     if instance is not None:
@@ -110,6 +126,10 @@ def get_description_from_module(module, module_type=None):
 
 def get_default_option(module, module_type=None):
     available = get_options_from_module(module, module_type)
+
+    if isinstance(available, tuple):
+        available = available[0]
+
     return available[0] if available else None
 
 
