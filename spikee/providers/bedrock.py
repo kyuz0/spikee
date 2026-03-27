@@ -1,14 +1,13 @@
 from spikee.templates.provider import Provider
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm_message import upgrade_messages, agent_framework_message_translation, Message, AIMessage
+from spikee.utilities.llm_message import format_messages, Message, AIMessage
 
-from agent_framework.amazon import BedrockChatClient, BedrockChatOptions
+from any_llm import AnyLLM
 from typing import List, Tuple, Dict, Union, Any
-import asyncio
 
 
-class AgentFrameworkBedrockProvider(Provider):
-    """Agent Framework provider for Bedrock models"""
+class AnyLLMBedrockProvider(Provider):
+    """AnyLLM provider for Bedrock models"""
 
     @property
     def default_model(self) -> str:
@@ -48,10 +47,12 @@ class AgentFrameworkBedrockProvider(Provider):
         self.max_tokens = max_tokens
         self.temperature = temperature
 
-        # Map user-friendly model names to actual Bedrock model identifiers
         self.model = self.models.get(self.model, self.model)
 
-        self.llm = BedrockChatClient(model_id=self.model)
+        try:
+            self.llm = AnyLLM.create("bedrock")
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'bedrock' is missing required packages for AWS Bedrock. Please run `pip install spikee[bedrock]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:
@@ -60,16 +61,16 @@ class AgentFrameworkBedrockProvider(Provider):
         if self.temperature is not None:
             options_kwargs["temperature"] = self.temperature
 
-        self.options: BedrockChatOptions = BedrockChatOptions(**options_kwargs)
+        self.options = options_kwargs
 
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [ModuleTag.LLM], "LLM Provider for AWS Bedrock models via Agent Framework."
+        return [ModuleTag.LLM], "LLM Provider for AWS Bedrock models via any-llm."
 
     def invoke(self, messages: Union[str, List[Union[Message, dict, tuple, str]]]) -> AIMessage:
-        """Invoke Agent Framework Bedrock LLM with the provided messages."""
+        """Invoke AnyLLM Bedrock LLM with the provided messages."""
 
-        upgraded_messages = agent_framework_message_translation(upgrade_messages(messages))
+        formatted_messages = format_messages(messages)
 
-        response = asyncio.run(self.llm.get_response(messages=upgraded_messages, options=self.options))
+        response = self.llm.completion(model=self.model, messages=formatted_messages, **self.options)
 
-        return AIMessage(content=response.messages[0].text, original_response=response)
+        return AIMessage(content=response.choices[0].message.content, original_response=response)

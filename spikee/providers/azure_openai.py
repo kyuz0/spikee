@@ -1,14 +1,14 @@
 from spikee.templates.provider import Provider
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm_message import upgrade_messages, agent_framework_message_translation, Message, AIMessage
+from spikee.utilities.llm_message import format_messages, Message, AIMessage
 
-from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIChatOptions
+from any_llm import AnyLLM
+import os
 from typing import List, Tuple, Dict, Union, Any
-import asyncio
 
 
-class AgentFrameworkAzureOpenAIProvider(Provider):
-    """Agent Framework provider for Azure OpenAI models"""
+class AnyLLMAzureOpenAIProvider(Provider):
+    """AnyLLM provider for Azure OpenAI models"""
 
     @property
     def default_model(self) -> str:
@@ -26,7 +26,11 @@ class AgentFrameworkAzureOpenAIProvider(Provider):
         self.max_tokens = max_tokens
         self.temperature = temperature
 
-        self.llm = AzureOpenAIChatClient(deployment_name=self.model)
+        try:
+            api_ver = os.getenv("AZURE_OPENAI_API_VERSION", os.getenv("OPENAI_API_VERSION", "2024-02-15-preview"))
+            self.llm = AnyLLM.create("azureopenai", api_version=api_ver)
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'azure_openai' is missing required packages for Azure OpenAI. Please run `pip install spikee[azure]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:
@@ -35,16 +39,16 @@ class AgentFrameworkAzureOpenAIProvider(Provider):
         if self.temperature is not None:
             options_kwargs["temperature"] = self.temperature
 
-        self.options: AzureOpenAIChatOptions = AzureOpenAIChatOptions(**options_kwargs)
+        self.options = options_kwargs
 
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [ModuleTag.LLM], "LLM Provider for Azure OpenAI models via Agent Framework."
+        return [ModuleTag.LLM], "LLM Provider for Azure OpenAI models via any-llm."
 
     def invoke(self, messages: Union[str, List[Union[Message, dict, tuple, str]]]) -> AIMessage:
-        """Invoke Agent Framework Azure OpenAI LLM with the provided messages."""
+        """Invoke AnyLLM Azure OpenAI LLM with the provided messages."""
 
-        upgraded_messages = agent_framework_message_translation(upgrade_messages(messages))
+        formatted_messages = format_messages(messages)
 
-        response = asyncio.run(self.llm.get_response(messages=upgraded_messages, options=self.options))
+        response = self.llm.completion(model=self.model, messages=formatted_messages, **self.options)
 
-        return AIMessage(content=response.messages[0].text, original_response=response)
+        return AIMessage(content=response.choices[0].message.content, original_response=response)

@@ -50,7 +50,7 @@ class LLMJudgeObjective(LLMJudge):
         """
         Evaluates whether an LLM's output meets a specified objective.
         """
-        llm = self._get_llm(judge_options or self.DEFAULT_LLM_MODEL)
+        llm = self._get_llm(judge_options)
 
         if llm is None:
             return False

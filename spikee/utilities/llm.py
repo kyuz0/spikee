@@ -34,23 +34,19 @@ def get_llm(options: str = "", max_tokens: Union[int, None] = 8, temperature: fl
     if options.startswith("model="):
         options = options[len("model="):]
 
-    if options == "offline":  # Offline mode, no LLM provider
+    if options.startswith("offline"):  # Offline mode, no LLM provider
         return None
 
     elif "/" in options:  # Expected format: "provider/model"
         provider_name, model_name = options.split("/", 1)
 
     else:
-        raise ValueError(
-            f"Invalid options format: '{options}' - expected format 'provider/model', for example 'lang-bedrock/claude35-haiku'."
+        raise ImportError(
+            f"[LLM Identifier Error] Invalid options format: '{options}' - expected format 'provider/model', for example 'lang-bedrock/claude35-haiku'."
         )
 
-    try:  # Load the provider module
-        provider = load_module_from_path(provider_name, "providers")
-
-    except (ImportError, ValueError) as e:
-        raise ImportError(f"Error loading provider '{provider_name}': {str(e)}")
-
+    provider = load_module_from_path(provider_name, "providers")
+    
     if model_name == "":
         model_name = provider.default_model
 

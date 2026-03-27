@@ -395,11 +395,7 @@ class Crescendo(Attack):
         # Parse options
         opts = parse_options(attack_option)
         max_turns = self._parse_max_turns(opts)
-        try:
-            llm = get_llm(opts.get("model", None), max_tokens=None)
-        except ValueError as e:
-            print(f"[Error] {e}")
-            return None
+        llm = get_llm(opts.get("model", None), max_tokens=None)
 
         # Variables
         conversation = StandardisedConversation({"objective": entry["text"]})
