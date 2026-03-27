@@ -24,7 +24,7 @@ Reference:
     https://huggingface.co/Helsinki-NLP
 
 Requirements:
-    pip install transformers torch sentencepiece
+    pip install "spikee[local-inference]"
 
     To use GPU acceleration, ensure you have the appropriate CUDA toolkit and PyTorch version installed.
     'nvidia-smi' can be used to verify GPU availability and CUDA installation.
@@ -73,7 +73,7 @@ class OpusTranslator(Plugin):
             self.device = "cpu"
 
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [ModuleTag.ML], "Translates text to any language(s) using local OPUS-MT models. (Requires dependencies [see docs]: transformers, torch, sentencepiece) and 'HF_TOKEN')"
+        return [ModuleTag.ML], "Translates text to any language(s) using local OPUS-MT models. (Requires: `pip install \"spikee[local-inference]\"`)"
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
         """Return supported options; Tuple[options (default is first), llm_required]"""

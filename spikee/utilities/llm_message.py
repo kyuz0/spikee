@@ -1,7 +1,4 @@
 from typing import Dict, List, Any, Union
-from agent_framework import Message as AFMessage
-
-
 class Message:
     def __init__(self, role: str, content: str):
         self.role = role
@@ -10,7 +7,7 @@ class Message:
 
     @property
     def contents(self):
-        """For compatibility with Agent Framework's Message format"""
+        """For compatibility with list representation of contents"""
         return [self.content]
 
     def to_dict(self) -> Dict[str, str]:
@@ -108,13 +105,3 @@ def upgrade_messages(messages: Union[str, List[Union[Message, dict, tuple, str]]
         raise ValueError(f"Unsupported messages format type: {type(messages)}.")
 
     return upgraded_messages
-
-
-def agent_framework_message_translation(messages: List[Message]) -> List[AFMessage]:
-    """Translate our internal Message format to Agent Framework's Message format"""
-    agent_framework_messages = []
-
-    for msg in messages:
-        agent_framework_messages.append(AFMessage(role=msg.role, contents=[msg.content]))
-
-    return agent_framework_messages

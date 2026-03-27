@@ -1,7 +1,7 @@
 """
 Google Translate Plugin
 
-Requires: pip install googletrans
+Requires: pip install "spikee[google-translate]"
 """
 
 from typing import List, Tuple
@@ -17,7 +17,7 @@ DEFAULT_TARGET_LANGUAGE = "zh-cn"  # Default target language for translation
 
 class GoogleTranslator(Plugin):
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [], "Transforms text using Google Translate (Requires dependency: 'googletrans')."
+        return [], "Transforms text using Google Translate. (Requires: `pip install \"spikee[google-translate]\"`)"
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
         """Return supported attack options; Tuple[options (default is first), llm_required]"""
@@ -37,8 +37,8 @@ class GoogleTranslator(Plugin):
         """
         try:
             from googletrans import Translator
-        except ImportError:
-            raise ImportError("googletrans library is not installed. Please install it with 'pip install googletrans'.")
+        except ImportError as e:
+            raise ImportError("Missing required packages for Google Translate. Please install it with: `pip install \"spikee[google-translate]\"`") from e
 
         options = parse_options(plugin_option)
         source_lang = options.get("source-lang", DEFAULT_SOURCE_LANGUAGE)

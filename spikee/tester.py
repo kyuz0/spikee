@@ -499,6 +499,9 @@ def _do_single_request(
         response_time = None
         success = False
 
+    except ImportError as ie:
+        raise ie
+
     except Exception as e:
         error_message = str(e)
         response_str = ""
@@ -829,6 +832,14 @@ def _run_threaded(
                     bar_entries.set_postfix(success=success, guardrails=guardrail)
                 else:
                     bar_entries.set_postfix(success=success)
+
+            except ImportError as ie:
+                bar_all.close()
+                bar_entries.close()
+                print(f"Import Error Entry ID {entry['id']}: {ie}")
+                print(f"Exiting early due to ImportError in attack module. Please import required dependencies and re-run.")
+                exit(1)
+
             except Exception as e:
                 print(f"[Error] Entry ID {entry['id']}: {e}")
                 traceback.print_exc()

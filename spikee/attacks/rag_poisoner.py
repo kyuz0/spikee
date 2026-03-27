@@ -152,10 +152,7 @@ class RAGPoisoner(Attack):
             return 0, False, "", "No objective provided in entry"
 
         # Initialize the LLM
-        try:
-            llm = get_llm(model_name, max_tokens=400)
-        except Exception as e:
-            return 0, False, "", f"Failed to initialize LLM: {e}"
+        llm = get_llm(model_name, max_tokens=400)
 
         # Track previous attack attempts to avoid repetition
         previous_attempts = []

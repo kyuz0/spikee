@@ -17,14 +17,18 @@ from spikee.utilities.enums import ModuleTag
 
 from dotenv import load_dotenv
 import json
-from fpdf import FPDF
 import requests
 from typing import Any, Optional, List, Tuple, Union
+
+try:
+    from fpdf import FPDF
+except ImportError as e:
+    raise ImportError("Missing required package `fpdf2`. Please install it with: `pip install \"spikee[pdf]\"`") from e
 
 
 class SamplePDFRequestTarget(Target):
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [], "Sample PDF Request Target. (Requires library 'fpdf')"
+        return [], "Sample PDF Request Target. (Requires: `pip install \"spikee[pdf]\"`)"
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
         """Return supported attack options; Tuple[options (default is first), llm_required]"""

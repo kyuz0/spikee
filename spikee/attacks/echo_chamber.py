@@ -558,12 +558,8 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
         self.stage_attempts = int(opts.get("stage-attempts", 3))
         self.debug = opts.get("debug", "false").lower() == "true"
 
-        try:
-            llm = get_llm(opts.get("model", None), max_tokens=None, temperature=1)
-            agent = get_llm(opts.get("model", None), max_tokens=None, temperature=0.7)
-        except ValueError as e:
-            print(f"[Error] {e}")
-            raise e
+        llm = get_llm(opts.get("model", None), max_tokens=None, temperature=1)
+        agent = get_llm(opts.get("model", None), max_tokens=None, temperature=0.7)
 
         # Target Set-up
         spikee_session_id = None

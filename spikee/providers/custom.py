@@ -2,16 +2,15 @@ import os
 
 from spikee.templates.provider import Provider
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm_message import upgrade_messages, agent_framework_message_translation, Message, AIMessage
+from spikee.utilities.llm_message import format_messages, Message, AIMessage
 
-from agent_framework.openai import OpenAIChatClient, OpenAIChatOptions
+from any_llm import AnyLLM
 from typing import List, Tuple, Dict, Union, Any
-import asyncio
 import os
 
 
-class AgentFrameworkCustomProvider(Provider):
-    """Custom Agent Framework provider, providing an OpenAI based API provider"""
+class AnyLLMCustomProvider(Provider):
+    """Custom AnyLLM provider, providing an OpenAI based API provider"""
 
     @property
     def default_model(self) -> str:
@@ -45,29 +44,28 @@ class AgentFrameworkCustomProvider(Provider):
         if self.base_url is None or self.api_key is None:
             raise ValueError(f"URL and API key variables must be set for the {self.name} provider.")
 
-        self.llm = OpenAIChatClient(
-            model_id=self.model,
-            base_url=self.base_url,
-            api_key=self.api_key
-        )
+        try:
+            self.llm = AnyLLM.create("openai", api_base=self.base_url, api_key=self.api_key)
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module '{self.name}' is missing required packages for OpenAI compatible APIs. Please run `pip install spikee[openai]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:
-            options_kwargs["max_completion_tokens"] = self.max_tokens
+            options_kwargs["max_tokens"] = self.max_tokens
 
         if self.temperature is not None:
             options_kwargs["temperature"] = self.temperature
 
-        self.options: OpenAIChatOptions = OpenAIChatOptions(**options_kwargs)
+        self.options = options_kwargs
 
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [ModuleTag.LLM], f"LLM Provider for {self.name} (OpenAI based API) via Agent Framework."
+        return [ModuleTag.LLM], f"LLM Provider for {self.name} (OpenAI based API) via any-llm."
 
     def invoke(self, messages: Union[str, List[Union[Message, dict, tuple, str]]]) -> AIMessage:
-        """Invoke Agent Framework, for OpenAI based API LLM with the provided messages."""
+        """Invoke AnyLLM, for OpenAI based API LLM with the provided messages."""
 
-        upgraded_messages = agent_framework_message_translation(upgrade_messages(messages))
+        formatted_messages = format_messages(messages)
 
-        response = asyncio.run(self.llm.get_response(messages=upgraded_messages, options=self.options))
+        response = self.llm.completion(model=self.model, messages=formatted_messages, **self.options)
 
-        return AIMessage(content=response.messages[0].text, original_response=response)
+        return AIMessage(content=response.choices[0].message.content, original_response=response)

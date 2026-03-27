@@ -1,16 +1,15 @@
 from spikee.templates.provider import Provider
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm_message import upgrade_messages, agent_framework_message_translation, Message, AIMessage
+from spikee.utilities.llm_message import format_messages, Message, AIMessage
 
-from agent_framework.azure import OllamaChatClient, OllamaChatOptions
+from any_llm import AnyLLM
 from typing import List, Tuple, Dict, Union, Any
-import asyncio
 import os
 import requests
 
 
-class AgentFrameworkOllamaProvider(Provider):
-    """Agent Framework provider for Ollama models"""
+class AnyLLMOllamaProvider(Provider):
+    """AnyLLM provider for Ollama models"""
 
     BASE_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
@@ -50,7 +49,10 @@ class AgentFrameworkOllamaProvider(Provider):
         self.max_tokens = max_tokens
         self.temperature = temperature
 
-        self.llm = OllamaChatClient(model_id=self.model)
+        try:
+            self.llm = AnyLLM.create("ollama", api_base=self.BASE_URL)
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'ollama' is missing required packages for Ollama. Please run `pip install spikee[ollama]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:
@@ -59,16 +61,16 @@ class AgentFrameworkOllamaProvider(Provider):
         if self.temperature is not None:
             options_kwargs["temperature"] = self.temperature
 
-        self.options: OllamaChatOptions = OllamaChatOptions(**options_kwargs)
+        self.options = options_kwargs
 
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [ModuleTag.LLM], "LLM Provider for Ollama models via Agent Framework."
+        return [ModuleTag.LLM], "LLM Provider for Ollama models via any-llm."
 
     def invoke(self, messages: Union[str, List[Union[Message, dict, tuple, str]]]) -> AIMessage:
-        """Invoke Agent Framework Ollama LLM with the provided messages."""
+        """Invoke AnyLLM Ollama LLM with the provided messages."""
 
-        upgraded_messages = agent_framework_message_translation(upgrade_messages(messages))
+        formatted_messages = format_messages(messages)
 
-        response = asyncio.run(self.llm.get_response(messages=upgraded_messages, options=self.options))
+        response = self.llm.completion(model=self.model, messages=formatted_messages, **self.options)
 
-        return AIMessage(content=response.messages[0].text, original_response=response)
+        return AIMessage(content=response.choices[0].message.content, original_response=response)

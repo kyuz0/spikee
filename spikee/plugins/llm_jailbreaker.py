@@ -81,13 +81,7 @@ class LLMJailbreaker(Plugin):
         llm_model = opts.get("model", self.DEFAULT_MODEL)
         variants = int(opts.get("variants", self.VARIANTS))
 
-        try:
-            llm = get_llm(
-                llm_model,
-                max_tokens=800
-            )
-        except Exception as e:
-            raise RuntimeError(f"[LLMJailbreaker] Error initializing LLM '{llm_model}': {str(e)}")
+        llm = get_llm(llm_model, max_tokens=800)
 
         previous_attempts = []
         attack_prompts = []

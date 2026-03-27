@@ -1,10 +1,10 @@
-from spikee.providers.custom import AgentFrameworkCustomProvider
+from spikee.providers.custom import AnyLLMCustomProvider
 from typing import Dict, Union
 import os
 
 
-class AgentFrameworkTogetherAIProvider(AgentFrameworkCustomProvider):
-    """Agent Framework provider for TogetherAI models (via Custom provider with OpenAI compatibility)"""
+class AnyLLMTogetherAIProvider(AnyLLMCustomProvider):
+    """AnyLLM provider for TogetherAI models (via Custom provider with OpenAI compatibility)"""
 
     @property
     def models(self) -> Dict[str, str]:
