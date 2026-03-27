@@ -24,8 +24,6 @@ bedrock = ["any-llm-sdk[bedrock]"]
 ollama = ["any-llm-sdk[ollama]"]
 groq = ["any-llm-sdk[groq]"]
 local-inference = ["torch", "transformers", "sentencepiece"]
-google-translate = ["googletrans==4.0.0-rc1"]
-pdf = ["fpdf2"]
 all = ["any-llm-sdk[azure,azureopenai,bedrock,ollama,groq]"]
 
 [project.scripts]
