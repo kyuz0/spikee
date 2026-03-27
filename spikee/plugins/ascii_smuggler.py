@@ -84,10 +84,10 @@ class AsciiSmuggler(BasicPlugin):
             f"Invalid characters detected: {invalid_chars}" if invalid_chars else ""
         )
 
-        full_response = {
-            "code_points": " ".join(code_points),
-            "encoded": "".join(encoded),
-            "status": status_message,
-        }
+        #full_response = {
+        #    "code_points": " ".join(code_points),
+        #    "encoded": "".join(encoded),
+        #    "status": status_message,
+        #}
 
         return "".join(encoded)

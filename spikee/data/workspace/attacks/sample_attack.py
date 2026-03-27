@@ -48,7 +48,7 @@ Notes:
 """
 
 import random
-from typing import List
+from typing import List, Tuple
 
 from spikee.templates.attack import Attack
 

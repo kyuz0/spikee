@@ -717,7 +717,7 @@ def generate_variations(
                 instruction_text = instruction["instruction"]
                 instruction_type = instruction.get("instruction_type", "")
                 instruction_lang = instruction.get("lang", "en")
-                instruction_steering_keywords = instruction.get("steering_keywords", None)
+                #instruction_steering_keywords = instruction.get("steering_keywords", None)
 
                 judge_name = instruction.get("judge_name", "canary")
                 judge_args = instruction.get(
