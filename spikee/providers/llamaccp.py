@@ -1,9 +1,9 @@
-from spikee.providers.custom import AgentFrameworkCustomProvider
+from spikee.providers.custom import AnyLLMCustomProvider
 import os
 
 
-class AgentFrameworkLLAMACCPProvider(AgentFrameworkCustomProvider):
-    """Agent Framework provider for LLAMA CCP models (via Custom provider with OpenAI compatibility)"""
+class AnyLLMLLAMACCPProvider(AnyLLMCustomProvider):
+    """AnyLLM provider for LLAMA CCP models (via Custom provider with OpenAI compatibility)"""
 
     @property
     def name(self) -> str:

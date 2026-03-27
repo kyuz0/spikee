@@ -9,8 +9,8 @@ import asyncio
 BASE_URL = "https://example.com/openai/v1"
 
 
-class AgentFrameworkSampleProvider(Provider):
-    """Sample Agent Framework provider"""
+class AnyLLMSampleProvider(Provider):
+    """Sample AnyLLM provider"""
 
     @property
     def default_model(self) -> str:
@@ -46,7 +46,7 @@ class AgentFrameworkSampleProvider(Provider):
         self.options: OpenAIChatOptions = OpenAIChatOptions(**options_kwargs)
 
     def get_description(self) -> Tuple[List[ModuleTag], str]:
-        return [ModuleTag.LLM], "Sample provider for OpenAI API based Agent Framework providers."
+        return [ModuleTag.LLM], "Sample provider for OpenAI API based AnyLLM providers."
 
     def invoke(self, messages: Union[str, List[Union[Message, dict, tuple, str]]]) -> AIMessage:
         """Return Mock Message"""

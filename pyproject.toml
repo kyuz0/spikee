@@ -9,7 +9,7 @@ description = "Spikee - Simple Prompt Injection Kit for Evaluation and Exploitat
 readme = "README.md"
 keywords = [ "prompt-injection", "LLM", "cyber-security", "pentesting",]
 classifiers = [ "Programming Language :: Python :: 3", "License :: OSI Approved :: Apache Software License", "Operating System :: OS Independent",]
-dependencies = [ "tqdm", "rich", "agent-framework", "datasets", "tabulate==0.9.0", "flask", "jinja2", "pandas", "python-dotenv", "InquirerPy", "tomli; python_version < '3.11'"]
+dependencies = [ "tqdm", "rich", "any-llm-sdk", "datasets", "tabulate==0.9.0", "flask", "jinja2", "pandas", "python-dotenv", "InquirerPy", "tomli; python_version < '3.11'"]
 [[project.authors]]
 name = "Reversec"
 email = "donato.capitella@reversec.com"
@@ -18,7 +18,13 @@ email = "donato.capitella@reversec.com"
 text = "Apache-2.0"
 
 [project.optional-dependencies]
-huggingface = []
+openai = []
+azure = ["any-llm-sdk[azure,azureopenai]"]
+bedrock = ["any-llm-sdk[bedrock]"]
+ollama = ["any-llm-sdk[ollama]"]
+groq = ["any-llm-sdk[groq]"]
+local-inference = ["torch", "transformers"]
+all = ["any-llm-sdk[azure,azureopenai,bedrock,ollama,groq]"]
 
 [project.scripts]
 spikee = "spikee.cli:main"

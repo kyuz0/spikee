@@ -1,10 +1,10 @@
-from spikee.providers.custom import AgentFrameworkCustomProvider
+from spikee.providers.custom import AnyLLMCustomProvider
 from typing import Dict, Union
 import os
 
 
-class AgentFrameworkOpenRouterProvider(AgentFrameworkCustomProvider):
-    """Agent Framework provider for OpenRouter models (via Custom provider with OpenAI compatibility)"""
+class AnyLLMOpenRouterProvider(AnyLLMCustomProvider):
+    """AnyLLM provider for OpenRouter models (via Custom provider with OpenAI compatibility)"""
 
     @property
     def models(self) -> Dict[str, str]:

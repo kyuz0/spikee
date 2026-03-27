@@ -1,10 +1,10 @@
-from spikee.providers.custom import AgentFrameworkCustomProvider
+from spikee.providers.custom import AnyLLMCustomProvider
 from typing import Dict, Union
 import os
 
 
-class AgentFrameworkGoogleProvider(AgentFrameworkCustomProvider):
-    """Agent Framework provider for Google models (via Custom provider with OpenAI compatibility)"""
+class AnyLLMGoogleProvider(AnyLLMCustomProvider):
+    """AnyLLM provider for Google models (via Custom provider with OpenAI compatibility)"""
 
     # Beware max tokens, 'finish_reason' may be 'length' if max_tokens is hit during thinking, resulting in no response
 

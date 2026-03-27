@@ -2,6 +2,15 @@
 
 A Provider Module is a Python script that abstracts interactions (e.g., authentication, invocation, formatting) with a specific LLM provider. While Spikee contains several built-in modules, leveraging the `agent-framework` library for popular LLM providers, users can create their own custom provider modules to interface with any LLM service they choose. These providers can be accessed by a wide range of other modules (e.g., Targets, Attacks, Plugins, Judges) to utlise LLM technologies.
 
+## Installation and Dependencies
+Spikee uses `any-llm` to handle interactions with providers. To keep Spikee as lightweight as possible, **only dependencies for OpenAI-compatible API endpoints** are installed by default (`pip install spikee`). This base installation supports OpenAI, DeepSeek, OpenRouter, Google, TogetherAI, and Custom providers out of the box.
+
+If you want to use targets, judges, or attackers powered by providers for which spikee relies on native SDKs (such as AWS Bedrock, Azure, Ollama or Groq), you explicitly need to install those optional dependencies:
+```bash
+pip install "spikee[all]"
+# Or specifically: "spikee[bedrock,azure,ollama,groq]"
+```
+
 ## Identifying Providers and Models
 
 All providers and models can be specified using the following format:
@@ -177,14 +186,14 @@ class ExampleProvider(Provider):
         return AIMessage(content="Hello, world!", original_response=...)
 ```
 
-LLM Providers utilising an OpenAI-compatible API can also inherit from `AgentFrameworkCustomProvider` - this is an example for Google Gemini: 
+LLM Providers utilising an OpenAI-compatible API can also inherit from `AnyLLMCustomProvider` - this is an example for Google Gemini: 
 ```python
-from spikee.providers.custom import AgentFrameworkCustomProvider
+from spikee.providers.custom import AnyLLMCustomProvider
 from typing import Dict, Union
 import os
 
-class AgentFrameworkGoogleProvider(AgentFrameworkCustomProvider):
-    """Agent Framework provider for Google models (via Custom provider with OpenAI compatibility)"""
+class AnyLLMGoogleProvider(AnyLLMCustomProvider):
+    """AnyLLM provider for Google models (via Custom provider with OpenAI compatibility)"""
 
     @property
     def default_model(self) -> str:

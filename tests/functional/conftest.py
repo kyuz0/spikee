@@ -34,7 +34,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
         venv_dir / ("Scripts" if sys.platform == "win32" else "bin") / "pip"
     )
     subprocess.run(
-        [str(pip_executable), "install", "."],
+        [str(pip_executable), "install", ".[all]"],
         cwd=project_root,
         check=True,
         env={**os.environ, "PIP_DISABLE_PIP_VERSION_CHECK": "1"},

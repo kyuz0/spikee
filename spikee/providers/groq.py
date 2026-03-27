@@ -1,10 +1,13 @@
-from spikee.providers.custom import AgentFrameworkCustomProvider
-from typing import Dict, Union
-import os
+from spikee.templates.provider import Provider
+from spikee.utilities.enums import ModuleTag
+from spikee.utilities.llm_message import format_messages, Message, AIMessage
+
+from any_llm import AnyLLM
+from typing import List, Tuple, Dict, Union, Any
 
 
-class AgentFrameworkGroqProvider(AgentFrameworkCustomProvider):
-    """Agent Framework provider for Groq models (via Custom provider with OpenAI compatibility)"""
+class AnyLLMGroqProvider(Provider):
+    """AnyLLM provider for Groq models"""
 
     @property
     def default_model(self) -> str:
@@ -22,14 +25,33 @@ class AgentFrameworkGroqProvider(AgentFrameworkCustomProvider):
             "whisper-large-v3-turbo": "whisper-large-v3-turbo"
         }
 
-    @property
-    def name(self) -> str:
-        return "Groq"
+    def setup(self, model: str, max_tokens: Union[int, None] = None, temperature: Union[float, None] = None):
+        self.model = model
+        self.max_tokens = max_tokens
+        self.temperature = temperature
 
-    @property
-    def base_url(self) -> str:
-        return "https://api.groq.com/openai/v1"
+        try:
+            self.llm = AnyLLM.create("groq")
+        except ImportError as e:
+            raise ImportError(f"Missing required packages for Groq. Please run `pip install spikee[groq]` to install them.") from e
 
-    @property
-    def api_key(self) -> Union[str, None]:
-        return os.getenv("GROQ_API_KEY", None)
+        options_kwargs: Dict[str, Any] = {}
+        if self.max_tokens is not None:
+            options_kwargs["max_tokens"] = self.max_tokens
+
+        if self.temperature is not None:
+            options_kwargs["temperature"] = self.temperature
+
+        self.options = options_kwargs
+
+    def get_description(self) -> Tuple[List[ModuleTag], str]:
+        return [ModuleTag.LLM], "LLM Provider for Groq models via any-llm."
+
+    def invoke(self, messages: Union[str, List[Union[Message, dict, tuple, str]]]) -> AIMessage:
+        """Invoke AnyLLM Groq LLM with the provided messages."""
+
+        formatted_messages = format_messages(messages)
+
+        response = self.llm.completion(model=self.model, messages=formatted_messages, **self.options)
+
+        return AIMessage(content=response.choices[0].message.content, original_response=response)

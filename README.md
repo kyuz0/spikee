@@ -32,7 +32,8 @@ _Version: 0.6.1_
 
 Developed by Reversec Labs, `spikee` is a toolkit for assessing the resilience of LLMs, guardrails, and applications against prompt injection and jailbreaking. Spikee's strength is its modular design, which allows for easy customization of every part of the testing process.
 
-> **0.5.0 MAJOR CHANGE WARNING:** Module interfaces for targets, plugins, attacks, and judges now use an OOP pattern. The legacy function-based hooks still run for now but will be deprecated in v1.0.0 - review the `CHANGELOG.md` entry for 0.5.0 and the sample implementations in the workspace/docs to understand the updated APIs.
+> **Architecture Update:** Spikee has migrated away from LangChain in favor of `any-llm`. This decision was made to significantly reduce dependency bloat. Now, by default, `spikee` installs only the bare minimum required to support providers with OpenAI-compatible API endpoints (e.g., OpenAI, DeepSeek, Google, TogetherAI, OpenRouter). Providers for which spikee relies on native SDKs (like AWS Bedrock, Azure, Ollama, or Groq) are supported through lightweight optional dependencies (e.g. `spikee[all]`), ensuring users only install the heavy SDKs they actually need.
+
 
 ## Table of Contents
 - [Spikee Use Cases](#spikee-use-cases)
@@ -89,6 +90,12 @@ Spikee operates in two stages: generating a test dataset, and executing tests ag
 pip install spikee
 ```
 
+*Note: To keep the installation lightweight, this command only installs the base dependencies required to connect to OpenAI-compatible API endpoints (which covers OpenAI, DeepSeek, OpenRouter, TogetherAI, Google, etc). If you plan to use providers for which spikee relies on native SDKs (like Bedrock, Azure, Ollama, or Groq), install the necessary extras:*
+```bash
+pip install "spikee[all]"
+# Or choose specific providers, e.g., "spikee[bedrock,azure,ollama,groq]"
+```
+
 ### 1.2 Local Installation (From Source)
 
 ```bash
@@ -96,18 +103,18 @@ git clone https://github.com/ReversecLabs/spikee.git
 cd spikee
 python3 -m venv env
 source env/bin/activate
-pip install .
+pip install ".[all]"
 ```
 
-**Development Guidance:** `pip install -e .` will create a symlink within the venv, allowing you to make changes to the codebase without needing to reinstall after each change.
+**Development Guidance:** `pip install -e ".[all]"` will create a symlink within the venv, allowing you to make changes to the codebase without needing to reinstall after each change.
 
 
 ### 1.3 Local Inference Dependencies
 
-For targets requiring additional local model inference dependencies (torch/transformers):
+For targets requiring additional local model inference dependencies (like PyTorch and Transformers):
 
 ```bash
-pip install -r requirements-local-inference.txt
+pip install "spikee[local-inference]"
 ```
 
 
