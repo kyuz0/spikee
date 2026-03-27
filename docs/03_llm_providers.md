@@ -1,6 +1,6 @@
 # LLM Providers in Spikee
 
-A Provider Module is a Python script that abstracts interactions (e.g., authentication, invocation, formatting) with a specific LLM provider. While Spikee contains several built-in modules, leveraging the `agent-framework` library for popular LLM providers, users can create their own custom provider modules to interface with any LLM service they choose. These providers can be accessed by a wide range of other modules (e.g., Targets, Attacks, Plugins, Judges) to utlise LLM technologies.
+A Provider Module is a Python script that abstracts interactions (e.g., authentication, invocation, formatting) with a specific LLM provider. While Spikee contains several built-in modules, leveraging the `any-llm` library for popular LLM providers, users can create their own custom provider modules to interface with any LLM service they choose. These providers can be accessed by a wide range of other modules (e.g., Targets, Attacks, Plugins, Judges) to utlise LLM technologies.
 
 ## Installation and Dependencies
 Spikee uses `any-llm` to handle interactions with providers. To keep Spikee as lightweight as possible, **only dependencies for OpenAI-compatible API endpoints** are installed by default (`pip install spikee`). This base installation supports OpenAI, DeepSeek, OpenRouter, Google, TogetherAI, and Custom providers out of the box.
