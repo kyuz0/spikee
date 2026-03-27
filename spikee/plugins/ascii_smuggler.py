@@ -80,9 +80,9 @@ class AsciiSmuggler(BasicPlugin):
             encoded.append(chr(0xE007F))
             code_points.append("U+E007F")
 
-        status_message = (
-            f"Invalid characters detected: {invalid_chars}" if invalid_chars else ""
-        )
+        #status_message = (
+        #    f"Invalid characters detected: {invalid_chars}" if invalid_chars else ""
+        #)
 
         #full_response = {
         #    "code_points": " ".join(code_points),
