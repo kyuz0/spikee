@@ -14,7 +14,7 @@ def validate_llm_provider(option: str) -> bool:
     """Validate if the provided option corresponds to a supported LLM provider."""
     try:
         provider_name, _ = option.split("/", 1)
-        provider = load_module_from_path(provider_name, "providers")
+        load_module_from_path(provider_name, "providers")
         return True
     except (ValueError, ImportError):
         return False

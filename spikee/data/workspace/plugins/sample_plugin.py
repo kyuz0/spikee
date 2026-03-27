@@ -18,7 +18,7 @@ Usage within Spikee:
 This sample plugin simply transforms the input text to uppercase.
 """
 
-from typing import List, Union
+from typing import List, Union, Tuple
 import re
 
 from spikee.templates.plugin import Plugin
