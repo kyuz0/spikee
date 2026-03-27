@@ -45,7 +45,7 @@ class LLMJudgeOutputCriteria(LLMJudge):
         """
 
         # Initialize the LLM client with the specified configuration
-        llm = self._get_llm(judge_options or self.DEFAULT_LLM_MODEL)
+        llm = self._get_llm(judge_options)
         token = self._generate_random_token()
 
         if llm is None:

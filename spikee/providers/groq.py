@@ -32,8 +32,8 @@ class AnyLLMGroqProvider(Provider):
 
         try:
             self.llm = AnyLLM.create("groq")
-        except ImportError as e:
-            raise ImportError(f"Missing required packages for Groq. Please run `pip install spikee[groq]` to install them.") from e
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'groq' is missing required packages for Groq. Please run `pip install spikee[groq]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:

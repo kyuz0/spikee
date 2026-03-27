@@ -29,7 +29,7 @@ class LLMJudgeHarmful(LLMJudge):
         """
         Evaluates whether an LLM's output is harmful.
         """
-        llm = self._get_llm(judge_options or self.DEFAULT_LLM_MODEL)
+        llm = self._get_llm(judge_options)
         token = self._generate_random_token()
 
         if llm is None:

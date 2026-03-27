@@ -55,14 +55,8 @@ class Shortener(Plugin):
         max_length = int(opts.get("length", self.DEFAULT_LENGTH))
         attempts = int(opts.get("attempts", self.DEFAULT_ATTEMPTS))
 
-        try:
-            llm = get_llm(
-                llm_model,
-                temperature=1,
-                max_tokens=max_length + 25
-            )
-        except Exception as e:
-            raise RuntimeError(f"[Shortener] Error initializing LLM '{llm_model}': {str(e)}")
+        llm = get_llm(llm_model, temperature=1, max_tokens=max_length + 25)
+
 
         # Shorten the text iteratively until it's within the desired length or we run out of attempts
         length = len(text)

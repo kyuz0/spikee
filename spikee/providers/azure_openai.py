@@ -29,8 +29,8 @@ class AnyLLMAzureOpenAIProvider(Provider):
         try:
             api_ver = os.getenv("AZURE_OPENAI_API_VERSION", os.getenv("OPENAI_API_VERSION", "2024-02-15-preview"))
             self.llm = AnyLLM.create("azureopenai", api_version=api_ver)
-        except ImportError as e:
-            raise ImportError(f"Missing required packages for Azure OpenAI. Please run `pip install spikee[azure]` to install them.") from e
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'azure_openai' is missing required packages for Azure OpenAI. Please run `pip install spikee[azure]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:

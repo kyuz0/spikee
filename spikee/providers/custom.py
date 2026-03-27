@@ -44,7 +44,11 @@ class AnyLLMCustomProvider(Provider):
         if self.base_url is None or self.api_key is None:
             raise ValueError(f"URL and API key variables must be set for the {self.name} provider.")
 
-        self.llm = AnyLLM.create("openai", api_base=self.base_url, api_key=self.api_key)
+        try:
+            self.llm = AnyLLM.create("openai", api_base=self.base_url, api_key=self.api_key)
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module '{self.name}' is missing required packages for OpenAI compatible APIs. Please run `pip install spikee[openai]` to install them.")
+
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:
             options_kwargs["max_tokens"] = self.max_tokens

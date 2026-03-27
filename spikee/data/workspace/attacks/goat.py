@@ -321,11 +321,7 @@ class GOAT(Attack):
         # Parse options and initialize attack state
         opts = parse_options(attack_option)
 
-        try:
-            llm = get_llm(opts.get("model", None), max_tokens=None, temperature=1)
-        except ValueError as e:
-            print(f"[GOAT] Error creating LLM: {e}")
-            raise e
+        llm = get_llm(opts.get("model", None), max_tokens=None, temperature=1)
 
         # Attack Configuration
         objective = entry["text"]

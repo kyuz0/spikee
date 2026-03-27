@@ -52,7 +52,11 @@ class AnyLLMOpenAIProvider(Provider):
         self.max_tokens = max_tokens
         self.temperature = temperature
 
-        self.llm = AnyLLM.create("openai")
+        try:
+            self.llm = AnyLLM.create("openai")
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'openai' is missing required packages for OpenAI. Please run `pip install spikee[openai]` to install them.")
+
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:

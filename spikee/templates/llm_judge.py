@@ -22,9 +22,4 @@ class LLMJudge(Judge):
         """
         Initialize and return the appropriate LLM based on judge_options.
         """
-        try:
-            llm = get_llm(judge_options, max_tokens=self.max_tokens)
-            return llm
-        except ValueError as e:
-            print(f"[Error] {e}")
-            return None
+        return get_llm(judge_options, max_tokens=self.max_tokens)

@@ -72,10 +72,10 @@ def load_module_from_path(name, module_type):
         trimmed = str(e).split("No module named ")[-1].strip("'\"")
 
         if trimmed == name or trimmed.endswith(f".{name}"):
-            raise ImportError(f"[Loading Module {name}] Module '{name}' not found locally or built-in - ensure it exists with 'spikee list <module_type>'")
+            raise ImportError(f"[Import Error] Module '{name}' not found locally or built-in. Use 'spikee list {module_type}' to see available options.")
 
         else:
-            raise ImportError(f"[Loading Module {name}] Dependency '{trimmed}' not found - ensure it is installed and accessible.")
+            raise ImportError(f"[Import Error] Module {name}, dependency '{trimmed}' not found - review {name} and ensure all required dependencies are installed.")
 
     instance = _instantiate_impl(mod, module_type)
     if instance is not None:

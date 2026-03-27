@@ -51,8 +51,8 @@ class AnyLLMOllamaProvider(Provider):
 
         try:
             self.llm = AnyLLM.create("ollama", api_base=self.BASE_URL)
-        except ImportError as e:
-            raise ImportError(f"Missing required packages for Ollama. Please run `pip install spikee[ollama]` to install them.") from e
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'ollama' is missing required packages for Ollama. Please run `pip install spikee[ollama]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:

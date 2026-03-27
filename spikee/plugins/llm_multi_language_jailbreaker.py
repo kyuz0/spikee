@@ -123,13 +123,7 @@ class LLMMultiLanguageJailbreaker(Plugin):
         llm_model = opts.get("model", self.DEFAULT_MODEL)
         variants = int(opts.get("variants", self.VARIANTS))
 
-        try:
-            llm = get_llm(
-                llm_model,
-                max_tokens=2000
-            )
-        except Exception as e:
-            raise RuntimeError(f"[LLMMultiLanguageJailbreaker] Error initializing LLM '{llm_model}': {str(e)}")
+        llm = get_llm(llm_model, max_tokens=2000)
 
         attack_prompts = []
         used_langs = set()

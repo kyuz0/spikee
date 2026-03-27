@@ -51,8 +51,8 @@ class AnyLLMBedrockProvider(Provider):
 
         try:
             self.llm = AnyLLM.create("bedrock")
-        except ImportError as e:
-            raise ImportError(f"Missing required packages for AWS Bedrock. Please run `pip install spikee[bedrock]` to install them.") from e
+        except ImportError:
+            raise ImportError(f"[Import Error] Provider Module 'bedrock' is missing required packages for AWS Bedrock. Please run `pip install spikee[bedrock]` to install them.")
 
         options_kwargs: Dict[str, Any] = {}
         if self.max_tokens is not None:

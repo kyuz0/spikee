@@ -72,14 +72,8 @@ class Shortener(Plugin):
         advanced = opts.get("advanced", "false").lower() == "true"
         advanced_split = int(opts.get("advanced-split", 6))
 
-        try:
-            llm = get_llm(
-                llm_model,
-                temperature=1,
-                max_tokens=1000
-            )
-        except Exception as e:
-            raise RuntimeError(f"[Shortener] Error initializing LLM '{llm_model}': {str(e)}")
+        llm = get_llm(llm_model, temperature=1, max_tokens=1000)
+
 
         # Detect high-risk words
         payload = {"prompt": text}

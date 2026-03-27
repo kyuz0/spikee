@@ -282,6 +282,9 @@ class PromptDecompositionAttack(Attack):
                 last_response,
             )
 
+        except ImportError as ie:
+            raise ie
+
         except Exception as e:
             print(f"Error in prompt decomposition attack: {e}")
             return 0, False, last_payload, str(e)
