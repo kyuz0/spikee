@@ -26,7 +26,7 @@ class ResultsViewer(Viewer):
         return "SPIKEE Results"
 
     def __init__(self, args):
-        super().__init__(args)
+        super().__init__()
         self.setup_before_request()
 
         # Setup initial results files
