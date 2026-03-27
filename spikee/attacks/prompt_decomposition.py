@@ -14,16 +14,12 @@ Usage:
 
 import json
 import random
-from typing import List, Dict, Any, Tuple
+from typing import Callable, List, Dict, Any, Tuple
 
 from spikee.templates.attack import Attack
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm import (
-    get_llm,
-    validate_llm_option,
-    HumanMessage,
-    SystemMessage
-)
+from spikee.utilities.llm import get_llm
+from spikee.utilities.llm_message import HumanMessage, SystemMessage
 
 
 class PromptDecompositionAttack(Attack):
@@ -34,7 +30,7 @@ class PromptDecompositionAttack(Attack):
         return [ModuleTag.SINGLE, ModuleTag.LLM], "Generates prompt reformulations by decomposing into labeled chunks and shuffling them."
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
-        """Return supported modes; first option is default."""
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
         return ["mode=dumb", "mode=<utility-llm-model>"], True
 
     def _parse_mode(self, attack_option: str) -> str:
@@ -44,8 +40,7 @@ class PromptDecompositionAttack(Attack):
 
         if attack_option.startswith("mode="):
             mode_value = attack_option.replace("mode=", "")
-            if validate_llm_option(mode_value):
-                return mode_value
+            return mode_value
 
         return self.DEFAULT_MODE
 
@@ -158,7 +153,7 @@ class PromptDecompositionAttack(Attack):
         ]
 
         try:
-            response = llm.invoke(messages, content_only=True).strip()
+            response = llm.invoke(messages).content.strip()
 
             lines = response.splitlines()
             variations = []
@@ -190,7 +185,7 @@ class PromptDecompositionAttack(Attack):
                         SystemMessage(system_message),
                         HumanMessage(additional_prompt),
                     ]
-                    additional_response = llm.invoke(additional_messages, content_only=True).strip()
+                    additional_response = llm.invoke(additional_messages).content.strip()
 
                     for line in additional_response.splitlines():
                         try:
@@ -212,11 +207,11 @@ class PromptDecompositionAttack(Attack):
         self,
         entry: Dict[str, Any],
         target_module: Any,
-        call_judge: callable,
+        call_judge: Callable,
         max_iterations: int,
         attempts_bar=None,
         bar_lock=None,
-        attack_option: str = None,
+        attack_option: str = "",
     ) -> Tuple[int, bool, str, str]:
         """
         Executes the prompt decomposition attack by sequentially trying different
@@ -252,9 +247,11 @@ class PromptDecompositionAttack(Attack):
                 last_payload = candidate_text
 
                 try:
-                    response, _ = target_module.process_input(
+                    response = target_module.process_input(
                         candidate_text, system_message
                     )
+                    response = str(response[0] if isinstance(response, (tuple, list)) else response)
+
                     last_response = response
                     success = call_judge(entry, response)
                 except Exception as e:

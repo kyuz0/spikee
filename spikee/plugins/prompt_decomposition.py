@@ -18,12 +18,8 @@ from dotenv import load_dotenv
 
 from spikee.templates.plugin import Plugin
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm import (
-    get_llm,
-    validate_llm_option,
-    SystemMessage, 
-    HumanMessage
-)
+from spikee.utilities.llm import get_llm
+from spikee.utilities.llm_message import HumanMessage, SystemMessage
 
 
 class PromptDecompositionPlugin(Plugin):
@@ -34,11 +30,11 @@ class PromptDecompositionPlugin(Plugin):
     def get_description(self) -> Tuple[List[ModuleTag], str]:
         return [ModuleTag.ATTACK_BASED], "Decomposes prompts into labeled components and generates shuffled variations."
 
-    def get_available_option_values(self) -> List[str]:
-        """Return supported options; first option is default."""
-        return ["mode=dumb", "mode=<utility-llm-model>", "variants=10"]
+    def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
+        return ["mode=dumb", "mode=<utility-llm-model>", "variants=10"], False
 
-    def get_variants(self, plugin_option: str = None) -> int:
+    def get_variants(self, plugin_option: str = "") -> int:
         """Get the number of variants to generate based on plugin options."""
         num_variants, _ = self._parse_options(plugin_option)
         return num_variants
@@ -64,8 +60,7 @@ class PromptDecompositionPlugin(Plugin):
                     pass
             elif option.startswith("mode="):
                 mode_value = option.replace("mode=", "")
-                if validate_llm_option(mode_value):
-                    mode = mode_value
+                mode = mode_value
 
         return num_variants, mode
 
@@ -160,7 +155,7 @@ class PromptDecompositionPlugin(Plugin):
         ]
 
         try:
-            response = llm.invoke(messages, content_only=True).strip()
+            response = llm.invoke(messages).content.strip()
 
             lines = response.splitlines()
             variations = []
@@ -186,7 +181,7 @@ class PromptDecompositionPlugin(Plugin):
             return self._decompose_dumb(text, num_variants)
 
     def transform(
-        self, text: str, exclude_patterns: List[str] = None, plugin_option: str = None
+        self, text: str, exclude_patterns: List[str] = [], plugin_option: str = ""
     ) -> List[str]:
         """
         Decomposes a prompt into labeled components and generates shuffled variations.

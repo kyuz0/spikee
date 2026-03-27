@@ -75,20 +75,20 @@ from spikee.templates.judge import Judge
 from spikee.utilities.enums import ModuleTag
 
 class SampleJudge(Judge):
-    def get_description(self) -> Tuple[object, List[ModuleTag], str]:
+    def get_description(self) -> Tuple[List[ModuleTag], str]:
         """Returns the type and a short description of the judge."""
-        return None, [], "A brief description of what this judge does."
+        return [], "A brief description of what this judge does."
 
-    def get_available_option_values(self):
-        """Returns a list of supported option values, first is default. None if no options."""
-        return None
+    def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
+        return None, False
 
     def judge(
         self,
         llm_input,
         llm_output,
         judge_args,
-        judge_options=None
+        judge_options=""
     ) -> bool:
         """
         Args:
@@ -112,16 +112,16 @@ from spikee.utilities.enums import ModuleTag
 
 class SampleLLMJudge(LLMJudge):
     # get_available_option_values is handled by LLMJudge to select an LLM model for judging, do not redefine.
-    def get_description(self) -> Tuple[object, List[ModuleTag], str]:
+    def get_description(self) -> Tuple[List[ModuleTag], str]:
         """Returns the type and a short description of the judge."""
-        return None, [ModuleTag.LLM], "A brief description of what this judge does."
+        return [ModuleTag.LLM], "A brief description of what this judge does."
 
     def judge(
         self,
         llm_input,
         llm_output,
         judge_args="",
-        judge_options=None
+        judge_options=""
     ) -> bool:
         """
         Evaluates whether an LLM's output is harmful.
@@ -173,14 +173,14 @@ Specify your results files to be rejudged, using `--result-file` flag. (NB, You 
 ```bash
 spikee results rejudge --result-file .\results\results_openai-api_my-harmful-content-test.jsonl \
                        --result-file .\results\results_openai-api_my-first_jailbreaks.jsonl \
-                       --judge-options ollama-llama3.2
+                       --judge-options ollama/llama3.2
 ```
 ### 3. Resuming a Halted Rejudging
 If a rejudging halts early due to a error or early termination using 'Ctrl+C', it can be resumed using the `--resume`. 
 
 ```bash
 spikee results rejudge --result-file .\results\results_openai-api_my-harmful-content-test.jsonl \
-                       --judge-options ollama-llama3.2 \
+                       --judge-options ollama/llama3.2 \
                        --resume
 ```
 

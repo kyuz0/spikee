@@ -11,7 +11,8 @@ from typing import Dict, List, Tuple, Union
 
 from spikee.templates.plugin import Plugin
 from spikee.utilities.enums import ModuleTag
-from spikee.utilities.llm import get_llm, HumanMessage
+from spikee.utilities.llm import get_llm
+from spikee.utilities.llm_message import HumanMessage
 from spikee.utilities.modules import parse_options, extract_json_or_fail
 
 from spikee.attacks.rag_poisoner import SPIKEE_RAG_POISONER_PROMPT
@@ -25,9 +26,10 @@ class RAGPoisoner(Plugin):
         return [ModuleTag.LLM, ModuleTag.ATTACK_BASED], "Generates RAG Poisoner attack prompts using an LLM."
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
         return [], True
 
-    def get_variants(self, plugin_option: str = None) -> int:
+    def get_variants(self, plugin_option: str = "") -> int:
         """Get the number of variants to generate based on plugin options."""
         opts = parse_options(plugin_option)
         return int(opts.get("variants", self.VARIANTS))
@@ -54,7 +56,7 @@ class RAGPoisoner(Plugin):
             if prev_attempts_formatted
             else "No previous attempts yet.",
         ))
-        res_text = llm.invoke([prompt], content_only=True).strip()
+        res_text = llm.invoke([prompt]).content.strip()
 
         obj = extract_json_or_fail(res_text)
         attack_prompt = obj.get("attack_prompt", "")
@@ -65,8 +67,8 @@ class RAGPoisoner(Plugin):
     def transform(
         self,
         text: str,
-        exclude_patterns: List[str] = None,
-        plugin_option: str = None
+        exclude_patterns: List[str] = [],
+        plugin_option: str = ""
     ) -> Union[str, List[str]]:
         opts = parse_options(plugin_option)
         llm_model = opts.get("model", self.DEFAULT_MODEL)

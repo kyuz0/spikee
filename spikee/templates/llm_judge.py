@@ -1,12 +1,13 @@
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 from .judge import Judge
 from spikee.utilities.llm import get_llm
+from spikee.templates.provider import Provider
 
 
 class LLMJudge(Judge):
     DEFAULT_LLM_MODEL = "openai-gpt-4.1-mini"
-    
+
     def __init__(self, max_tokens=8):
         super().__init__()
         self.max_tokens = max_tokens
@@ -17,7 +18,7 @@ class LLMJudge(Judge):
         """
         return [], True
 
-    def _get_llm(self, judge_options):
+    def _get_llm(self, judge_options="") -> Union[Provider, None]:
         """
         Initialize and return the appropriate LLM based on judge_options.
         """

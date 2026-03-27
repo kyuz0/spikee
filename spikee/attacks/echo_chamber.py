@@ -14,8 +14,8 @@ from spikee.utilities.enums import ModuleTag, Turn
 from spikee.templates.attack import Attack
 from spikee.templates.standardised_conversation import StandardisedConversation
 from spikee.tester import GuardrailTrigger, AdvancedTargetWrapper
-
-from spikee.utilities.llm import get_llm, HumanMessage, SystemMessage
+from spikee.utilities.llm import get_llm
+from spikee.utilities.llm_message import HumanMessage, SystemMessage
 from spikee.utilities.modules import extract_json_or_fail, parse_options
 import re
 
@@ -288,6 +288,7 @@ class EchoChamber(Attack):
         return [ModuleTag.MULTI, ModuleTag.LLM], "Leverages an LLM Agent to generate poisonous seeds and gradually escalates an LLM's output by amplifying hidden harmful content in a self-reinforcing loop."
 
     def get_available_option_values(self) -> Tuple[List[str], bool]:
+        """Return supported attack options; Tuple[options (default is first), llm_required]"""
         return ["max-turns=20", "stage-attempts=3", "debug=false"], True
 
 # region Echo Chamber Prompts
@@ -297,7 +298,7 @@ class EchoChamber(Attack):
         last_response = ""
         while attempts < self.stage_attempts:
             attempts += 1
-            response = llm.invoke(messages, content_only=True)
+            response = llm.invoke(messages).content
             if isinstance(response, str):
                 response = response.strip()
 
@@ -487,6 +488,7 @@ The following keywords have lost the game, do not reuse these words: [{', '.join
 
 
 # region Target Prompts
+
 
     def get_seed_sentences(
         self,

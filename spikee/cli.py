@@ -25,6 +25,7 @@ from .list import (
     list_targets,
     list_plugins,
     list_attacks,
+    list_providers,
 )
 from .viewers.results import ResultsViewer
 
@@ -106,11 +107,6 @@ def main():
         "--include-viewer",
         action="store_true",
         help="Include the built-in web viewer in the local workspace",
-    )
-    parser_init.add_argument(
-        "--include-billing",
-        action="store_true",
-        help="Include billing tracker in the local workspace",
     )
 
     # === [GENERATE] Sub-command ===============================================
@@ -573,20 +569,21 @@ def main():
 
     # === [LIST] Sub-command ================================================
     parser_list = subparsers.add_parser(
-        "list", help="List seeds, datasets, judges, targets, plugins, or attacks"
+        "list", help="List seeds, datasets, judges, targets, plugins, attacks, or providers"
     )
     list_subparsers = parser_list.add_subparsers(
         dest="list_command", help="What to list"
     )
 
-    list_subparsers.add_parser("seeds", help="List available seed folders"),
-    list_subparsers.add_parser("datasets", help="List available dataset .jsonl files"),
-    list_subparsers.add_parser("targets", help="List available targets"),
+    list_subparsers.add_parser("seeds", help="List available seed folders")
+    list_subparsers.add_parser("datasets", help="List available dataset .jsonl files")
 
     for subparser in [
+        list_subparsers.add_parser("targets", help="List available targets"),
         list_subparsers.add_parser("judges", help="List available judges"),
         list_subparsers.add_parser("plugins", help="List available plugins"),
         list_subparsers.add_parser("attacks", help="List available attack scripts"),
+        list_subparsers.add_parser("providers", help="List available providers"),
     ]:
         subparser.add_argument(
             "-d", "--description",
@@ -608,7 +605,6 @@ def main():
             force=args.force,
             include_builtin=args.include_builtin,
             include_viewer=args.include_viewer,
-            include_billing=args.include_billing,
         )
 
     elif args.command == "generate":
@@ -652,6 +648,8 @@ def main():
             list_plugins(args)
         elif args.list_command == "attacks":
             list_attacks(args)
+        elif args.list_command == "providers":
+            list_providers(args)
         else:
             parser_list.print_help()
     else:
@@ -659,7 +657,7 @@ def main():
         sys.exit(1)
 
 
-def init_workspace(force=False, include_builtin="none", include_viewer=False, include_billing=False):
+def init_workspace(force=False, include_builtin="none", include_viewer=False):
     """
     Copy the entire 'data/workspace' directory from the installed package
     into the user's current working directory. This sets up the local spikee workspace
@@ -679,9 +677,6 @@ def init_workspace(force=False, include_builtin="none", include_viewer=False, in
         destination = workspace_dest / item.name
 
         if item.name == "viewer" and not include_viewer:
-            continue
-
-        if item.name == "billing.json" and not include_billing:
             continue
 
         if destination.exists() and not force:
