@@ -3,12 +3,11 @@ from flask import Flask
 import os
 import logging
 
+from spikee.templates.module import Module
 
-# TODO: merge with Module class branch
 
-
-class Viewer(ABC):
-    def __init__(self, args):
+class Viewer(Module, ABC):
+    def __init__(self):
         viewer_folder = self.get_viewer_folder()
 
         self.app = Flask(
