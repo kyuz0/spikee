@@ -109,12 +109,18 @@ pip install ".[all]"
 **Development Guidance:** `pip install -e ".[all]"` will create a symlink within the venv, allowing you to make changes to the codebase without needing to reinstall after each change.
 
 
-### 1.3 Local Inference Dependencies
+### 1.3 Optional Plugin & Target Dependencies
 
-For targets requiring additional local model inference dependencies (like PyTorch and Transformers):
+Spikee features several sample plugins and targets that require specific third-party libraries. Instead of cluttering the global installation, these can be installed as needed:
+
+- **Local Inference** (`torch`, `transformers`, `sentencepiece`): Required for local models and the OPUS-MT translation plugin.
+- **Google Translate** (`googletrans`): Required for the Google Translate plugin.
+- **PDF Generation** (`fpdf2`): Required for the sample PDF target.
 
 ```bash
 pip install "spikee[local-inference]"
+pip install "spikee[google-translate]"
+pip install "spikee[pdf]"
 ```
 
 
