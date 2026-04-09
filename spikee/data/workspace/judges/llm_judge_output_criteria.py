@@ -12,11 +12,11 @@ Usage:
   3. The tester will call judge(llm_input, llm_output, judge_args, judge_options).
      This code then asks the configured LLM if llm_output meets the criteria.
   4. Supported judge_options formats:
-     - openai-gpt-4.1-mini
-     - openai-gpt-4o-mini
-     - ollama-phi4-mini
-     - ollama-gemma3
-     - ollama-llama3.2
+     - openai/gpt-4.1-mini
+     - openai/gpt-4o-mini
+     - ollama/phi4-mini
+     - ollama/gemma3
+     - ollama/llama3.2
 """
 
 from dotenv import load_dotenv
@@ -34,7 +34,7 @@ class LLMJudgeOutputCriteria(LLMJudge):
             "Judges whether an LLM's output meets a specified criteria using an LLM Judge.",
         )
 
-    def judge(self, llm_input, llm_output, judge_args="", judge_options=None) -> bool:
+    def judge(self, llm_input, llm_output, judge_args="", judge_options="") -> bool:
         """
         Args:
             llm_input (str): The text/prompt that was originally given to the model (not required here, but included).
