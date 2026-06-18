@@ -27,7 +27,7 @@
   </p>
 </div>
 
-_Version: 0.7.3-dev_
+_Version: 0.8.1-dev_
 
 
 Developed by Reversec Labs, `spikee` is a toolkit for assessing the resilience of LLMs, guardrails, and applications against prompt injection and jailbreaking. Spikee's strength is its modular design, which allows for easy customization of every part of the testing process.
@@ -119,8 +119,6 @@ Spikee features several sample plugins and targets that require specific third-p
 
 ```bash
 pip install "spikee[local-inference]"
-pip install "spikee[google-translate]"
-pip install "spikee[pdf]"
 ```
 
 
@@ -212,10 +210,26 @@ spikee generate --seed-folder datasets/seeds-cybersec-2026-01 \
 ```
 
 ```bash
+# Plugin with two options: mode and variants
+spikee generate --seed-folder datasets/seeds-cybersec-2026-01 \
+                --plugins best_of_n \
+                --plugin-options "best_of_n:mode=full,variants=10"
+```
+
+```bash
 # Plugin Piping, pipe the output of splat into base64 for a combined obfuscation effect
 spikee generate --seed-folder datasets/seeds-cybersec-2026-01 \
                 --plugin "splat|base64"
 ```
+
+```bash
+# Multiple plugins with individual options (semicolon-separated in --plugin-options)
+spikee generate --seed-folder datasets/seeds-cybersec-2026-01 \
+                --plugins splat best_of_n \
+                --plugin-options "splat:mode=full;best_of_n:variants=10"
+```
+
+See **[Supporting Plugin Options](./docs/07_custom_plugins.md#supporting-plugin-options)** for a full reference on the options format, including multiple plugins and multiple key-value pairs per plugin.
 
 ## 5. Testing a Target: `spikee test`
 
@@ -326,6 +340,9 @@ spikee test --dataset datasets/dataset-name.jsonl \
 - `--attempts`: Number of retries per prompt until a successful response is received (Default, 1)
 - `--throttle`: Time (in seconds) to wait between requests, useful for managing rate limits (Default, 0)
 - `--sample`: Proportion of the dataset to test, between 0 and 1 (e.g., `--sample 0.1` for 10%) (Default, 1)
+
+### 5.7. Global Timeouts (`SPIKEE_API_TIMEOUT`)
+See [_LLM Providers (`SPIKEE_API_TIMEOUT`)_](./docs/03_llm_providers.md#global-timeouts) for information on extending request timeouts, particularly useful when running heavy local models (`llama.cpp`, `ollama`) or complex multi-turn evaluations.
 
 ## 6. Analysing the Results: `spikee results`
 

@@ -1,11 +1,25 @@
+from abc import ABC, abstractmethod
+from typing import Any, List, Union, Sequence, Callable
+import os
+import asyncio
+
 from spikee.templates.module import Module
 from spikee.utilities.llm_message import Message, AIMessage
-
-from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from spikee.utilities.hinting import ModuleOptionsHint, Content
 
 
 class Provider(Module, ABC):
+    @property
+    def default_timeout(self) -> Union[float, None]:
+        """Global fallback for provider timeouts, reads from SPIKEE_API_TIMEOUT."""
+        val = os.getenv("SPIKEE_API_TIMEOUT")
+        if val:
+            try:
+                return float(val)
+            except ValueError:
+                pass
+        return None
+
     @property
     def default_model(self) -> Union[str, None]:
         """Override in subclass to specify a default model key."""
@@ -21,7 +35,7 @@ class Provider(Module, ABC):
         """Override in subclass to specify which models support logprobs."""
         return []
 
-    def get_available_option_values(self) -> Tuple[List[str], bool]:
+    def get_available_option_values(self) -> ModuleOptionsHint:
         """Return supported attack options; Tuple[options (default is first), llm_required]."""
         if self.models is not None:
             return [model for model in self.models.keys()], True
@@ -38,11 +52,27 @@ class Provider(Module, ABC):
         **additional_kwargs,
     ) -> None:
         """Sets up the provider with the specified model and parameters."""
-        pass
 
     @abstractmethod
     def invoke(
-        self, messages: Union[str, List[Union[Message, dict, tuple, str]]]
+        self, messages: Union[str, Sequence[Union[Message, dict, tuple, str, Content]]]
     ) -> AIMessage:
         """Invoke the provider with the given messages and return an AIMessage response."""
-        pass
+
+    def async_call(self, fun: Callable, **params) -> Any:
+
+        async def run_async_call(fun: Callable, **params) -> Any:
+            result = await fun(**params)
+
+            # Drain pending httpx cleanup tasks to avoid "Event loop is closed" on Python 3.12+
+            await asyncio.gather(
+                *[
+                    t
+                    for t in asyncio.all_tasks()
+                    if t is not asyncio.current_task() and not t.done()
+                ],
+                return_exceptions=True,
+            )
+            return result
+
+        return asyncio.run(run_async_call(fun, **params))

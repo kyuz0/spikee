@@ -1,9 +1,10 @@
 from spikee.templates.provider import Provider
+from spikee.utilities.hinting import ModuleDescriptionHint, Content
 from spikee.utilities.enums import ModuleTag
 from spikee.utilities.llm_message import format_messages, Message, AIMessage
 
 from any_llm import AnyLLM
-from typing import List, Tuple, Dict, Union, Any
+from typing import Union, Any, Dict, List, Sequence
 
 
 class AnyLLMOpenAIProvider(Provider):
@@ -48,13 +49,19 @@ class AnyLLMOpenAIProvider(Provider):
         model: str,
         max_tokens: Union[int, None] = None,
         temperature: Union[float, None] = None,
+        **kwargs,
     ):
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
 
+        timeout = kwargs.get("timeout", self.default_timeout)
+        llm_kwargs = {}
+        if timeout is not None:
+            llm_kwargs["timeout"] = timeout
+
         try:
-            self.llm = AnyLLM.create("openai")
+            self.llm = AnyLLM.create("openai", **llm_kwargs)
         except ImportError:
             raise ImportError(
                 "[Import Error] Provider Module 'openai' is missing required packages for OpenAI. Please run `pip install spikee[openai]` to install them."
@@ -73,18 +80,21 @@ class AnyLLMOpenAIProvider(Provider):
 
         self.options = options_kwargs
 
-    def get_description(self) -> Tuple[List[ModuleTag], str]:
+    def get_description(self) -> ModuleDescriptionHint:
         return [ModuleTag.LLM], "LLM Provider for OpenAI models via any-llm."
 
     def invoke(
-        self, messages: Union[str, List[Union[Message, dict, tuple, str]]]
+        self, messages: Union[str, Sequence[Union[Message, dict, tuple, str, Content]]]
     ) -> AIMessage:
         """Invoke AnyLLM OpenAI LLM with the provided messages."""
 
         formatted_messages = format_messages(messages)
 
-        response = self.llm.completion(
-            model=self.model, messages=formatted_messages, **self.options
+        response = self.async_call(
+            self.llm.acompletion,
+            model=self.model,
+            messages=formatted_messages,
+            **self.options,
         )
 
         if self.model in self.logprobs_models:

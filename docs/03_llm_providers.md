@@ -38,13 +38,13 @@ Use `spikee list providers` to get a list of providers and known supported model
 | OpenAI | `openai` | `gpt-4o` (default)<br/>`gpt-4.1` | `OPENAI_API_KEY` | [Models List](https://platform.openai.com/docs/models) |
 | Azure OpenAI | `azure` | `gpt-4o` (default)<br/>`gpt-4o-mini` | `AZURE_OPENAI_API_KEY`<br/>`AZURE_OPENAI_ENDPOINT` | [Models List](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) |
 | AWS Bedrock | `bedrock` | `claude45-sonnet` (default)<br/>`claude45-haiku`<br/>`deepseek-v3`<br/><small>*(Allows internal shorthands)*</small> | `AWS_ACCESS_KEY_ID`<br/>`AWS_SECRET_ACCESS_KEY`<br/>`AWS_DEFAULT_REGION` | [Models List](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) |
-| Google Gemini | `google` | `gemini-2.5-flash` (default)<br/>`gemini-2.5-pro`<br/>`gemini-3-pro` | `GEMINI_API_KEY` | [Models List](https://ai.google.dev/gemini-api/docs/models/gemini) |
+| Google Gemini | `google` | `gemini-2.5-flash` (default)<br/>`gemini-2.5-pro`<br/>`gemini-3-pro` | `GOOGLE_API_KEY` | [Models List](https://ai.google.dev/gemini-api/docs/models/gemini) |
 | Deepseek | `deepseek` | `deepseek-chat` (default)<br/>`deepseek-reasoner` | `DEEPSEEK_API_KEY` | [Models List](https://platform.deepseek.com/api-docs/) |
 | Groq | `groq` | `llama-3.1-8b-instant` (default)<br/>`llama-3.3-70b-versatile` | `GROQ_API_KEY` | [Models List](https://console.groq.com/docs/models) |
 | TogetherAI | `together` | `gemma2-8b` (default)<br/>`mixtral-8x22b`<br/><small>*(Allows internal shorthands)*</small> | `TOGETHER_API_KEY` | [Models List](https://docs.together.ai/docs/inference-models) |
 | OpenRouter | `openrouter` | `google/gemini-2.5-flash` (default)<br/>`anthropic/claude-3.5-haiku` | `OPENROUTER_API_KEY` | [Models List](https://openrouter.ai/models) |
 | Local (Ollama) | `ollama` | *None* | `OLLAMA_URL` | |
-| Local (LLaMA CCP Server) | `llamaccp` | *None* | `LLAMACPP_URL` | |
+| Local (LLaMA CPP Server) | `llamacpp` | *None* | `LLAMACPP_URL` | |
 | Custom | `custom` | *None* | `CUSTOM_API_URL`<br/>`CUSTOM_API_KEY` | *Custom OpenAI-Based API* |
 | Offline | `offline` | `offline` | *None* | [See Judges section](./09_judges.md#1-scan-using-offline-judge) |
 
@@ -114,6 +114,17 @@ spikee test --dataset evaluations.jsonl \
             --judge-options "groq/llama-3.1-8b-instant"
 ```
 
+## Global Timeouts
+
+When using LLMs for modules like judging and dynamic attacks, you might occasionally need to increase the timeout for the underlying requests. This is especially true if you are using complex multi-turn attacks or running local servers (`llama.cpp`, `ollama` etc) that don't have powerful GPUs and need more time to process large contexts.
+
+You can override the default API timeout (typically 600 seconds) across all Spikee LLM providers by setting the `SPIKEE_API_TIMEOUT` environment variable (in seconds) before running your testing harness.
+
+```bash
+# E.g. Set a 20-minute global timeout across all LLM providers
+SPIKEE_API_TIMEOUT=1200.0 spikee test --dataset my_dataset.jsonl --target llm_provider
+```
+
 ## Implementing Built-In LLM Utilities
 Spikee's built-in LLM utility is implemented within `Provider` modules, and can be obtained using the `get_llm()` function from `spikee/utilities/llm.py`.
 
@@ -172,7 +183,7 @@ class ExampleProvider(Provider):
 
         self.llm = ...
 
-    def get_description(self) -> Tuple[List[ModuleTag], str]:
+    def get_description(self) -> ModuleDescriptionHint:
         return [ModuleTag.LLM], "Sample LLM Provider, always returns 'Hello, world!'"
 
     def invoke(self, messages: Union[str, List[Union[Message, dict, tuple, str]]]) -> AIMessage:

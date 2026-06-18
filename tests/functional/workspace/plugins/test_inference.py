@@ -4,9 +4,14 @@ from spikee.templates.plugin import Plugin
 from spikee.utilities.modules import parse_options
 from spikee.utilities.llm import get_llm
 from spikee.utilities.llm_message import HumanMessage
+from spikee.utilities.hinting import ModuleDescriptionHint, ModuleOptionsHint
+
 
 class TestInference(Plugin):
-    def get_available_option_values(self) -> List[str]:
+    def get_description(self) -> ModuleDescriptionHint:
+        return [], "Test plugin for LLM inference during plugin execution."
+
+    def get_available_option_values(self) -> ModuleOptionsHint:
         return []
 
     def transform(
@@ -21,9 +26,7 @@ class TestInference(Plugin):
 
         llm = get_llm(model, max_tokens=100)
 
-        messages = [
-            HumanMessage(content=f"Echo the following text verbatim: {text}")
-        ]
+        messages = [HumanMessage(content=f"Echo the following text verbatim: {text}")]
 
         response = llm.invoke(messages).content
 

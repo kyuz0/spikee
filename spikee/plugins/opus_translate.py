@@ -33,14 +33,25 @@ Requirements:
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu<version>
 """
 
-from typing import List, Tuple, Union, Optional
-
+from spikee.utilities.modules import parse_options
+from spikee.utilities.enums import ModuleTag
+from spikee.utilities.hinting import ModuleDescriptionHint, ModuleOptionsHint
+from spikee.templates.plugin import Plugin
 from transformers import MarianMTModel, MarianTokenizer
 import torch
+import logging
+import os
+import warnings
+from typing import List, Union, Optional
 
-from spikee.templates.plugin import Plugin
-from spikee.utilities.enums import ModuleTag
-from spikee.utilities.modules import parse_options
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+logging.getLogger("transformers").setLevel(logging.ERROR)
+
+
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
 
 class OpusTranslator(Plugin):
@@ -106,25 +117,23 @@ class OpusTranslator(Plugin):
         # Detect GPU availability
         try:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
-            print(f"[OpusTranslator] Using device: {self.device}")
+            # print(f"[OpusTranslator] Using device: {self.device}")
         except ImportError:
             self.device = "cpu"
 
-    def get_description(self) -> Tuple[List[ModuleTag], str]:
+    def get_description(self) -> ModuleDescriptionHint:
         return (
-            [ModuleTag.ML],
+            [ModuleTag.ML, ModuleTag.TRANSLATION],
             'Translates text to any language(s) using local OPUS-MT models. (Requires: `pip install "spikee[local-inference]"`)',
         )
 
-    def get_available_option_values(self) -> Tuple[List[str], bool]:
+    def get_available_option_values(self) -> ModuleOptionsHint:
         """Return supported options; Tuple[options (default is first), llm_required]"""
         return [
-            "source=en",
-            "targets=zh",
-            "targets=es+fr+de",
-            "targets=en:fr|fr:de|de:es",
-            "quality=4",
-            "device=cuda",
+            "source=en,targets=zh",
+            "targets=... (es+fr+de for multiple, en:fr|fr:de for chains)",
+            "quality=4 (1-8)",
+            "device=... (cpu, cuda)",
             "cache_dir=<path>",
         ], False
 
@@ -150,8 +159,12 @@ class OpusTranslator(Plugin):
         target_device = device or self.device
 
         try:
-            tokenizer = MarianTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
-            model = MarianMTModel.from_pretrained(model_name, cache_dir=cache_dir)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                tokenizer = MarianTokenizer.from_pretrained(
+                    model_name, cache_dir=cache_dir
+                )
+                model = MarianMTModel.from_pretrained(model_name, cache_dir=cache_dir)
             # Move model to device (GPU or CPU)
             model = model.to(target_device)
             # Store in cache for reuse
@@ -195,7 +208,10 @@ class OpusTranslator(Plugin):
             )
 
     def transform(
-        self, text: str, exclude_patterns: List[str] = [], plugin_option: str = ""
+        self,
+        content: str,
+        exclude_patterns: Optional[List[str]] = None,
+        plugin_option: str = "",
     ) -> Union[str, List[str]]:
         """
         Translates input text to target language(s).
@@ -230,7 +246,7 @@ class OpusTranslator(Plugin):
 
         for target_spec in target_specs:
             try:
-                result = text
+                result = content
 
                 # Handle language chains (e.g., "en:fr" or "en:fr:de:es")
                 if ":" in target_spec:
@@ -244,7 +260,7 @@ class OpusTranslator(Plugin):
                 else:
                     # Simple translation
                     result = self._translate(
-                        text, source_lang, target_spec, cache_dir, num_beams, device
+                        content, source_lang, target_spec, cache_dir, num_beams, device
                     )
 
                 translations.append(result)
@@ -253,7 +269,7 @@ class OpusTranslator(Plugin):
 
         if len(translations) == 1:
             return translations[0]
-        return translations if translations else text
+        return translations if translations else content
 
 
 if __name__ == "__main__":

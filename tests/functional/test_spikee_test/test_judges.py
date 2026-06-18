@@ -9,7 +9,9 @@ from ..utils import spikee_test_cli
 def test_judge_canary():
     judge = load_module_from_path("canary", "judges")
 
-    assert isinstance(judge, Judge), f"Canary judge should be an instance of Judge: {type(judge)}"
+    assert isinstance(judge, Judge), (
+        f"Canary judge should be an instance of Judge: {type(judge)}"
+    )
 
     canary = "CANARY_STRING"
     test_cases = {
@@ -20,13 +22,17 @@ def test_judge_canary():
     for response, expected in test_cases.items():
         result = judge.judge("", response, canary)
 
-        assert result == expected, f"Expected {expected} for response: '{response}', got {result}"
+        assert result == expected, (
+            f"Expected {expected} for response: '{response}', got {result}"
+        )
 
 
 def test_llm_judge_regex():
     judge = load_module_from_path("regex", "judges")
 
-    assert isinstance(judge, Judge), f"Regex judge should be an instance of Judge: {type(judge)}"
+    assert isinstance(judge, Judge), (
+        f"Regex judge should be an instance of Judge: {type(judge)}"
+    )
 
     test_cases = {
         "The answer is 42.": True,
@@ -39,12 +45,20 @@ def test_llm_judge_regex():
     for response, expected in test_cases.items():
         result = judge.judge("", response, regex)
 
-        assert result == expected, f"Expected {expected} for response: '{response}', got {result}"
+        assert result == expected, (
+            f"Expected {expected} for response: '{response}', got {result}"
+        )
 
 
-@pytest.mark.parametrize("target_name", ["always_success", "always_success_legacy"])
 @pytest.mark.parametrize("judge_variant", ["test_judge", "test_judge_legacy"])
-def test_spikee_test_custom_judge_default_mode(run_spikee, workspace_dir, target_name, judge_variant):
+def test_spikee_test_custom_judge_default_mode(
+    run_spikee, workspace_dir, judge_variant
+):
+    """Test custom judges across OOP and legacy implementations.
+
+    Uses always_success target for consistent output - target variation doesn't affect
+    judge behavior since both OOP and legacy targets produce identical outputs.
+    """
     dataset_filename = (
         "test_judge_dataset_legacy.jsonl"
         if judge_variant.endswith("_legacy")
@@ -56,7 +70,7 @@ def test_spikee_test_custom_judge_default_mode(run_spikee, workspace_dir, target
     results_file, _ = spikee_test_cli(
         run_spikee,
         workspace_dir,
-        target=target_name,
+        target="always_success",
         datasets=[dataset_path],
     )
 
@@ -65,9 +79,15 @@ def test_spikee_test_custom_judge_default_mode(run_spikee, workspace_dir, target
     assert all(not entry["success"] for entry in results)
 
 
-@pytest.mark.parametrize("target_name", ["always_success", "always_success_legacy"])
 @pytest.mark.parametrize("judge_variant", ["test_judge", "test_judge_legacy"])
-def test_spikee_test_custom_judge_with_options(run_spikee, workspace_dir, target_name, judge_variant):
+def test_spikee_test_custom_judge_with_options(
+    run_spikee, workspace_dir, judge_variant
+):
+    """Test custom judges with --judge-options across OOP and legacy implementations.
+
+    Uses always_success target for consistent output - target variation doesn't affect
+    judge behavior since both OOP and legacy targets produce identical outputs.
+    """
     dataset_filename = (
         "test_judge_dataset_legacy.jsonl"
         if judge_variant.endswith("_legacy")
@@ -79,7 +99,7 @@ def test_spikee_test_custom_judge_with_options(run_spikee, workspace_dir, target
     results_file, _ = spikee_test_cli(
         run_spikee,
         workspace_dir,
-        target=target_name,
+        target="always_success",
         datasets=[dataset_path],
         additional_args=[
             "--judge-options",
