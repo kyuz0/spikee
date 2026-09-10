@@ -375,7 +375,7 @@ Further information on analyzing results can be found in the **[Spikee Results](
 
 Contributions are welcome. Please feel free to submit bug fixes, new modules (Targets, Plugins, Attacks, Judges), or dataset seeds via GitHub pull requests.
 
-See [Contribution Rules](./CONTRIBUTION_RULES.md) for guidelines on contributing to the project.
+See [Contribution Rules](./CONTRIBUTING.md) for guidelines on contributing to the project.
 
 # Questions or Feedback?
 
