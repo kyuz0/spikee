@@ -675,6 +675,9 @@ def _attack_result(
             )
         }
     )
+    # Keep the original text alongside the mutated input, including legacy entries.
+    if entry.get("content_type", "text") == "text":
+        row["objective"] = entry.get("content", entry.get("text", ""))
     for field in ("conversation", "objective", "attempt_history"):
         if field in details:
             row[field] = details[field]
