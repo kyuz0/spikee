@@ -562,12 +562,12 @@ def _do_single_request(
     result_dict = {
         "id": entry["id"],
         "long_id": entry["long_id"],
+        "success": success,
         "input": get_content(input_text),
         "input_type": get_content_type(input_text),
         "response": response_content,
         "response_type": response_content_type,
         "response_time": response_time,
-        "success": success,
         "judge_name": entry["judge_name"],
         "judge_args": entry["judge_args"],
         "judge_options": entry["judge_options"],
@@ -638,27 +638,10 @@ def _attack_result(
     response_type = (
         get_content_type(response) if isinstance(response, Content) else "text"
     )
-    row = {
-        key: entry.get(key)
-        for key in (
-            "judge_name",
-            "judge_args",
-            "judge_options",
-            "task_type",
-            "jailbreak_type",
-            "instruction_type",
-            "document_id",
-            "position",
-            "spotlighting_data_markers",
-            "injection_delimiters",
-            "suffix_id",
-            "system_message",
-            "plugin",
-        )
-    }
-    row.update(
+    row = dict(
         id=f"{entry['id']}-attack",
         long_id=entry["long_id"] + "-" + attack_name + ("-ERROR" if error else ""),
+        success=success,
         input=get_content(payload) if isinstance(payload, Content) else str(payload),
         input_type=input_type,
         response=get_content(response)
@@ -666,12 +649,31 @@ def _attack_result(
         else str(response),
         response_type=response_type,
         response_time=response_time,
-        success=success,
         attempts=attempts,
         lang=entry.get("lang", "en"),
         error=error,
         attack_name=attack_name,
         attack_options=options,
+    )
+    row.update(
+        {
+            key: entry.get(key)
+            for key in (
+                "judge_name",
+                "judge_args",
+                "judge_options",
+                "task_type",
+                "jailbreak_type",
+                "instruction_type",
+                "document_id",
+                "position",
+                "spotlighting_data_markers",
+                "injection_delimiters",
+                "suffix_id",
+                "system_message",
+                "plugin",
+            )
+        }
     )
     for field in ("conversation", "objective", "attempt_history"):
         if field in details:
