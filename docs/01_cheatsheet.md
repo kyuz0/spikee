@@ -134,7 +134,7 @@ spikee results analyze --results-file results.jsonl
 (NB, Result file/folder args can be used multiple times to specify multiple datasets, but at least one is **required**)
 
 ### `rejudge`
-Rejudges a results file - [Link](./09_judges.md#2-perform-rejudging)
+Rejudges a results file - [Link](./09_judges.md#re-judging)
 
 ```bash
 spikee results rejudge --results-file results.jsonl
