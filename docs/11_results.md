@@ -48,7 +48,7 @@ These top-level statistics provide a high-level summary of the test run:
 *   **Failed Attacks:** The number of unique entries where *all* attempts failed and no errors occurred.
 *   **Errors:** The number of unique entries where *all* attempts resulted in an error (e.g., an API timeout or connection failure). An entry is only counted as an error if none of its attempts succeeded or failed normally.
 *   **Guardrail Triggered:** The number of unique entries where *all* attempts were blocked by a guardrail (if applicable). An entry is only counted here if none of its attempts succeeded, failed normally, or errored.
-*   **Total Attempts:** The sum of all individual requests made to the target. This reflects the total workload or API cost of the test, including all retries and dynamic attack iterations.
+*   **Total Attempts:** The sum of top-level `attempts` counts, including standard attempts and the iteration counts returned by dynamic attacks. These counts are not an exact transport-request or API-cost audit: an attack can count a failed generation step, and transport retries need not appear as separate candidates.
 *   **Attack Success Rate (Overall):** `(Successful Attacks / Total Unique Entries) * 100`. This is the main metric for assessing the target's overall vulnerability during the test.
 
 ### Dynamic Attack Metrics
@@ -186,16 +186,30 @@ spikee webui --host 0.0.0.0 -p 8081
 # Persist job history to a SQLite database across restarts
 spikee webui --database jobs.db
 ```
-## Representative results and full attack histories
+## Attack history and conversation results
 
-Result files can contain legacy representative attack rows, expanded per-attempt rows, or both (for example after resume or when combining runs). The default representative row has ID `<id>-attack` and `attempts=N`. With `--attack-return-all-attempts`, a supporting attack instead emits `<id>-attack-1` through `<id>-attack-N`, usually with `attempts=1` each. Do not add another aggregate row or sum cumulative ordinals.
+Dynamic attacks write one result with ID `<id>-attack`. Its top-level input/response is the successful or final failed candidate, `success` is the overall outcome, and `attempts` is the total iteration count. The attack can supply additional evidence in that same row:
 
-- **Dataset identity:** prefer `attack_parent_id` and `attack_parent_long_id`; older files use the `-attack` suffix. Source files distinguish otherwise identical IDs when combining results.
-- **Attempt identity:** `attack_attempt` is the ordinal across an entry's invocations; `attack_invocation` identifies the outer `--attempts` run. `attempts` is the additive count represented by that row.
-- **Statistics:** an original entry and all its attack rows count as one dataset entry. A group succeeds if any row succeeds. Per-attack totals/successes also count dataset entries, not retained rows. Attempt totals sum `attempts`. With one standard call and 20 dynamic attempts, the total is 21 in either format.
-- **Unjudged turns:** `success=null` means the attack did not judge that intermediate response. It is neither a demonstrated success nor a failed judgement. The viewer labels it UNJUDGED; failure extraction excludes it. Recording does not introduce extra judge calls. An unsuccessful attack group means no retained result demonstrates success, not that every turn was individually judged.
-- **Viewer:** the overview uses dataset groups; the entries page paginates individual result rows. Attempt cards and details show their ordinal and parent. Rejudge/toggle acts on the selected unique row.
-- **Extraction:** category filters select individual rows. Extraction assigns new row IDs while preserving `original_id`, `result_parent_id`, and `result_origin`, plus attack metadata. An extracted subset describes only its retained evidence; it is not the original run's ASR or total workload. These files remain compatible with analysis and rejudging.
-- **Dataset comparison:** associate dynamic outcomes with their original dataset entry and count a success at most once per result file. A successful intermediate result must not be overwritten by a later failed row.
+| Field | Contents | Typical attacks |
+|---|---|---|
+| `attempt_history` | A list of candidate inputs, responses, recorded verdicts, and optional errors | `best_of_n`, `llm_jailbreaker`, `llm_multi_language_jailbreaker` |
+| `conversation` | The existing conversation graph or recorded message sequence | Crescendo, GOAT, Echo Chamber, `multi_turn` |
 
-A representative row only contains its reported input and response; missing earlier payloads cannot be reconstructed from `attempts`. Multi-turn snapshots may contain context for that row, but do not imply independent trials. Preserve original files when interpreting mixed or extracted results.
+Supporting single-turn attacks collect history by default. `SPIKEE_ATTACK_HISTORY=false` disables that optional collection; it does not affect conversation logs. Legacy modules and other custom attacks may return neither field. A missing history does not imply one iteration, and `attempts=20` does not guarantee twenty saved candidates or twenty independent conversations.
+
+For example, a result with `attempts=20` and twenty `attempt_history` items contributes **20 dynamic attempts and one attacked dataset entry**. Count top-level `attempts` once; do not add nested items or graph nodes. A separate standard attempt adds its own count. Success rates use the overall result verdict and dataset-parent identity, not the fraction of nested candidates marked successful.
+
+Each nested history item has `input`, `response`, and `success`, with optional `error`. `success=null` means unjudged, not failed. Stored items also have a 1-based `invocation` identifying the outer `--attempts` call that supplied them. The runner combines provided candidate histories across those calls. Conversation graphs remain from the successful or final invocation and may omit details on existing error paths; candidate history does not extend their logging.
+
+The viewer displays candidate history and conversation evidence within the result's detail page. Extraction, toggle, and rejudge act on the **whole result row**, not an individual nested candidate or conversation node. Rejudging updates the representative result's verdict; recorded historical verdicts remain evidence from the original attack. Extraction preserves nested evidence but does not turn its items into standalone dataset entries. An extracted subset cannot establish the original run's full workload or success rate; preserve the source file and selection criteria.
+
+### Reading older expanded result files
+
+Earlier versions could write separate `<id>-attack-1`, `<id>-attack-2`, and subsequent rows. New runs no longer generate this format, but results analysis and the viewer continue to read it, including files mixed with normal single-row results.
+
+- **Identity:** prefer `attack_parent_id` and `attack_parent_long_id`, with legacy suffix fallback. `attack_attempt` is an ordinal and `attack_invocation` identifies an outer invocation. Source-file provenance distinguishes otherwise identical IDs across runs.
+- **Counts:** sum each saved row's additive `attempts`, never its ordinal. Group the original row and its attack rows as one dataset entry. A group succeeds if any corresponding row succeeds. Do not add a duplicate summary row.
+- **Unjudged rows:** `success=null` is unjudged, excluded from failure extraction, and labelled UNJUDGED in the viewer. Overlapping per-turn conversation snapshots are not independent conversations.
+- **Operations:** detail, toggle, rejudge, and extraction still target the selected unique row. Extraction renumbers rows while preserving `original_id`, `result_parent_id`, and `result_origin`, plus existing attack metadata. Dataset comparison associates attack outcomes with their source entry and counts success once per result file.
+
+Inspect `attempt_history` and `conversation` before claiming that intermediate evidence is missing. Content absent from both cannot be reconstructed from an attempt count.

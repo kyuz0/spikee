@@ -10,16 +10,17 @@ Usage:
   spikee test --attack llm_poetry_jailbreaker --attack-iterations 10 --attack-options "model=openai/gpt-4o"
 
 Returns:
-  (iterations_used:int, success:bool, attack_prompt:str, last_response:str)
+  (iterations_used:int, success:bool, input_details:dict, last_response:str)
+  input_details contains the representative input and optional attempt_history.
 """
 
 from collections.abc import Callable
 
 from spikee.templates.attack import Attack
 from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.attack import attack_history_enabled
 from spikee.utilities.enums import ModuleTag
 from spikee.utilities.hinting import (
-    AttackAttempt,
     AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
@@ -151,13 +152,14 @@ class LLMPoetryJailbreaker(Attack):
         attempts_bar=None,
         bar_lock=None,
         attack_option: str = "",
-        return_all_attempts: bool = False,
     ) -> AttackResponseHint:
         """
         Executes a jailbreak attack sequence.
         For each iteration, it creates a new attack prompt using different jailbreak techniques,
         then checks if the attack was successful.
         """
+        history = [] if attack_history_enabled() else None
+
         # Parse attack option for model selection
         opts = parse_options(attack_option)
         model_name = opts.get("model", self.DEFAULT_MODEL)
@@ -170,19 +172,17 @@ class LLMPoetryJailbreaker(Attack):
             )
 
         if not objective:
-            if return_all_attempts:
-                return [
-                    AttackAttempt(
-                        "", "No objective provided in entry", False, attempts=0
-                    )
-                ]
-            return 0, False, "", "No objective provided in entry"
+            return (
+                0,
+                False,
+                self.standardised_input_return(input="", attempt_history=history),
+                "No objective provided in entry",
+            )
 
         # Initialize the LLM
         llm = get_llm(model_name, max_tokens=400)
 
         # Track previous attack attempts to avoid repetition
-        history = []
         previous_attempts = []
         last_response = ""
         attack_prompt = ""
@@ -191,6 +191,7 @@ class LLMPoetryJailbreaker(Attack):
         # Note: range is 1-indexed to match nice user-facing counting
         for i in range(1, max_iterations + 1):
             candidate = ""
+            attempt_response = ""
             try:
                 # Generate a new attack prompt
                 attack_prompt = self._generate_jailbreak_attack(
@@ -205,6 +206,7 @@ class LLMPoetryJailbreaker(Attack):
                         entry.get("system_message", None),
                     )
                 )
+                attempt_response = last_response
 
                 # Add this attempt to our history
                 previous_attempts.append(
@@ -213,8 +215,14 @@ class LLMPoetryJailbreaker(Attack):
 
                 # Determine if the attack was successful
                 success = call_judge(entry, last_response)
-                if return_all_attempts:
-                    history.append(AttackAttempt(attack_prompt, last_response, success))
+                if history is not None:
+                    history.append(
+                        {
+                            "input": attack_prompt,
+                            "response": attempt_response,
+                            "success": success,
+                        }
+                    )
                 if success:
                     if attempts_bar:
                         # Update progress bar to show we finished early
@@ -225,15 +233,26 @@ class LLMPoetryJailbreaker(Attack):
                                     0, attempts_bar.total - remaining
                                 )
                                 attempts_bar.refresh()
-                    if return_all_attempts:
-                        return history
-                    return i, True, attack_prompt, last_response
+
+                    return (
+                        i,
+                        True,
+                        self.standardised_input_return(
+                            input=attack_prompt, attempt_history=history
+                        ),
+                        last_response,
+                    )
 
             except Exception as e:  # noqa: BLE001
                 last_response = f"Error during attack attempt {i}: {e!s}"
-                if return_all_attempts:
+                if history is not None:
                     history.append(
-                        AttackAttempt(candidate, last_response, False, error=str(e))
+                        {
+                            "input": candidate,
+                            "response": attempt_response,
+                            "success": None,
+                            "error": str(e),
+                        }
                     )
                 # If generation fails, we might as well stop or continue.
                 # Here we continue logging the error.
@@ -245,8 +264,11 @@ class LLMPoetryJailbreaker(Attack):
                     attempts_bar.update(1)
 
         # If we've exhausted all attempts
-        if return_all_attempts:
-            return history or [
-                AttackAttempt(attack_prompt, last_response, False, attempts=0)
-            ]
-        return max_iterations, False, attack_prompt, last_response
+        return (
+            max_iterations,
+            False,
+            self.standardised_input_return(
+                input=attack_prompt, attempt_history=history
+            ),
+            last_response,
+        )

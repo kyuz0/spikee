@@ -13,7 +13,6 @@ from spikee.templates.standardised_conversation import StandardisedConversation
 from spikee.tester import AdvancedTargetWrapper
 from spikee.utilities.enums import ModuleTag, Turn
 from spikee.utilities.hinting import (
-    AttackAttempt,
     AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
@@ -272,7 +271,6 @@ class Crescendo(Attack):
         session_id: str,
         conversation: StandardisedConversation,
         last_message_id: int,
-        history: list[AttackAttempt] | None = None,
     ) -> tuple[int, StandardisedConversation, int, str]:
         """
         Run a single conversation attempt.
@@ -324,29 +322,15 @@ class Crescendo(Attack):
                 attempt=True,
             )
 
-            current = None
-            if history is not None:
-                current = AttackAttempt(
-                    self.standardised_input_return(prompt, conversation, objective),
-                    "",
-                    None,
-                )
-                history.append(current)
-
             # call target; each call consumes budget immediately
-            try:
-                response_text = process_target_content(
-                    target_module.process_input(
-                        prompt,
-                        system_message,
-                        spikee_session_id=session_id,
-                        backtrack=is_refuse,
-                    )
+            response_text = process_target_content(
+                target_module.process_input(
+                    prompt,
+                    system_message,
+                    spikee_session_id=session_id,
+                    backtrack=is_refuse,
                 )
-            except Exception as e:
-                if current is not None:
-                    current.error = str(e)
-                raise
+            )
 
             last_message_id = conversation.add_message(
                 last_message_id,
@@ -356,12 +340,6 @@ class Crescendo(Attack):
                     "spikee_session_id": session_id,
                 },
             )
-
-            if current is not None:
-                current.response = response_text
-                current.input = self.standardised_input_return(
-                    prompt, conversation, objective
-                )
 
             # Count this call and update attempts_bar (backtracks are counted too)
             if attempts_bar:
@@ -374,8 +352,6 @@ class Crescendo(Attack):
 
             # Check success
             success = call_judge(entry, response_text)
-            if current is not None:
-                current.success = success
             if success:
                 # record final successful prompt only
                 return True, conversation, last_message_id, response_text
@@ -414,7 +390,6 @@ class Crescendo(Attack):
         attempts_bar=None,
         bar_lock=None,
         attack_option: str = "",
-        return_all_attempts: bool = False,
     ) -> AttackResponseHint:
         """
         Attack entry point.
@@ -452,7 +427,6 @@ class Crescendo(Attack):
         last_message_id = conversation.get_root_id()  # last message id
         last_response = ""  # last LLM response
 
-        history = []
         # Loop until global budget exhausted
         while max_iterations - conversation.get_attempt_total() > 0:
             # Start new conversation attempt
@@ -472,23 +446,12 @@ class Crescendo(Attack):
                         session_id,
                         conversation,
                         last_message_id,
-                        history if return_all_attempts else None,
                     )
                 )
 
             except Exception as e:  # noqa: BLE001
                 # surface generator / classifier / target errors in-line
                 traceback.print_exc()
-                if return_all_attempts:
-                    if history and history[-1].success is None:
-                        history[-1].error = str(e)
-                    else:
-                        history.append(
-                            AttackAttempt(
-                                objective, "", False, attempts=0, error=str(e)
-                            )
-                        )
-                    return history
                 return (
                     conversation.get_attempt_total(),
                     False,
@@ -515,8 +478,6 @@ class Crescendo(Attack):
                         if getattr(attempts_bar, "total", None) is not None:
                             attempts_bar.total = max(0, attempts_bar.total - remaining)
                             attempts_bar.refresh()
-                if return_all_attempts:
-                    return history
                 return (
                     conversation.get_attempt_total(),
                     True,
@@ -531,10 +492,6 @@ class Crescendo(Attack):
             if max_iterations - conversation.get_attempt_total() <= 0:
                 break
 
-        if return_all_attempts:
-            return history or [
-                AttackAttempt(objective, last_response, False, attempts=0)
-            ]
         return (
             conversation.get_attempt_total(),
             False,

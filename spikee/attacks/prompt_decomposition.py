@@ -8,6 +8,9 @@ Supports both deterministic (dumb) and LLM-based decomposition modes.
 
 Usage:
     spikee test --attack prompt_decomposition --attack-options "mode=gpt4o-mini"
+
+The input_details dictionary retains the representative input and attempt_history.
+Set SPIKEE_ATTACK_HISTORY=false to omit history without changing attack execution.
 """
 
 # TODO: Update to modern OOP LLM
@@ -18,9 +21,9 @@ from collections.abc import Callable
 
 from spikee.templates.attack import Attack
 from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.attack import attack_history_enabled
 from spikee.utilities.enums import ModuleTag
 from spikee.utilities.hinting import (
-    AttackAttempt,
     AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
@@ -225,13 +228,12 @@ class PromptDecompositionAttack(Attack):
         attempts_bar=None,
         bar_lock=None,
         attack_option: str = "",
-        return_all_attempts: bool = False,
     ) -> AttackResponseHint:
         """
         Executes the prompt decomposition attack by sequentially trying different
         reformulations until success or max_iterations is reached.
         """
-        history = []
+        history = [] if attack_history_enabled() else None
         original_text = entry.get("content", entry.get("text", ""))
         if entry.get("content_type", "text") != "text":
             raise ValueError(
@@ -256,11 +258,14 @@ class PromptDecompositionAttack(Attack):
 
             # If no variants were generated, return early
             if not variants:
-                if return_all_attempts:
-                    return [
-                        AttackAttempt(last_payload, last_response, False, attempts=0)
-                    ]
-                return 0, False, last_payload, last_response
+                return (
+                    0,
+                    False,
+                    self.standardised_input_return(
+                        input=last_payload, attempt_history=history
+                    ),
+                    last_response,
+                )
 
             # If we have more variants than max_iterations, randomly sample
             if len(variants) > max_iterations:
@@ -271,12 +276,14 @@ class PromptDecompositionAttack(Attack):
                 last_payload = candidate_text
 
                 error = None
+                attempt_response = ""
                 try:
                     response = process_target_content(
                         target_module.process_input(candidate_text, system_message)
                     )
 
                     last_response = response
+                    attempt_response = response
                     success = call_judge(entry, response)
                 except Exception as e:  # noqa: BLE001
                     error = str(e)
@@ -286,11 +293,14 @@ class PromptDecompositionAttack(Attack):
                         f"[Prompt-Decomposition] Entry ID {entry.get('id', 'unknown')}: {e}"
                     )
 
-                if return_all_attempts:
+                if history is not None:
                     history.append(
-                        AttackAttempt(
-                            candidate_text, last_response, success, error=error
-                        )
+                        {
+                            "input": candidate_text,
+                            "response": attempt_response,
+                            "success": success if error is None else None,
+                            "error": error,
+                        }
                     )
 
                 # Update progress bar if provided
@@ -306,16 +316,22 @@ class PromptDecompositionAttack(Attack):
                             remaining = max_iterations - i
                             attempts_bar.total = attempts_bar.total - remaining
                             attempts_bar.refresh()
-                    if return_all_attempts:
-                        return history
-                    return i, True, candidate_text, response
 
-            if return_all_attempts:
-                return history
+                    return (
+                        i,
+                        True,
+                        self.standardised_input_return(
+                            input=candidate_text, attempt_history=history
+                        ),
+                        response,
+                    )
+
             return (
                 min(len(variants), max_iterations),
                 False,
-                last_payload,
+                self.standardised_input_return(
+                    input=last_payload, attempt_history=history
+                ),
                 last_response,
             )
 
@@ -324,9 +340,21 @@ class PromptDecompositionAttack(Attack):
 
         except Exception as e:  # noqa: BLE001
             print(f"Error in prompt decomposition attack: {e}")
-            if return_all_attempts:
+            if history is not None:
                 history.append(
-                    AttackAttempt(last_payload, str(e), False, attempts=0, error=str(e))
+                    {
+                        "input": last_payload,
+                        "response": "",
+                        "success": None,
+                        "error": str(e),
+                    }
                 )
-                return history
-            return 0, False, last_payload, str(e)
+
+            return (
+                0,
+                False,
+                self.standardised_input_return(
+                    input=last_payload, attempt_history=history
+                ),
+                str(e),
+            )
