@@ -9,6 +9,7 @@ import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,6 @@ from spikee.templates.attack import Attack
 from spikee.templates.target import Target
 from spikee.utilities.attack import (
     AttackProgress,
-    accepts_attack_history,
     invoke_attack,
 )
 from spikee.utilities.enums import Turn
@@ -36,7 +36,6 @@ from spikee.utilities.files import (
     write_jsonl_file,
 )
 from spikee.utilities.hinting import (
-    AttackAttempt,
     Content,
     TargetResponseHint,
     content_factory,
@@ -599,25 +598,45 @@ def _do_single_request(
     return result_dict, success
 
 
-def _validate_attack_attempt(item):
-    if not isinstance(item, AttackAttempt):
-        raise TypeError("Attack history must contain AttackAttempt records")
-    if type(item.attempts) is not int or item.attempts < 0:
-        raise ValueError("Attack attempts must be a non-negative integer")
-    if item.success is not None and type(item.success) is not bool:
-        raise ValueError("Attack success must be True, False, or None (unjudged)")
-    return item
+def _serialize_attempt_history(history, invocation):
+    """Copy optional diagnostic records without changing the attack's outcome/count."""
+    if not isinstance(history, list):
+        raise TypeError("attempt_history must be a list of dictionaries")
+    records = []
+    for item in history:
+        if not isinstance(item, dict):
+            raise TypeError("attempt_history entries must be dictionaries")
+        if not {"input", "response"} <= item.keys():
+            raise ValueError("attempt_history entries require input and response")
+        record = deepcopy(item)
+        for field in ("input", "response"):
+            value = record[field]
+            if isinstance(value, Content):
+                record[field] = get_content(value)
+                record[f"{field}_type"] = get_content_type(value)
+        if record.get("success") is not None and type(record["success"]) is not bool:
+            raise ValueError("attempt_history success must be True, False, or None")
+        record["invocation"] = invocation
+        records.append(record)
+    return records
 
 
-def _attack_result(entry, item, attack_name, options):
-    payload = item.input
+def _attack_result(
+    entry,
+    attempts,
+    success,
+    payload,
+    response,
+    attack_name,
+    options,
+    response_time=None,
+    error=None,
+):
     details = payload if isinstance(payload, dict) else {}
     payload = details.get("input", str(payload)) if details else payload
     input_type = get_content_type(payload) if isinstance(payload, Content) else "text"
     response_type = (
-        get_content_type(item.response)
-        if isinstance(item.response, Content)
-        else "text"
+        get_content_type(response) if isinstance(response, Content) else "text"
     )
     row = {
         key: entry.get(key)
@@ -639,27 +658,24 @@ def _attack_result(entry, item, attack_name, options):
     }
     row.update(
         id=f"{entry['id']}-attack",
-        long_id=entry["long_id"] + "-" + attack_name + ("-ERROR" if item.error else ""),
+        long_id=entry["long_id"] + "-" + attack_name + ("-ERROR" if error else ""),
         input=get_content(payload) if isinstance(payload, Content) else str(payload),
         input_type=input_type,
-        response=get_content(item.response)
-        if isinstance(item.response, Content)
-        else str(item.response),
+        response=get_content(response)
+        if isinstance(response, Content)
+        else str(response),
         response_type=response_type,
-        response_time=item.response_time,
-        success=item.success,
-        attempts=item.attempts,
+        response_time=response_time,
+        success=success,
+        attempts=attempts,
         lang=entry.get("lang", "en"),
-        error=item.error,
+        error=error,
         attack_name=attack_name,
         attack_options=options,
     )
-    if "conversation" in details:
-        row["conversation"] = details["conversation"]
-    if "objective" in details:
-        row["objective"] = details["objective"]
-    if item.guardrail:
-        row.update(guardrail=True, guardrail_categories=item.guardrail_categories or {})
+    for field in ("conversation", "objective", "attempt_history"):
+        if field in details:
+            row[field] = details[field]
     return row
 
 
@@ -675,7 +691,6 @@ def process_entry(
     output_file=None,
     attempts_bar=None,
     global_lock=None,
-    attack_return_all_attempts=False,
 ):
     """
     Processes one dataset entry.
@@ -739,9 +754,10 @@ def process_entry(
     if (not std_success) and attack_module:
         effective_options = attack_options or get_default_option(attack_module)
         request_attempts = 0
-        recorded = []
+        history = []
         has_history = False
-        representative = None
+        attack_input, attack_response = original_input, ""
+        attack_success, error = False, None
         start_time = time.monotonic()
         for invocation in range(1, attempts + 1):
             invocation_failed = False
@@ -751,7 +767,7 @@ def process_entry(
                 else None
             )
             try:
-                returned = invoke_attack(
+                used, attack_success, attack_input, attack_response = invoke_attack(
                     attack_module.attack,
                     entry,
                     target_module,
@@ -760,40 +776,31 @@ def process_entry(
                     progress,
                     global_lock,
                     effective_options,
-                    attack_return_all_attempts,
                 )
-                if isinstance(returned, list):
-                    if not returned:
-                        raise ValueError("Attack returned an empty attempt list")
-                    current = [_validate_attack_attempt(item) for item in returned]
-                else:
-                    count, success, payload, response = returned
-                    current = [
-                        _validate_attack_attempt(
-                            AttackAttempt(payload, response, success, attempts=count)
+                if type(used) is not int or used < 0:
+                    raise ValueError("Attack attempts must be a non-negative integer")
+                if type(attack_success) is not bool:
+                    raise ValueError("Attack success must be True or False")
+                if isinstance(attack_input, dict) and "attempt_history" in attack_input:
+                    try:
+                        history.extend(
+                            _serialize_attempt_history(
+                                attack_input["attempt_history"], invocation
+                            )
                         )
-                    ]
-                used = sum(item.attempts for item in current)
-                attack_success = any(item.success for item in current)
-                representative = next(
-                    (item for item in current if item.success), current[-1]
-                )
-                request_attempts += used
-                if attack_return_all_attempts:
-                    expanded = isinstance(returned, list)
-                    has_history |= expanded
-                    recorded.extend((invocation, item, expanded) for item in current)
+                        has_history = True
+                    except (TypeError, ValueError) as exc:
+                        print(
+                            f"[Warning] Ignoring invalid attempt_history from '{attack_name}': {exc}"
+                        )
+                        attack_input = dict(attack_input)
+                        del attack_input["attempt_history"]
             except Exception as exc:  # noqa: BLE001
                 invocation_failed = True
-                representative = AttackAttempt(
-                    original_input, "", False, attempts=0, error=str(exc)
-                )
+                attack_input, attack_response = original_input, ""
+                attack_success, error = False, str(exc)
                 used = progress.n if progress else 0
-                representative.attempts = used
-                request_attempts += used
-                attack_success = False
-                if attack_return_all_attempts:
-                    recorded.append((invocation, representative, False))
+            request_attempts += used
             if progress:
                 with global_lock:
                     # Reconcile attacks that omit the successful call's update.
@@ -807,36 +814,25 @@ def process_entry(
                 attempts_bar.refresh()
 
         if has_history:
-            for number, (invocation, item, expanded) in enumerate(recorded, 1):
-                row = _attack_result(entry, item, attack_name, effective_options)
-                row.update(
-                    id=f"{entry['id']}-attack-{number}",
-                    long_id=f"{entry['long_id']}-{attack_name}-attempt-{number}",
-                    attack_parent_id=entry["id"],
-                    attack_parent_long_id=entry["long_id"],
-                    attack_attempt=number,
-                    attack_invocation=invocation,
-                    attack_result_format="attempt" if expanded else "representative",
-                )
-                results_list.append(row)
-        else:
-            representative.attempts = request_attempts
-            representative.response_time = time.monotonic() - start_time
-            row = _attack_result(entry, representative, attack_name, effective_options)
-            if attack_return_all_attempts:
-                row.update(
-                    attack_result_format="representative",
-                    attack_parent_id=entry["id"],
-                    attack_parent_long_id=entry["long_id"],
-                )
-            results_list.append(row)
-
-    if attack_return_all_attempts and results_list:
-        # A final marker lets resume distinguish a complete entry from a partial
-        # JSONL group. Partial groups are rerun from the original dataset entry.
-        for row in results_list:
-            row["entry_complete"] = False
-        results_list[-1]["entry_complete"] = True
+            attack_input = (
+                dict(attack_input)
+                if isinstance(attack_input, dict)
+                else {"input": attack_input}
+            )
+            attack_input["attempt_history"] = history
+        results_list.append(
+            _attack_result(
+                entry,
+                request_attempts,
+                attack_success,
+                attack_input,
+                attack_response,
+                attack_name,
+                effective_options,
+                time.monotonic() - start_time,
+                error,
+            )
+        )
 
     return results_list
 
@@ -858,7 +854,6 @@ def _run_threaded(
     initial_processed,
     initial_success,
     initial_guardrail,
-    attack_return_all_attempts=False,
 ):
     lock = threading.Lock()
     bar_all = tqdm(
@@ -903,7 +898,6 @@ def _run_threaded(
             output_file,
             bar_all,
             lock,
-            attack_return_all_attempts,
         ): entry
         for entry in entries
     }
@@ -975,16 +969,6 @@ def test_dataset(args):
         sys.exit(1)
 
     # Validate multi-turn capability
-    if (
-        getattr(args, "attack_return_all_attempts", False)
-        and attack_module
-        and not accepts_attack_history(attack_module.attack)
-    ):
-        print(
-            f"[Warning] Attack '{attack_name}' does not support returning all attempts; "
-            "retaining its representative result."
-        )
-
     if (
         attack_module
         and hasattr(attack_module, "turn_type")
@@ -1130,7 +1114,6 @@ def test_dataset(args):
             entries_done,
             success_count,
             guardrail_count,
-            getattr(args, "attack_return_all_attempts", False),
         )
 
         print(f"[Done] Testing finished. Results saved to {output_file}")
