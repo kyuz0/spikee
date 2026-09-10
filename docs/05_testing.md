@@ -26,6 +26,12 @@ spikee test
 
 These args can be used multiple times to specify multiple datasets, which `spikee test` will assess sequentially against the target. However, at least one of `--dataset` or `--dataset-folder` is **required** to run a test.
 
+Result filenames use compact labels: target options that need cleaning or shortening
+become up to 24 readable characters plus a 12-character hash of the full options.
+Long dataset names and tags are also shortened, keeping generated filenames under
+180 characters. The original options are still passed to the target unchanged.
+Automatic resume recognizes both compact names and existing result filenames.
+
 ```bash
 spikee test 
     --dataset ./dataset/cybersec-2026-01.jsonl \

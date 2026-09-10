@@ -28,6 +28,7 @@ from spikee.utilities.enums import Turn
 from spikee.utilities.files import (
     append_jsonl_entry,
     build_resource_name,
+    compact_filename_part,
     does_resource_name_match,
     extract_resource_name,
     prepare_output_file,
@@ -257,10 +258,11 @@ class AdvancedTargetWrapper:
 
 
 # region resource_utilities
-def _build_target_name(target, target_options):
+def _build_target_name(target, target_options, *, legacy=False):
     """
     Builds a target's name, returning "target-target_options".
     If no target_options provided, attempts to get default option from target module.
+    Legacy names are only used to discover results written before compact naming.
     """
 
     # Matches Invalid Windows Characters
@@ -282,6 +284,9 @@ def _build_target_name(target, target_options):
 
     if target_options is None:
         return target
+
+    if not legacy:
+        return f"{target}-{compact_filename_part(target_options, max_length=37)}"
 
     target_options = re.sub(
         regex_pattern, replacer, target_options
@@ -362,7 +367,15 @@ def _determine_resume_file(args, dataset, is_tty: bool) -> str | None:
 
     # Identify previous results files
     target_name_full = _build_target_name(args.target, args.target_options)
-    candidates = _find_resume_candidates("results", target_name_full, dataset, args.tag)
+    candidates = _find_resume_candidates(
+        "results",
+        target_name_full,
+        dataset,
+        args.tag,
+        legacy_target_name_full=_build_target_name(
+            args.target, args.target_options, legacy=True
+        ),
+    )
 
     if not candidates:
         return None
@@ -381,7 +394,12 @@ def _determine_resume_file(args, dataset, is_tty: bool) -> str | None:
 
 
 def _find_resume_candidates(
-    results_dir: str | Path, target_name_full: str, dataset_path: str, tag: str | None
+    results_dir: str | Path,
+    target_name_full: str,
+    dataset_path: str,
+    tag: str | None,
+    *,
+    legacy_target_name_full: str | None = None,
 ) -> list[Path]:
     """Identify potential resume candidates within the results_dir using the same resource name"""
     # Load results directory
@@ -393,13 +411,29 @@ def _find_resume_candidates(
     resource_name = build_resource_name(
         "results", target_name_full, extract_resource_name(dataset_path), tag
     )
+    legacy_resource_name = "_".join(
+        part
+        for part in (
+            "results",
+            legacy_target_name_full
+            if legacy_target_name_full is not None
+            else target_name_full,
+            extract_resource_name(dataset_path),
+            tag,
+        )
+        if part is not None
+    )
 
     # Only accept exact matches for the requested tag (or lack of tag).
     # No fallback to untagged files when a tag is specified.
     candidates = [
         p
-        for p in results_dir.glob(f"{resource_name}_*.jsonl")
-        if does_resource_name_match(p, resource_name)
+        for p in results_dir.glob("results_*.jsonl")
+        if p.is_file()
+        and (
+            does_resource_name_match(p, resource_name)
+            or does_resource_name_match(p, legacy_resource_name)
+        )
     ]
 
     return sorted(
