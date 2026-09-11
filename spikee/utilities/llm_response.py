@@ -23,10 +23,19 @@ class JSONLResponseError(ValueError):
         self.partial = partial
 
 
-def _unfence(text):
+def unwrap_json_response(text):
+    """Remove explicit reasoning prefixes and outer fences, preserving JSON values."""
     if not isinstance(text, str):
         raise ValueError("Expected a text response containing JSON")  # noqa: TRY004 - invalid external response
     text = text.strip()
+    # Some gateways return reasoning in content, even omitting the opening tag.
+    # Only consider a prefix: a marker inside JSON or a code fence is literal data.
+    if not text.startswith(("{", "[", '"', "```")):
+        reasoning, marker, answer = text.partition("</think>")
+        if marker:
+            text = answer.strip()
+        elif reasoning.startswith("<think>"):
+            raise ValueError("Unterminated reasoning block before JSON response")
     match = re.fullmatch(
         r"```(?:jsonl?|jsonlines)?\s*\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE
     )
@@ -35,7 +44,7 @@ def _unfence(text):
 
 def parse_json_object(text, required_keys=(), string_keys=()):
     """Accept fences/prose around one object; never invent or rewrite its values."""
-    text = _unfence(text)
+    text = unwrap_json_response(text)
     try:
         obj = json.loads(text)
     except json.JSONDecodeError as original_error:
@@ -64,7 +73,7 @@ def parse_jsonl_variations(text):
     """Keep valid variations available if a subsequent format repair fails."""
     variations = []
     errors = []
-    for number, line in enumerate(_unfence(text).splitlines(), 1):
+    for number, line in enumerate(unwrap_json_response(text).splitlines(), 1):
         if not line.strip():
             continue
         try:

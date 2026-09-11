@@ -376,3 +376,44 @@ def test_jsonl_total_failure_keeps_original_prompt_fallback(monkeypatch):
         "Write a poem.", "test/model", 2
     ) == ["Write a poem."]
     assert llm.invoke.call_count == 4
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        '<think>Draft: {"text":"discard this"}</think>',
+        'Draft: {"text":"discard this"}</think>',
+    ],
+)
+def test_attack_parser_uses_final_object_after_reasoning(prefix):
+    assert parse_json_object(prefix + '{"text":"final"}') == {"text": "final"}
+
+
+@pytest.mark.parametrize("fenced", [False, True])
+def test_reasoning_marker_inside_attack_text_is_preserved(fenced):
+    obj = {"text": 'Explain </think> and {"example": true}.'}
+    raw = json.dumps(obj)
+    if fenced:
+        raw = "```json\n" + raw + "\n```"
+    assert parse_json_object(raw) == obj
+
+
+def test_jsonl_uses_final_variations_after_reasoning():
+    raw = (
+        '<think>{"variation":"discard this"}</think>'
+        '```jsonl\n{"variation":"first"}\n{"variation":"second"}\n```'
+    )
+    assert parse_jsonl_variations(raw) == ["first", "second"]
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '<think>{"text":"draft"}',
+        '<think>{"text":"draft"}</think>',
+        '<think>Done.</think>{"text":"unfinished',
+    ],
+)
+def test_reasoning_does_not_make_incomplete_attack_json_valid(raw):
+    with pytest.raises(ValueError):
+        parse_json_object(raw)

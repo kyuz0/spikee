@@ -98,3 +98,5 @@ spikee results rejudge --result-file results/run.jsonl \
 ```
 
 Repeat `--result-file` for multiple files. Add `--resume` after interruption; keep the generated rejudged file's name and location. Verify which input your installed rejudge path supplies before assuming it matches attack-time judging; a saved `objective` field alone does not establish that.
+
+A reply such as `reasoning...</think>{"score":0,"reason":"Refusal.","evidence":""}` is accepted after removing the reasoning prefix. A refusal or copied target answer **without an assessment** still needs repair. Keep an explicit grading instruction around the user-message data; a bare JSON payload caused one tested model to echo the answer instead of grading it. An endpoint accepting `response_format: json_object` does not prove that it enforces JSON.
