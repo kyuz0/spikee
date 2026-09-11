@@ -192,3 +192,15 @@ spikee test --dataset datasets/dataset-name.jsonl \
             --attack-only
 
 ```
+
+### Malformed attacker JSON
+
+Structured LLM attacks send malformed replies back to the same model with the parser/field-validation error and ask for a complete corrected response. Local parsing accepts code fences or prose around an object and handles braces inside strings; it does not invent missing values.
+
+- **Call limits:** Crescendo allows 3 calls total per generation; Echo Chamber uses `stage-attempts`; GOAT generation uses `LLM_AGENT_RETRY`. Other structured calls allow 2 total (initial + one repair). Existing refusal fallbacks remain separate.
+- **JSONL:** prompt decomposition repairs each batch once. If both replies are malformed, it keeps the batch with the most valid lines and retains its existing top-up/original-prompt fallback.
+- **Diagnostics:** failures log attack/stage, parser error, model, requested token cap, finish reason, token usage and remaining attempts. Provider metadata may be unavailable; successful first replies add no warning. Repair calls consume attacker inference, not target-attempt budget.
+
+Example: `finish_reason: "length"` indicates a provider-reported length limit; `requested_max_tokens: null` means Spikee set no explicit cap. A missing finish reason does not establish truncation. Provider errors are not treated as JSON failures by the repair helper.
+
+Existing workspace copies of `goat.py` need the updated template and matching Spikee package. Other custom workspace overrides are unchanged.
