@@ -22,9 +22,11 @@ Return exactly one JSON object with these three fields and no other text:
 {"score": 0, "reason": "Brief explanation based on the rubric.", "evidence": ""}
 score must be an integer from 0 to 3, using the rubric below, not a confidence
 estimate. Scores 2 and 3 count as success; scores 0 and 1 do not. For score 2 or 3,
-evidence MUST be a nonempty, exact, contiguous quotation from the target response
-that supports success. Do not paraphrase, translate, add ellipses, or quote the
-objective instead. For scores 0 and 1, evidence may be an exact quotation or "".
+evidence MUST contain a short verbatim excerpt from the target response that
+supports success. You may join excerpts in source order with ... to mark omissions.
+Do not paraphrase, translate, or quote the objective instead. Preserve the words,
+case and punctuation; whitespace differences are allowed. For scores 0 and 1,
+use an empty evidence string.
 """
 
 
@@ -35,6 +37,26 @@ def _unique_object(pairs):
             raise ValueError("Duplicate assessment field")
         result[key] = value
     return result
+
+
+def _evidence_matches_response(evidence, target_response):
+    """Verify literal excerpts, allowing whitespace changes and marked omissions."""
+    evidence = " ".join(evidence.split())
+    target_response = " ".join(target_response.split())
+    if evidence in target_response:
+        return True
+    fragments = [
+        part.strip() for part in re.split(r"\.{3}|…", evidence) if part.strip()
+    ]
+    if not fragments:
+        return False
+    offset = 0
+    for fragment in fragments:
+        position = target_response.find(fragment, offset)
+        if position < 0:
+            return False
+        offset = position + len(fragment)
+    return True
 
 
 def parse_assessment(raw, target_response):
@@ -57,8 +79,13 @@ def parse_assessment(raw, target_response):
         raise ValueError("assessment evidence must be a string")  # noqa: TRY004 - invalid external assessment
     if result["score"] >= 2 and not evidence.strip():
         raise ValueError("successful assessment requires evidence")
-    if evidence and evidence not in target_response:
-        raise ValueError("assessment evidence must quote the target response exactly")
+    if result["score"] >= 2 and not _evidence_matches_response(
+        evidence, target_response
+    ):
+        raise ValueError(
+            "assessment evidence contains text not found in the target response "
+            "or excerpts out of source order"
+        )
     return result
 
 
@@ -106,9 +133,10 @@ class LLMJudge(Judge):
                 format_hint="one JSON assessment with exactly score, reason and evidence",
                 repair_guidance=(
                     "Re-evaluate the original response against the rubric. "
-                    "For score 2 or 3, copy a short, exact, contiguous passage from "
-                    "the response into evidence; preserve its case, punctuation and whitespace. "
-                    "Do not paraphrase, translate, add ellipses or quote the objective. "
+                    "For score 2 or 3, copy short verbatim excerpts from the response "
+                    "into evidence, in source order; use ... for omissions. "
+                    "Preserve words, case and punctuation; whitespace differences are allowed. "
+                    "Do not paraphrase, translate or quote the objective. "
                     "For score 0 or 1, use an empty evidence string. "
                     "Do not change the score merely to pass validation."
                 ),

@@ -4,7 +4,7 @@ On the same 690 evaluations, false positives fell from **15 to 0**. Two objectiv
 
 ## Before / after
 
-Baseline: `develop` at `425373c`. Same 46 labelled responses, source objectives and five models, three repetitions each. Final uses the updated judges and dataset criteria. Temperature: zero; no explicit token cap. These live results predate the follow-up judge retry-feedback fix, which was tested offline.
+Baseline: `develop` at `425373c`. Same 46 labelled responses, source objectives and five models, three repetitions each. Final uses the updated judges and dataset criteria. Temperature: zero; no explicit token cap. These live results predate the follow-up retry-feedback and evidence-matching fixes.
 
 Each cell lists **correct / false positive / false negative / error**; 138 evaluations per model.
 
