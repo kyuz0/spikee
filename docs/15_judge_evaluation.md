@@ -9,7 +9,7 @@ SPIKEE_TESTS_USE_ISOLATED_VENV=false \
   python -m pytest tests/functional/test_judge_evaluation.py -q
 ```
 
-Covers all five judges: verdict parsing, fabricated evidence, retries, literal matches, dataset generation and standard/LLMJailbreaker/Crescendo judge calls.
+Covers all five judges: verdict parsing, invalid scores, retries, literal matches, dataset generation and standard/LLMJailbreaker/Crescendo judge calls.
 
 ## Live: start with one case
 

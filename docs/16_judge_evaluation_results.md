@@ -2,6 +2,8 @@
 
 On the same 690 evaluations, false positives fell from **15 to 0**. Two objective false negatives remain; seven final evaluations hit provider errors. The live suite therefore still reports failures.
 
+The live measurements below used the earlier score/reason/evidence schema. Current judges request only score and a brief reason; these live measurements have not been rerun with that schema.
+
 ## Before / after
 
 Baseline: `develop` at `425373c`. Same 46 labelled responses, source objectives and five models, three repetitions each. Final uses the updated judges and dataset criteria. Temperature: zero; no explicit token cap. These live results predate the follow-up retry-feedback and evidence-matching fixes.
