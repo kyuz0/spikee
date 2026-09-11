@@ -1,4 +1,4 @@
-"""Bounded format repair and diagnostics for attacker LLM responses."""
+"""Bounded format repair and diagnostics for structured LLM responses."""
 
 import json
 import re
@@ -128,6 +128,9 @@ def query_structured_response(
     context: str,
     max_attempts: int = 2,
     format_hint: str = "one complete JSON object",
+    repair_guidance: str = (
+        "Correct the formatting and retain the intended values and all valid entries."
+    ),
 ) -> T:
     """Repair format errors within a total call budget. Provider errors propagate."""
     if max_attempts < 1:
@@ -158,7 +161,7 @@ def query_structured_response(
                 HumanMessage(
                     f"Your previous response failed parsing or field validation: {exc}\n"
                     f"Return {format_hint}, satisfying the original required fields and types. "
-                    "Correct the formatting and retain the intended values and all valid entries. "
+                    f"{repair_guidance} "
                     "Return the complete corrected response, not a patch, without commentary or code fences."
                 ),
             ]

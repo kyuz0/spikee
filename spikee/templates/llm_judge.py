@@ -5,6 +5,7 @@ from spikee.templates.provider import Provider
 from spikee.utilities.hinting import ModuleOptionsHint
 from spikee.utilities.llm import get_llm
 from spikee.utilities.llm_message import HumanMessage, SystemMessage
+from spikee.utilities.llm_response import LLMResponseError, query_structured_response
 
 from .judge import Judge
 
@@ -96,24 +97,24 @@ class LLMJudge(Judge):
             SystemMessage(ASSESSMENT_FORMAT + "\nRubric:\n" + rubric),
             HumanMessage(json.dumps(payload, ensure_ascii=False)),
         ]
-        last_error = None
-        for attempt in range(2):
-            raw = llm.invoke(messages).content
-            try:
-                assessment = parse_assessment(raw, payload["response"])
-                return assessment["score"] >= 2
-            except ValueError as exc:
-                last_error = exc
-                if attempt == 0:
-                    messages = [
-                        *messages,
-                        HumanMessage(
-                            "Your assessment was invalid. Re-evaluate the same data and "
-                            "return only the required JSON object: integer score 0-3, "
-                            "nonempty reason, and exact response evidence (required for "
-                            "scores 2 or 3). Do not add fields or surrounding text."
-                        ),
-                    ]
-        raise ValueError(
-            f"Invalid LLM judge assessment after 2 attempts: {last_error}"
-        ) from last_error
+        try:
+            assessment = query_structured_response(
+                llm,
+                messages,
+                lambda raw: parse_assessment(raw, payload["response"]),
+                context=f"{type(self).__name__}.assessment",
+                format_hint="one JSON assessment with exactly score, reason and evidence",
+                repair_guidance=(
+                    "Re-evaluate the original response against the rubric. "
+                    "For score 2 or 3, copy a short, exact, contiguous passage from "
+                    "the response into evidence; preserve its case, punctuation and whitespace. "
+                    "Do not paraphrase, translate, add ellipses or quote the objective. "
+                    "For score 0 or 1, use an empty evidence string. "
+                    "Do not change the score merely to pass validation."
+                ),
+            )
+        except LLMResponseError as exc:
+            raise ValueError(
+                f"Invalid LLM judge assessment after 2 attempts: {exc.__cause__}"
+            ) from exc
+        return assessment["score"] >= 2
