@@ -417,3 +417,59 @@ def test_jsonl_uses_final_variations_after_reasoning():
 def test_reasoning_does_not_make_incomplete_attack_json_valid(raw):
     with pytest.raises(ValueError):
         parse_json_object(raw)
+
+
+@pytest.mark.parametrize("kind", SINGLES)
+def test_single_turn_generation_has_no_hardcoded_token_cap(kind, monkeypatch):
+    # A long generated input must reach the target intact, using provider limits.
+    prompt = "A harmless line of a poem.\n" * 120
+    llm = provider(json.dumps({"attack_prompt": prompt}))
+    get_llm = Mock(return_value=llm)
+    monkeypatch.setattr(f"{kind.__module__}.get_llm", get_llm)
+    target = SimpleNamespace(process_input=Mock(return_value="A harmless reply."))
+    judge = Mock(return_value=True)
+    entry = {"id": 1, "content": "Write a poem."}
+    result = kind().attack(
+        entry, target, judge, 1, attack_option="model=custom/test-model"
+    )
+    get_llm.assert_called_once_with("custom/test-model", max_tokens=None)
+    target.process_input.assert_called_once_with(prompt.strip(), None)
+    judge.assert_called_once_with(entry, "A harmless reply.")
+    assert result[1] is True
+
+
+@pytest.mark.parametrize("kind", SINGLES)
+def test_literal_newline_in_attack_prompt_does_not_need_repair(kind, capsys):
+    raw = '{"attack_prompt":"First line.\nSecond line.","rationale":"A poem."}'
+    llm = provider(raw)
+    assert run_generator(kind, llm) == "First line.\nSecond line."
+    llm.invoke.assert_called_once()
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "wrapper", ["{}", "```json\n{}\n```", "Here is the object:\n{}"]
+)
+@pytest.mark.parametrize("control", ["\n", "\t", "\r", "\x00"])
+def test_control_characters_inside_json_strings_are_preserved(wrapper, control):
+    value = f"First{control}second"
+    raw = '{"attack_prompt":"' + value + '"}'
+    obj = parse_json_object(wrapper.format(raw), string_keys=("attack_prompt",))
+    assert obj["attack_prompt"] == value
+    # Saved output remains standard JSON with escaped control characters.
+    assert json.loads(json.dumps(obj)) == obj
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"attack_prompt":"First\nsecond}',
+        '{"attack_prompt":"First\nsecond"',
+        '{"attack_prompt":"First\nsecond" "rationale":"missing comma"}',
+    ],
+)
+def test_control_character_tolerance_does_not_hide_incomplete_or_invalid_json(raw):
+    llm = provider(raw, '{"attack_prompt":"Corrected"}')
+    assert query(llm) == {"attack_prompt": "Corrected"}
+    assert llm.invoke.call_count == 2
+    assert llm.invoke.call_args.args[0][-2].content == raw

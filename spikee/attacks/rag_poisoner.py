@@ -176,7 +176,7 @@ class RAGPoisoner(Attack):
             )
 
         # Initialize the LLM
-        llm = get_llm(model_name, max_tokens=400)
+        llm = get_llm(model_name, max_tokens=None)
 
         # Track previous attack attempts to avoid repetition
         previous_attempts = []

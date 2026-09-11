@@ -45,15 +45,17 @@ def unwrap_json_response(text):
 def parse_json_object(text, required_keys=(), string_keys=()):
     """Accept fences/prose around one object; never invent or rewrite its values."""
     text = unwrap_json_response(text)
+    # LLMs sometimes leave literal newlines/tabs inside quoted strings. Preserve
+    # those characters as data; incomplete strings/objects still fail decoding.
     try:
-        obj = json.loads(text)
+        obj = json.loads(text, strict=False)
     except json.JSONDecodeError as original_error:
         # Decode one object, respecting quoted braces and escaped quotes. Do not
         # salvage an inner object from a malformed array or quoted JSON string.
         start = text.find("{")
         if start < 0 or text.startswith(("[", '"')):
             raise
-        obj, end = json.JSONDecoder().raw_decode(text, start)
+        obj, end = json.JSONDecoder(strict=False).raw_decode(text, start)
         if "{" in text[end:] or "[" in text[end:]:
             raise ValueError(
                 "Expected one JSON object, received multiple values"

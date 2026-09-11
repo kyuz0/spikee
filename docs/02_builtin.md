@@ -195,9 +195,10 @@ spikee test --dataset datasets/dataset-name.jsonl \
 
 ### Malformed attacker JSON
 
-Structured LLM attacks send malformed replies back to the same model with the parser/field-validation error and ask for a complete corrected response. Local parsing accepts code fences, explicit reasoning prefixes ending in `</think>`, or prose around an object and handles braces inside strings; it does not invent missing values.
+Structured LLM attacks send malformed replies back to the same model with the parser/field-validation error and ask for a complete corrected response. Local parsing accepts code fences, explicit reasoning prefixes ending in `</think>`, or prose around an object. Literal control characters inside quoted strings, such as newlines and tabs, are preserved as text. Missing commas, closing quotes or braces still require repair; the parser does not invent missing values.
 
 - **Call limits:** Crescendo allows 3 calls total per generation; Echo Chamber uses `stage-attempts`; GOAT generation uses `LLM_AGENT_RETRY`. Other structured calls allow 2 total (initial + one repair). Existing refusal fallbacks remain separate.
+- **Output length:** LLM Jailbreaker, its multilingual and poetry variants, and RAG Poisoner leave the output-token limit to the provider/model, as do Crescendo and GOAT. Generation and repair use the same provider settings.
 - **JSONL:** prompt decomposition repairs each batch once. If both replies are malformed, it keeps the batch with the most valid lines and retains its existing top-up/original-prompt fallback.
 - **Diagnostics:** failures log attack/stage, parser error, model, requested token cap, finish reason, token usage and remaining attempts. Provider metadata may be unavailable; successful first replies add no warning. Repair calls consume attacker inference, not target-attempt budget.
 
