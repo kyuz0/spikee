@@ -396,8 +396,7 @@ def test_schema_repair_includes_rejected_reply_and_validation_error(
     assert "exactly score and reason" in repair[-1].content
     assert "Do not change the score merely to pass validation" in repair[-1].content
     assert "verbatim" not in repair[-1].content
-    details = json.loads(capsys.readouterr().out.split("metadata: ", 1)[1])
-    assert details["attempts_remaining"] == 1
+    assert capsys.readouterr().out == ""
 
 
 @pytest.mark.parametrize("name", JUDGES)

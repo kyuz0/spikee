@@ -143,7 +143,7 @@ def query_structured_response(
         "Correct the formatting and retain the intended values and all valid entries."
     ),
 ) -> T:
-    """Repair format errors within a total call budget. Provider errors propagate."""
+    """Repair silently; log exhausted format failures. Provider errors propagate."""
     if max_attempts < 1:
         raise ValueError("max_attempts must be at least 1")
     request = list(messages)
@@ -154,11 +154,11 @@ def query_structured_response(
             return parser(reply.content)
         except ValueError as exc:
             remaining = max_attempts - attempt - 1
-            log_response_failure(llm, reply, context, exc, remaining)
             partial = getattr(exc, "partial", None)
             if partial and (not best_partial or len(partial) > len(best_partial)):
                 best_partial = partial
             if not remaining:
+                log_response_failure(llm, reply, context, exc, remaining)
                 raise LLMResponseError(
                     f"{context}: invalid response after {max_attempts} attempts: {exc}",
                     reply.content,

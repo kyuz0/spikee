@@ -111,7 +111,7 @@ def test_repair_contains_failed_reply_and_actual_error_without_mutating_history(
     assert repaired[-2].role == "assistant" and repaired[-2].content == bad
     assert "Expecting ',' delimiter" in repaired[-1].content
     assert "retain the intended values" in repaired[-1].content
-    assert capsys.readouterr().out.count("invalid LLM response") == 1
+    assert capsys.readouterr().out == ""
 
 
 def test_exhaustion_is_bounded_and_history_does_not_grow(capsys):
@@ -123,7 +123,7 @@ def test_exhaustion_is_bounded_and_history_does_not_grow(capsys):
     assert [len(r) for r in requests] == [1, 3, 3]
     assert requests[2][-2].content == "bad two"
     output = capsys.readouterr().out
-    assert output.count("invalid LLM response") == 3
+    assert output.count("invalid LLM response") == 1
     assert '"attempts_remaining": 0' in output
 
 
@@ -153,8 +153,9 @@ def test_diagnostics_include_only_selected_metadata(capsys, as_object):
     }
     if as_object:
         raw = json.loads(json.dumps(raw), object_hook=lambda x: SimpleNamespace(**x))
-    llm = provider("bad", "{}", metadata=raw)
-    assert query(llm) == {}
+    llm = provider("bad", "still bad", metadata=raw)
+    with pytest.raises(LLMResponseError):
+        query(llm)
     output = capsys.readouterr().out
     details = json.loads(output.split("metadata: ", 1)[1])
     assert details["model"] == "returned/model"
@@ -243,7 +244,7 @@ def test_every_attack_uses_shared_repair_and_valid_replies_are_quiet(
     assert run_generator(kind, llm)
     assert llm.invoke.call_count == (2 if bad_first else 1)
     output = capsys.readouterr().out
-    assert output.count("invalid LLM response") == int(bad_first)
+    assert output == ""
 
 
 @pytest.mark.parametrize("kind", SINGLES)
