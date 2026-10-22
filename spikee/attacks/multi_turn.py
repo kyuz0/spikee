@@ -1,17 +1,16 @@
-import uuid
-from typing import Callable
 import traceback
-
+import uuid
+from collections.abc import Callable
 
 from spikee.templates.attack import Attack
 from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.enums import ModuleTag, Turn
 from spikee.utilities.hinting import (
+    AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
-    AttackResponseHint,
     process_target_content,
 )
-from spikee.utilities.enums import Turn, ModuleTag
 
 
 class MultiTurnAttack(Attack):
@@ -56,7 +55,8 @@ class MultiTurnAttack(Attack):
             conversation = []
 
             count = 0
-            for message in original_text:
+            response = ""
+            for message in original_text[:max_iterations]:
                 # Send message and handle history
                 conversation.append({"role": "user", "content": message})
                 response = process_target_content(
@@ -71,8 +71,6 @@ class MultiTurnAttack(Attack):
 
                 # Implement Max Iteration
                 count += 1
-                if count > max_iterations:
-                    break
 
                 # Update attempts bar
                 if attempts_bar:
@@ -88,7 +86,7 @@ class MultiTurnAttack(Attack):
                     attempts_bar.total = attempts_bar.total - remaining
                     attempts_bar.refresh()
 
-            return len(original_text), success, {"conversation": conversation}, response
-        except Exception as e:
+            return count, success, {"conversation": conversation}, response
+        except Exception as e:  # noqa: BLE001
             traceback.print_exc()
-            return 0, False, f"Error during multi-turn attack: {str(e)}", ""
+            return 0, False, f"Error during multi-turn attack: {e!s}", ""

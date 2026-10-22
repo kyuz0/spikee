@@ -38,10 +38,12 @@ class CanaryJudge(Judge):
             return judge_args in llm_output
 
         elif isinstance(judge_args, list):
-            return any(arg in llm_output for arg in judge_args)
+            if not all(isinstance(arg, str) for arg in judge_args):
+                raise TypeError("judge_args must be a string or list of strings.")
+            return any(arg and arg in llm_output for arg in judge_args)
 
         else:
-            raise ValueError("judge_args must be a string or list of strings.")
+            raise TypeError("judge_args must be a string or list of strings.")
 
 
 if __name__ == "__main__":

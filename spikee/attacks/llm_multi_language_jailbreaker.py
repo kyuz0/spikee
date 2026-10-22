@@ -6,24 +6,26 @@ Usage:
   spikee test --attack llm_multi_language_jailbreaker --attack-iterations 5
   spikee test --attack llm_multi_language_jailbreaker --attack-iterations 10 --attack-options "model=openai/gpt-4o"
 Returns:
-  (iterations_used:int, success:bool, attack_prompt:str, last_response:str)
+  (iterations_used:int, success:bool, input_details:dict, last_response:str)
+  input_details contains the representative input and optional attempt_history.
 """
 
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
-from spikee.tester import AdvancedTargetWrapper
 from spikee.templates.attack import Attack
+from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.attack import attack_history_enabled
+from spikee.utilities.enums import ModuleTag
 from spikee.utilities.hinting import (
+    AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
-    AttackResponseHint,
     process_target_content,
 )
-from spikee.utilities.enums import ModuleTag
 from spikee.utilities.llm import get_llm
 from spikee.utilities.llm_message import HumanMessage
-from spikee.utilities.modules import parse_options, extract_json_or_fail
-
+from spikee.utilities.llm_response import parse_json_object, query_structured_response
+from spikee.utilities.modules import parse_options
 
 # Multilingual Jailbreaker prompt template
 SPIKEE_MULTI_LANGUAGE_JAILBREAKER_PROMPT = """
@@ -97,7 +99,7 @@ class LLMMultiLanguageJailbreaker(Attack):
         return [], True
 
     def _generate_multilingual_jailbreak_attack(
-        self, llm, objective: str, previous_attempts: List[Dict]
+        self, llm, objective: str, previous_attempts: list[dict]
     ) -> str:
         """Generate a multilingual jailbreak attack using the LLM."""
         # Format previous attempts for the prompt
@@ -123,14 +125,13 @@ class LLMMultiLanguageJailbreaker(Attack):
             )
         )
 
-        # call the model via .invoke
-        response = llm.invoke([prompt]).content.strip()
-
-        obj = extract_json_or_fail(response)
-        attack_prompt = obj.get("attack_prompt", "")
-        if not attack_prompt:
-            raise RuntimeError("LLM failed to produce an attack prompt")
-        return attack_prompt.strip()
+        obj = query_structured_response(
+            llm,
+            [prompt],
+            lambda text: parse_json_object(text, string_keys=("attack_prompt",)),
+            context="llm_multi_language_jailbreaker.generate",
+        )
+        return obj["attack_prompt"].strip()
 
     def attack(
         self,
@@ -147,6 +148,8 @@ class LLMMultiLanguageJailbreaker(Attack):
         For each iteration, it creates a new attack prompt using different languages and jailbreak techniques,
         then checks if the attack was successful.
         """
+        history = [] if attack_history_enabled() else None
+
         # Parse attack option for model selection
         opts = parse_options(attack_option)
         model_name = opts.get("model", self.DEFAULT_MODEL)
@@ -159,10 +162,15 @@ class LLMMultiLanguageJailbreaker(Attack):
             )
 
         if not objective:
-            return 0, False, "", "No objective provided in entry"
+            return (
+                0,
+                False,
+                self.standardised_input_return(input="", attempt_history=history),
+                "No objective provided in entry",
+            )
 
         # Initialize the LLM
-        llm = get_llm(model_name, max_tokens=400)
+        llm = get_llm(model_name, max_tokens=None)
 
         # Track previous attack attempts to avoid repetition
         previous_attempts = []
@@ -172,12 +180,15 @@ class LLMMultiLanguageJailbreaker(Attack):
         # Try different attack variations
         # Note: range is 1-indexed to match nice user-facing counting
         for i in range(1, max_iterations + 1):
+            candidate = ""
+            attempt_response = ""
             try:
                 # Generate a new attack prompt in a different language
                 attack_prompt = self._generate_multilingual_jailbreak_attack(
                     llm, objective, previous_attempts
                 )
 
+                candidate = attack_prompt
                 # Send the attack prompt to the target
                 last_response = process_target_content(
                     target_module.process_input(
@@ -185,6 +196,7 @@ class LLMMultiLanguageJailbreaker(Attack):
                         entry.get("system_message", None),
                     )
                 )
+                attempt_response = last_response
 
                 # Add this attempt to our history
                 previous_attempts.append(
@@ -192,7 +204,16 @@ class LLMMultiLanguageJailbreaker(Attack):
                 )
 
                 # Determine if the attack was successful
-                if call_judge(entry, last_response):
+                success = call_judge(entry, last_response)
+                if history is not None:
+                    history.append(
+                        {
+                            "input": attack_prompt,
+                            "response": attempt_response,
+                            "success": success,
+                        }
+                    )
+                if success:
                     if attempts_bar:
                         # Update progress bar to show we finished early
                         with bar_lock:
@@ -202,10 +223,27 @@ class LLMMultiLanguageJailbreaker(Attack):
                                     0, attempts_bar.total - remaining
                                 )
                                 attempts_bar.refresh()
-                    return i, True, attack_prompt, last_response
 
-            except Exception as e:
-                last_response = f"Error during attack attempt {i}: {str(e)}"
+                    return (
+                        i,
+                        True,
+                        self.standardised_input_return(
+                            input=attack_prompt, attempt_history=history
+                        ),
+                        last_response,
+                    )
+
+            except Exception as e:  # noqa: BLE001
+                last_response = f"Error during attack attempt {i}: {e!s}"
+                if history is not None:
+                    history.append(
+                        {
+                            "input": candidate,
+                            "response": attempt_response,
+                            "success": None,
+                            "error": str(e),
+                        }
+                    )
                 print(f"[LLMMultiLanguageJailbreaker] Error: {e}")
 
             # Update the progress bar
@@ -214,4 +252,11 @@ class LLMMultiLanguageJailbreaker(Attack):
                     attempts_bar.update(1)
 
         # If we've exhausted all attempts
-        return max_iterations, False, attack_prompt, last_response
+        return (
+            max_iterations,
+            False,
+            self.standardised_input_return(
+                input=attack_prompt, attempt_history=history
+            ),
+            last_response,
+        )

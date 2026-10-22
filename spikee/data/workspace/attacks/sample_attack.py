@@ -34,10 +34,10 @@ Parameters:
     attack_option: (optional) configuration option passed via --attack-options.
 
 Returns:
-    tuple: (iterations_attempted, success_flag, modified_input, last_response)
+    tuple: (iterations_attempted, success_flag, input_details, last_response)
            - iterations_attempted: number of iterations performed.
            - success_flag: True if an attack attempt was successful; False otherwise.
-           - modified_input: the input text (or payload) used in the final attack attempt.
+           - input_details: representative input and optional attempt_history.
            - last_response: the LLM's response from the final attempt.
 
 Notes:
@@ -48,11 +48,15 @@ Notes:
 """
 
 import random
-from typing import Callable
+from collections.abc import Callable
 
-from spikee.tester import AdvancedTargetWrapper
 from spikee.templates.attack import Attack
-from spikee.utilities.hinting import ModuleOptionsHint, AttackResponseHint
+from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.attack import attack_history_enabled
+from spikee.utilities.hinting import (
+    AttackResponseHint,
+    ModuleOptionsHint,
+)
 
 
 class SampleAttack(Attack):
@@ -91,7 +95,7 @@ class SampleAttack(Attack):
             attack_option (str, optional): Configuration option like "strategy=aggressive".
 
         Returns:
-            tuple: (iterations_attempted, success_flag, modified_input, last_response)
+            tuple: (iterations_attempted, success_flag, input_details, last_response)
         """
         # Parse attack option
         strategy = "random"  # default
@@ -104,6 +108,7 @@ class SampleAttack(Attack):
         # Use the payload if present; otherwise, operate on the full input.
         base = payload if payload else original_text
 
+        history = [] if attack_history_enabled() else None
         last_response = ""
         candidate_text = original_text  # default fallback
 
@@ -122,6 +127,7 @@ class SampleAttack(Attack):
             else:
                 candidate_text = candidate_base
 
+            attempt_response = ""
             try:
                 response = target_module.process_input(
                     candidate_text, entry.get("system_message", None)
@@ -132,20 +138,55 @@ class SampleAttack(Attack):
                 )
 
                 last_response = response
+                attempt_response = response
                 # Determine if this candidate is successful using the provided call_judge() function.
-                if call_judge(entry, response):
+                success = call_judge(entry, response)
+                if history is not None:
+                    history.append(
+                        {
+                            "input": candidate_text,
+                            "response": attempt_response,
+                            "success": success,
+                        }
+                    )
+                if success:
                     if attempts_bar:
                         # If we finish early, update the progress bar to remove iterations we did not run
                         with bar_lock:
                             remaining = max_iterations - i
                             attempts_bar.total = attempts_bar.total - remaining
                             attempts_bar.refresh()
-                    return i, True, candidate_text, response
-            except Exception as e:
+
+                    return (
+                        i,
+                        True,
+                        self.standardised_input_return(
+                            input=candidate_text, attempt_history=history
+                        ),
+                        response,
+                    )
+            except Exception as e:  # noqa: BLE001
                 last_response = str(e)
+                if history is not None:
+                    history.append(
+                        {
+                            "input": candidate_text,
+                            "response": attempt_response,
+                            "success": None,
+                            "error": str(e),
+                        }
+                    )
             if attempts_bar:
                 with bar_lock:
                     attempts_bar.update(1)
             # Implement throttling: wait briefly before next attempt.
             # time.sleep(0.5)
-        return max_iterations, False, candidate_text, last_response
+
+        return (
+            max_iterations,
+            False,
+            self.standardised_input_return(
+                input=candidate_text, attempt_history=history
+            ),
+            last_response,
+        )

@@ -21,22 +21,26 @@ Arguments:
         If provided, the attack will update it during its iterations.
 
 Returns:
-    A tuple: (iterations_attempted, success_flag, last_payload, last_response)
+    A tuple: (iterations_attempted, success_flag, input_details, last_response)
+
+The input_details dictionary retains the representative input and attempt_history.
+Set SPIKEE_ATTACK_HISTORY=false to omit history without changing attack execution.
 """
 
-import re
 import random
-from typing import Callable
+import re
+from collections.abc import Callable
 
-from spikee.tester import AdvancedTargetWrapper
 from spikee.templates.attack import Attack
+from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.attack import attack_history_enabled
+from spikee.utilities.enums import ModuleTag
 from spikee.utilities.hinting import (
+    AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
-    AttackResponseHint,
     process_target_content,
 )
-from spikee.utilities.enums import ModuleTag
 
 
 class BestOfNAttack(Attack):
@@ -65,6 +69,7 @@ class BestOfNAttack(Attack):
         bar_lock=None,
         attack_option: str = "",
     ) -> AttackResponseHint:
+        history = [] if attack_history_enabled() else None
         original_text = entry.get("content", entry.get("text", ""))
         if entry.get("content_type", "text") != "text":
             raise ValueError("Best-Of-N Attack only supports text content type.")
@@ -86,16 +91,30 @@ class BestOfNAttack(Attack):
                 candidate_text = self._generate_variant(original_text, exclusions)
             last_payload = candidate_text
 
+            error = None
+            attempt_response = ""
             try:
                 response = process_target_content(
                     target_module.process_input(candidate_text, system_message)
                 )
                 last_response = response
+                attempt_response = response
                 success = call_judge(entry, response)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
+                error = str(e)
                 success = False
                 last_response = str(e)
                 print(f"[Best-Of-N] Entry ID {entry['id']}: {e}")
+
+            if history is not None:
+                history.append(
+                    {
+                        "input": candidate_text,
+                        "response": attempt_response,
+                        "success": success if error is None else None,
+                        "error": error,
+                    }
+                )
 
             if attempts_bar:
                 with bar_lock:
@@ -108,9 +127,22 @@ class BestOfNAttack(Attack):
                         remaining = max_iterations - i
                         attempts_bar.total = attempts_bar.total - remaining
                         attempts_bar.refresh()
-                return i, True, candidate_text, response
 
-        return max_iterations, False, last_payload, last_response
+                return (
+                    i,
+                    True,
+                    self.standardised_input_return(
+                        input=candidate_text, attempt_history=history
+                    ),
+                    response,
+                )
+
+        return (
+            max_iterations,
+            False,
+            self.standardised_input_return(input=last_payload, attempt_history=history),
+            last_response,
+        )
 
     def _scramble_payload_only(self, original_text, payload, exclusions):
         """

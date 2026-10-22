@@ -34,23 +34,28 @@ Parameters:
         A progress bar to update with each iteration.
 
 Returns:
-    tuple: (iterations_attempted, success_flag, modified_input, last_response)
+    tuple: (iterations_attempted, success_flag, input_details, last_response)
+
+The input_details dictionary retains the representative input and attempt_history.
+Set SPIKEE_ATTACK_HISTORY=false to omit history without changing attack execution.
 """
 
 import random
+from collections.abc import Callable
+
 import numpy as np
 import tiktoken
-from typing import Callable
 
-from spikee.tester import AdvancedTargetWrapper
 from spikee.templates.attack import Attack
+from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.attack import attack_history_enabled
+from spikee.utilities.enums import ModuleTag
 from spikee.utilities.hinting import (
+    AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
-    AttackResponseHint,
     process_target_content,
 )
-from spikee.utilities.enums import ModuleTag
 
 
 class RandomSuffixSearch(Attack):
@@ -96,6 +101,7 @@ class RandomSuffixSearch(Attack):
         bar_lock=None,
         attack_option: str = "",
     ) -> AttackResponseHint:
+        history = [] if attack_history_enabled() else None
         original_text = entry.get("content", entry.get("text", ""))
         if entry.get("content_type", "text") != "text":
             raise ValueError(
@@ -144,6 +150,8 @@ class RandomSuffixSearch(Attack):
                 original_text, adv, payload=payload_field
             )
 
+            error = None
+            attempt_response = ""
             try:
                 # Call process_input. The wrapper guarantees a tuple is returned.
                 response = process_target_content(
@@ -151,11 +159,23 @@ class RandomSuffixSearch(Attack):
                         candidate, system_message, logprobs=False
                     )
                 )
+                attempt_response = response
 
                 success = call_judge(entry, response)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
+                error = str(e)
                 success = False
                 response = str(e)
+
+            if history is not None:
+                history.append(
+                    {
+                        "input": candidate,
+                        "response": attempt_response,
+                        "success": success if error is None else None,
+                        "error": error,
+                    }
+                )
 
             # Update progress bar safely.
             if attempts_bar:
@@ -168,6 +188,19 @@ class RandomSuffixSearch(Attack):
                         remaining = max_iterations - i
                         attempts_bar.total = attempts_bar.total - remaining
                         attempts_bar.refresh()
-                return i, True, candidate, response
 
-        return max_iterations, False, candidate, response
+                return (
+                    i,
+                    True,
+                    self.standardised_input_return(
+                        input=candidate, attempt_history=history
+                    ),
+                    response,
+                )
+
+        return (
+            max_iterations,
+            False,
+            self.standardised_input_return(input=candidate, attempt_history=history),
+            response,
+        )

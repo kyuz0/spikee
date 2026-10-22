@@ -32,6 +32,10 @@
                 ('Injection Delimiter',  entry.injection_delimiters),
                 ('Suffix ID',            entry.suffix_id),
                 ('Attempts / Calls',     entry.attempts),
+                ('Attack Attempt',       entry.attack_attempt),
+                ('Attack Invocation',    entry.attack_invocation),
+                ('Dataset Entry',        entry.attack_parent_id),
+                ('Result Format',        entry.attack_result_format),
             ] %}
                 {% if value and value is not none and value|string not in ('None', '') %}
                 <div class="col-6 col-md-3 col-lg-2">
@@ -54,6 +58,7 @@
         {# ---- Input + Response ---- #}
         {% include "partials/_input.html" %}
         {% include "partials/_response.html" %}
+        {% include "partials/_attempt_history.html" %}
 
         {# ---- Judge config ---- #}
         {% if entry.judge_name and entry.judge_name not in ('', 'None', none) %}

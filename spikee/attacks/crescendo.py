@@ -1,24 +1,25 @@
+from __future__ import annotations
+
+import threading
 import traceback
 import uuid
-from typing import List, Optional, Callable, Tuple, Dict, Any
-import threading
-import re
-import json
+from collections.abc import Callable
+from typing import Any
 
-from spikee.tester import AdvancedTargetWrapper
 from spikee.templates.attack import Attack
 from spikee.templates.standardised_conversation import StandardisedConversation
+from spikee.tester import AdvancedTargetWrapper
+from spikee.utilities.enums import ModuleTag, Turn
 from spikee.utilities.hinting import (
+    AttackResponseHint,
     ModuleDescriptionHint,
     ModuleOptionsHint,
-    AttackResponseHint,
     process_target_content,
 )
-from spikee.utilities.enums import Turn, ModuleTag
 from spikee.utilities.llm import get_llm
 from spikee.utilities.llm_message import HumanMessage
+from spikee.utilities.llm_response import parse_json_object, query_structured_response
 from spikee.utilities.modules import parse_options
-
 
 # Source: https://github.com/Azure/PyRIT/blob/bbed39cf249fca9ce20770550912b7254ae672fe/pyrit/datasets/orchestrators/crescendo/crescendo_variant_1.yaml
 SPIKEE_CRESCENDO_PROMPT = """
@@ -102,12 +103,6 @@ rationale_behind_jailbreak: Detail the reasoning behind the development of the p
 """
 
 
-class LLM_JSON_Error(Exception):
-    """Custom exception for LLM JSON extraction errors."""
-
-    pass
-
-
 class Crescendo(Attack):
     def __init__(self):
         """Define multi-turn capabilities for Crescendo attack."""
@@ -125,87 +120,10 @@ class Crescendo(Attack):
 
     # Options Parsing
 
-    def _parse_max_turns(self, opts: Dict[str, str]) -> int:
+    def _parse_max_turns(self, opts: dict[str, str]) -> int:
         return max(1, int(opts.get("max-turns", "5")))
 
     # Helpers
-
-    def _extract_json_or_fail(self, text: str) -> Dict[str, Any]:
-        """
-        Robust JSON extractor.
-
-        Steps:
-        1) If the LLM returned a fenced code block, use its contents.
-        2) If the text contains a langchain-style `content='...json...'` or `content="...json..."`,
-        extract the quoted section, then extract the first balanced {...} from that.
-        3) Try direct json.loads on the whole text.
-        4) As a last resort, scan the whole text for the first balanced {...} and parse it.
-        """
-        if not text:
-            raise LLM_JSON_Error("LLM returned empty response")
-
-        t = text.strip()
-
-        # 1) fenced code block
-        m = re.search(r"```(?:json)?\s*(.*?)```", t, flags=re.IGNORECASE | re.DOTALL)
-        if m:
-            t = m.group(1).strip()
-
-        # 2) langchain-style: content='...{...}...'
-        # capture the quoted payload after content=
-        m2 = re.search(
-            r"content\s*=\s*(['\"])(.*?)\1", t, flags=re.DOTALL | re.IGNORECASE
-        )
-        if m2:
-            quoted = m2.group(2)
-            # find first balanced {...} inside quoted
-            start = -1
-            depth = 0
-            for i, ch in enumerate(quoted):
-                if ch == "{":
-                    if depth == 0:
-                        start = i
-                    depth += 1
-                elif ch == "}":
-                    if depth > 0:
-                        depth -= 1
-                        if depth == 0 and start != -1:
-                            candidate = quoted[start : i + 1]
-                            try:
-                                return json.loads(candidate)
-                            except Exception:
-                                # if parsing fails, break and fall back to next strategies
-                                start = -1
-                                break
-            # if we couldn't parse from quoted, fall through to other attempts using full text
-
-        # 3) try direct JSON parse
-        try:
-            return json.loads(t)
-        except Exception:
-            pass
-
-        # 4) scan for first balanced {...} anywhere in the full text
-        start = -1
-        depth = 0
-        for i, ch in enumerate(t):
-            if ch == "{":
-                if depth == 0:
-                    start = i
-                depth += 1
-            elif ch == "}":
-                if depth > 0:
-                    depth -= 1
-                    if depth == 0 and start != -1:
-                        candidate = t[start : i + 1]
-                        try:
-                            return json.loads(candidate)
-                        except Exception:
-                            # keep scanning for the next top-level JSON object
-                            start = -1
-                            continue
-
-        raise LLM_JSON_Error("LLM did not return valid JSON object:", text)
 
     def _make_session_id(self) -> str:
         return str(uuid.uuid4())
@@ -213,7 +131,7 @@ class Crescendo(Attack):
     def _format_history_for_prompt(
         self, conversation: StandardisedConversation, last_message_id: int
     ) -> str:
-        lines: List[str] = []
+        lines: list[str] = []
         for node_id in conversation.get_path(last_message_id):
             node = conversation.get_message_data(node_id)
             lines.append(
@@ -241,13 +159,14 @@ class Crescendo(Attack):
             .replace("{{remaining_turns}}", str(remaining_turns))
         )
 
-        # Call generator LLM
-        res = llm.invoke([prompt]).content.strip()
-        obj = self._extract_json_or_fail(res)
-        q = obj.get("generated_question")
-        if not q:
-            raise LLM_JSON_Error("LLM failed to produce 'generated_question'")
-        return q.strip()
+        obj = query_structured_response(
+            llm,
+            [prompt],
+            lambda text: parse_json_object(text, string_keys=("generated_question",)),
+            context="crescendo.generate",
+            max_attempts=3,
+        )
+        return obj["generated_question"].strip()
 
     def _is_refusal(self, llm, text: str) -> bool:
         prompt = HumanMessage(
@@ -260,18 +179,18 @@ class Crescendo(Attack):
 
     def _run_attempt(
         self,
-        entry: Dict[str, Any],
+        entry: dict[str, Any],
         target_module: Any,
         call_judge: Callable,
         llm,
         max_turns: int,
         max_iterations: int,
-        attempts_bar: Optional[object],
-        bar_lock: Optional[threading.Lock],
+        attempts_bar: object | None,
+        bar_lock: threading.Lock | None,
         session_id: str,
         conversation: StandardisedConversation,
         last_message_id: int,
-    ) -> Tuple[int, StandardisedConversation, int, str]:
+    ) -> tuple[int, StandardisedConversation, int, str]:
         """
         Run a single conversation attempt.
         - max_iterations: the maximum number of calls allowed for this attempt (cannot exceed global budget).
@@ -297,25 +216,14 @@ class Crescendo(Attack):
             remaining_turns = max_turns - non_backtrack_turns
             prompt_message_id = last_message_id
 
-            json_error_attempts = 3
-            while json_error_attempts > 0:
-                try:
-                    prompt = self._generate_question(
-                        llm,
-                        objective,
-                        conversation,
-                        last_message_id,
-                        max_turns,
-                        remaining_turns,
-                    )
-                    json_error_attempts = 0  # success
-                except LLM_JSON_Error as e:
-                    print(
-                        f"[Warning] LLM did not return valid JSON object (attempts remaining {json_error_attempts}): {e}"
-                    )
-                    json_error_attempts -= 1
-                    if json_error_attempts <= 0:
-                        raise RuntimeError from e
+            prompt = self._generate_question(
+                llm,
+                objective,
+                conversation,
+                last_message_id,
+                max_turns,
+                remaining_turns,
+            )
             last_message_id = conversation.add_message(
                 last_message_id,
                 {"role": "user", "content": prompt, "spikee_session_id": session_id},
@@ -423,7 +331,7 @@ class Crescendo(Attack):
         llm = get_llm(model, max_tokens=None)
 
         # Variables
-        conversation = StandardisedConversation({"objective": objective})
+        conversation = StandardisedConversation({})
         last_message_id = conversation.get_root_id()  # last message id
         last_response = ""  # last LLM response
 
@@ -449,7 +357,7 @@ class Crescendo(Attack):
                     )
                 )
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 # surface generator / classifier / target errors in-line
                 traceback.print_exc()
                 return (

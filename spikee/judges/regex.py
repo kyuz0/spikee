@@ -41,14 +41,18 @@ class RegexJudge(Judge):
             return bool(pattern.search(llm_output))
 
         elif isinstance(judge_args, list):
+            if not all(isinstance(arg, str) for arg in judge_args):
+                raise TypeError("judge_args must be a string or list of strings.")
             for arg in judge_args:
+                if not arg:
+                    continue
                 pattern = re.compile(arg)
                 if pattern.search(llm_output):
                     return True
             return False
 
         else:
-            raise ValueError(
+            raise TypeError(
                 "judge_args must be a string or list of strings representing regex patterns."
             )
 

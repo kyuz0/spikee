@@ -1,8 +1,10 @@
+import hashlib
 import json
-from pathlib import Path
 import os
 import re
+import sys
 import time
+from pathlib import Path
 
 try:
     import tomllib
@@ -47,10 +49,9 @@ def write_jsonl_file(output_file, data):
 
 def append_jsonl_entry(output_file, entry, file_lock):
     """Appends a single entry to a JSONL file in a thread-safe manner."""
-    with file_lock:
-        with open(output_file, "a", encoding="utf-8") as f:
-            json.dump(entry, f, ensure_ascii=False)
-            f.write("\n")
+    with file_lock, open(output_file, "a", encoding="utf-8") as f:
+        json.dump(entry, f, ensure_ascii=False)
+        f.write("\n")
 
 
 # ==== Processing JSONL Input Files ====
@@ -67,7 +68,7 @@ def process_jsonl_input_files(file_paths, folder_paths, file_type=None):
 
     if result_files == []:
         print("[Error] No JSONL files included for analysis.")
-        exit(1)
+        sys.exit(1)
 
     return result_files
 
@@ -95,8 +96,7 @@ def extract_resource_name(file_name: str):
     file_name = os.path.basename(file_name)
     file_name = re.sub(r"^\d+-", "", file_name)
     file_name = re.sub(r".jsonl$", "", file_name)
-    if file_name.startswith("seeds-"):
-        file_name = file_name[len("seeds-") :]
+    file_name = file_name.removeprefix("seeds-")
     return file_name
 
 
@@ -124,16 +124,26 @@ def extract_directory_from_file_path(file_path: str):
     return os.path.dirname(file_path)
 
 
+def compact_filename_part(value: str, max_length: int = 64) -> str:
+    """Keep short safe names; append a hash whenever cleaning or shortening loses text."""
+    readable = re.sub(r"[^A-Za-z0-9_.-]+", "-", value)
+    readable = re.sub(r"-+", "-", readable).strip("-._")
+    if readable == value and len(readable) <= max_length:
+        return value
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+    readable = readable[: max_length - 13].rstrip("-._")
+    return f"{readable}-{digest}" if readable else digest
+
+
 def build_resource_name(*args) -> str:
-    parts = [arg for arg in args if arg is not None]
-    return "_".join(parts)
+    parts = [compact_filename_part(arg) for arg in args if arg is not None]
+    # Leave room for the timestamp, extension, and derived output suffixes.
+    return compact_filename_part("_".join(parts), max_length=160)
 
 
 def build_file_name(prefix, *args) -> str:
     ts = int(time.time())
-    parts = [prefix] + [arg for arg in args if arg is not None] + [str(ts)]
-
-    return "_".join(parts) + ".jsonl"
+    return f"{build_resource_name(prefix, *args)}_{ts}.jsonl"
 
 
 def does_resource_name_match(path: Path, resource_name: str) -> bool:
